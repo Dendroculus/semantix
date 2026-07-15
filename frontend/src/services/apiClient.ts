@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "../config/env";
+import { API_BASE_URL } from '../config/env';
 import type {
   ApiError,
   ApiResult,
@@ -6,28 +6,23 @@ import type {
   ClearCacheResponse,
   QueryRequest,
   QueryResponse,
-} from "../types/api";
-
+} from '../types/api';
 type Decoder<T> = (value: unknown) => T;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
+function number(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
 }
-
-function parseQueryResponse(value: unknown): QueryResponse {
+function query(value: unknown): QueryResponse {
   if (
-    !isRecord(value) ||
-    typeof value.response !== "string" ||
-    typeof value.cache_hit !== "boolean" ||
-    !isFiniteNumber(value.latency_ms) ||
-    !(value.similarity_score === null || isFiniteNumber(value.similarity_score))
-  ) {
-    throw new Error("Invalid query response");
-  }
+    !record(value) ||
+    typeof value.response !== 'string' ||
+    typeof value.cache_hit !== 'boolean' ||
+    !number(value.latency_ms) ||
+    !(value.similarity_score === null || number(value.similarity_score))
+  )
+    throw new Error('Invalid query response');
   return {
     response: value.response,
     cache_hit: value.cache_hit,
@@ -35,17 +30,15 @@ function parseQueryResponse(value: unknown): QueryResponse {
     latency_ms: value.latency_ms,
   };
 }
-
-function parseCacheStats(value: unknown): CacheStatsResponse {
+function stats(value: unknown): CacheStatsResponse {
   if (
-    !isRecord(value) ||
-    !isFiniteNumber(value.size) ||
-    !isFiniteNumber(value.hits) ||
-    !isFiniteNumber(value.misses) ||
-    !isFiniteNumber(value.hit_rate)
-  ) {
-    throw new Error("Invalid cache statistics response");
-  }
+    !record(value) ||
+    !number(value.size) ||
+    !number(value.hits) ||
+    !number(value.misses) ||
+    !number(value.hit_rate)
+  )
+    throw new Error('Invalid stats response');
   return {
     size: value.size,
     hits: value.hits,
@@ -53,135 +46,114 @@ function parseCacheStats(value: unknown): CacheStatsResponse {
     hit_rate: value.hit_rate,
   };
 }
-
-function parseClearResponse(value: unknown): ClearCacheResponse {
-  if (!isRecord(value) || value.cleared !== true) {
-    throw new Error("Invalid clear-cache response");
-  }
+function cleared(value: unknown): ClearCacheResponse {
+  if (!record(value) || value.cleared !== true)
+    throw new Error('Invalid clear response');
   return { cleared: true };
 }
-
-async function readJson(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (text.trim() === "") {
-    return null;
-  }
-  try {
-    return JSON.parse(text) as unknown;
-  } catch (error: unknown) {
-    if (error instanceof SyntaxError) {
-      throw new Error("Server returned malformed JSON");
-    }
-    throw error;
-  }
-}
-
-function parseApiError(value: unknown, status: number): ApiError {
+function apiError(value: unknown, status: number): ApiError {
   if (
-    isRecord(value) &&
-    typeof value.error === "string" &&
-    (value.detail === null || typeof value.detail === "string")
-  ) {
+    record(value) &&
+    typeof value.error === 'string' &&
+    (value.detail === null || typeof value.detail === 'string')
+  )
     return { code: value.error, detail: value.detail, status };
-  }
   return {
-    code: "invalid_error_response",
-    detail: "The server returned an unexpected error response.",
+    code: 'invalid_error_response',
+    detail: 'The server returned an unexpected response.',
     status,
   };
 }
-
 async function request<T>(
   path: string,
   decoder: Decoder<T>,
-  init?: RequestInit,
+  init: RequestInit,
 ): Promise<ApiResult<T>> {
   let response: Response;
   try {
     response = await fetch(API_BASE_URL + path, {
       ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...init?.headers,
-      },
+      headers: { 'Content-Type': 'application/json', ...init.headers },
     });
   } catch (error: unknown) {
     return {
       ok: false,
       error: {
-        code: "network_error",
-        detail: error instanceof Error ? error.message : "The network request failed.",
+        code: 'network_error',
+        detail:
+          error instanceof Error ? error.message : 'Network request failed.',
         status: null,
       },
     };
   }
-
   let payload: unknown;
   try {
-    payload = await readJson(response);
-  } catch (error: unknown) {
+    const text = await response.text();
+    payload = text.trim() === '' ? null : (JSON.parse(text) as unknown);
+  } catch {
     return {
       ok: false,
       error: {
-        code: "invalid_response",
-        detail: error instanceof Error ? error.message : "The server response could not be read.",
+        code: 'invalid_response',
+        detail: 'The server returned malformed JSON.',
         status: response.status,
       },
     };
   }
-
-  if (!response.ok) {
-    return { ok: false, error: parseApiError(payload, response.status) };
-  }
-
+  if (!response.ok)
+    return { ok: false, error: apiError(payload, response.status) };
   try {
     return { ok: true, data: decoder(payload) };
   } catch (error: unknown) {
     return {
       ok: false,
       error: {
-        code: "invalid_response",
-        detail: error instanceof Error ? error.message : "The server returned an invalid response.",
+        code: 'invalid_response',
+        detail: error instanceof Error ? error.message : 'Invalid response.',
         status: response.status,
       },
     };
   }
 }
-
-function withSignal(init: RequestInit, signal?: AbortSignal): RequestInit {
-  if (signal === undefined) {
-    return init;
-  }
-  return { ...init, signal };
+function signal(init: RequestInit, value?: AbortSignal): RequestInit {
+  return value === undefined ? init : { ...init, signal: value };
 }
-
 export function submitQuery(
   payload: QueryRequest,
-  signal?: AbortSignal,
+  value?: AbortSignal,
 ): Promise<ApiResult<QueryResponse>> {
   return request(
-    "/api/v1/query",
-    parseQueryResponse,
-    withSignal(
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      },
-      signal,
-    ),
+    '/api/v1/query',
+    query,
+    signal({ method: 'POST', body: JSON.stringify(payload) }, value),
   );
 }
-
 export function getCacheStats(
-  signal?: AbortSignal,
+  value?: AbortSignal,
 ): Promise<ApiResult<CacheStatsResponse>> {
   return request(
-    "/api/v1/cache/stats",
-    parseCacheStats,
-    withSignal({ method: "GET" }, signal),
+    '/api/v1/cache/stats',
+    stats,
+    signal({ method: 'GET' }, value),
   );
 }
-
 export function clearCache(): Promise<ApiResult<ClearCacheResponse>> {
-  return request("/api/v1/cache", parseClearResponse, { method: "DELETE" });
+  return request('/api/v1/cache', cleared, { method: 'DELETE' });
+}
+
+export function getCacheThreshold(): Promise<
+  ApiResult<CacheThresholdResponse>
+> {
+  return request('/api/v1/cache/threshold', parseCacheThresholdResponse, {
+    method: 'GET',
+  });
+}
+
+export function updateCacheThreshold(
+  threshold: number,
+): Promise<ApiResult<CacheThresholdResponse>> {
+  return request('/api/v1/cache/threshold', parseCacheThresholdResponse, {
+    method: 'PUT',
+    body: JSON.stringify({ threshold }),
+  });
 }

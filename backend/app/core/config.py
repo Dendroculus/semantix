@@ -1,18 +1,11 @@
 from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlparse
-
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore")
     hf_api_key: SecretStr = Field(min_length=1)
     hf_base_url: str = "https://router.huggingface.co/hf-inference/models"
     hf_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -52,7 +45,6 @@ class Settings(BaseSettings):
         if len(normalized) != len(set(normalized)):
             raise ValueError("ALLOWED_ORIGINS must not contain duplicates")
         return normalized
-
 
 @lru_cache
 def get_settings() -> Settings:
