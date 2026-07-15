@@ -3,14 +3,19 @@ import logging
 from datetime import UTC, datetime
 from typing import Final
 
+
 class RedactingJsonFormatter(logging.Formatter):
     def __init__(self, secrets: tuple[str, ...]) -> None:
         super().__init__()
-        self._secrets: Final[tuple[str, ...]] = tuple(value for value in secrets if value)
+        self._secrets: Final[tuple[str, ...]] = tuple(
+            value for value in secrets if value
+        )
+
     def _redact(self, value: str) -> str:
         for secret in self._secrets:
             value = value.replace(secret, "[REDACTED]")
         return value
+
     def format(self, record: logging.LogRecord) -> str:
         payload = {
             "timestamp": datetime.now(UTC).isoformat(),
@@ -21,6 +26,7 @@ class RedactingJsonFormatter(logging.Formatter):
         if record.exc_info is not None:
             payload["exception"] = self._redact(self.formatException(record.exc_info))
         return json.dumps(payload, ensure_ascii=False)
+
 
 def configure_logging(level: str, secrets: tuple[str, ...]) -> None:
     handler = logging.StreamHandler()

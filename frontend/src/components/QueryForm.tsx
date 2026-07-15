@@ -1,4 +1,5 @@
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 
 interface QueryFormProps {
   isLoading: boolean;
@@ -16,113 +17,81 @@ export function QueryForm({ isLoading, onSubmit }: QueryFormProps): JSX.Element 
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    const normalized = prompt.trim();
+    const normalizedPrompt = prompt.trim();
 
-    if (normalized.length === 0) {
-      setValidationError("Enter a prompt before submitting.");
+    if (normalizedPrompt.length === 0) {
+      setValidationError("A blank prompt has no semantic neighborhood.");
       return;
     }
-    if (normalized.length > 2_000) {
-      setValidationError("Prompt must be 2,000 characters or fewer.");
+
+    if (normalizedPrompt.length > 2_000) {
+      setValidationError("Keep the prompt at or below 2,000 characters.");
       return;
     }
 
     setValidationError(null);
-    await onSubmit(normalized);
+    await onSubmit(normalizedPrompt);
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/65 shadow-2xl shadow-black/20 backdrop-blur-xl">
-      <div className="border-b border-white/5 px-5 py-4 sm:px-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-400/10 text-sky-300">
-            <svg
-              aria-hidden="true"
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-            >
-              <path d="M5 5.5h14v10H9l-4 3v-13Z" />
-              <path d="M8.5 9h7M8.5 12h4.5" />
-            </svg>
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-white">Ask a question</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              We check the semantic cache before generating.
-            </p>
-          </div>
+    <section aria-labelledby="query-heading">
+      <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <h1 className="font-display text-3xl italic" id="query-heading">
+            Probe the cache
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
+            Each prompt is embedded, compared with the nearest stored vector,
+            then either reused or sent upstream.
+          </p>
         </div>
+
+        <p className="ui-label text-[var(--text-faint)]">Max 2,000 chars</p>
       </div>
 
-      <form className="p-5 sm:p-6" onSubmit={(event) => void handleSubmit(event)}>
-        <label
-          className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"
-          htmlFor="prompt"
-        >
-          Your prompt
+      <form onSubmit={(event) => void handleSubmit(event)}>
+        <label className="ui-label mb-2 block text-[var(--text-muted)]" htmlFor="prompt">
+          Query text
         </label>
 
-        <div
-          className={[
-            "rounded-xl border bg-slate-950/70 transition",
-            "focus-within:border-sky-400/50 focus-within:ring-4 focus-within:ring-sky-400/5",
-            validationError === null
-              ? "border-white/10"
-              : "border-rose-400/40",
-          ].join(" ")}
-        >
-          <textarea
-            id="prompt"
-            name="prompt"
-            rows={7}
-            maxLength={2_000}
-            value={prompt}
-            disabled={isLoading}
-            onChange={(event) => {
-              setPrompt(event.target.value);
-              if (validationError !== null) {
-                setValidationError(null);
-              }
-            }}
-            aria-describedby={validationError === null ? "prompt-hint" : "prompt-error"}
-            placeholder="What would you like to know?"
-            className="scrollbar-thin block min-h-44 w-full resize-y rounded-xl border-0 bg-transparent px-4 py-4 text-sm leading-6 text-slate-100 outline-none placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[15px]"
-          />
-          <div className="flex items-center justify-between border-t border-white/5 px-4 py-2.5">
-            <p id="prompt-hint" className="text-xs text-slate-600">
-              Clear, focused prompts produce better matches.
-            </p>
-            <span
-              className={[
-                "ml-4 shrink-0 text-xs tabular-nums",
-                prompt.length > 1_800 ? "text-amber-300" : "text-slate-600",
-              ].join(" ")}
-            >
-              {prompt.length.toLocaleString()} / 2,000
-            </span>
-          </div>
+        <textarea
+          id="prompt"
+          aria-describedby={validationError === null ? "prompt-note" : "prompt-error"}
+          className="scrollbar-thin block min-h-36 w-full resize-y border border-[var(--hairline)] bg-[var(--surface)] px-4 py-4 text-sm leading-6 text-[var(--text)] outline-none transition-colors placeholder:text-[var(--text-faint)] focus:border-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-55"
+          disabled={isLoading}
+          maxLength={2_000}
+          name="prompt"
+          placeholder="Describe the thing you want the cache to recognize."
+          rows={6}
+          value={prompt}
+          onChange={(event) => {
+            setPrompt(event.target.value);
+            setValidationError(null);
+          }}
+        />
+
+        <div className="font-data mt-2 flex items-start justify-between gap-4 text-[10px] text-[var(--text-faint)]">
+          <p id="prompt-note">Focused wording makes the neighborhood easier to inspect.</p>
+          <span className="shrink-0 tabular-nums">{prompt.length} / 2000</span>
         </div>
 
         {validationError !== null && (
-          <p className="mt-2 text-xs font-medium text-rose-300" id="prompt-error" role="alert">
+          <p className="font-data mt-3 text-[11px] text-[var(--coral)]" id="prompt-error" role="alert">
             {validationError}
           </p>
         )}
 
-        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <p className="mb-2 text-xs text-slate-600">Try an example</p>
-            <div className="flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="ui-label mb-2 text-[var(--text-faint)]">Sample probes</p>
+            <div className="flex flex-col items-start gap-1.5">
               {EXAMPLE_PROMPTS.map((example) => (
                 <button
                   key={example}
-                  type="button"
+                  className="text-left text-xs text-[var(--teal)] underline decoration-[rgba(91,156,148,0.35)] underline-offset-4 transition-colors hover:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-[var(--teal)] disabled:opacity-50"
                   disabled={isLoading}
+                  type="button"
                   onClick={() => setPrompt(example)}
-                  className="max-w-full truncate rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 text-left text-xs text-slate-400 transition hover:border-sky-400/25 hover:bg-sky-400/5 hover:text-sky-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 disabled:opacity-50"
                 >
                   {example}
                 </button>
@@ -131,38 +100,11 @@ export function QueryForm({ isLoading, onSubmit }: QueryFormProps): JSX.Element 
           </div>
 
           <button
-            type="submit"
+            className="ui-label w-full border border-[var(--gold)] bg-[var(--gold)] px-5 py-3 text-[var(--ink)] transition-colors hover:bg-transparent hover:text-[var(--gold)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto"
             disabled={isLoading}
-            className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-400 to-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-500/10 transition hover:-translate-y-0.5 hover:shadow-sky-400/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            type="submit"
           >
-            {isLoading ? (
-              <>
-                <svg
-                  aria-hidden="true"
-                  className="h-4 w-4 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" />
-                  <path className="opacity-80" d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-                Processing
-              </>
-            ) : (
-              <>
-                Run query
-                <svg
-                  aria-hidden="true"
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="m9 5 7 7-7 7" />
-                </svg>
-              </>
-            )}
+            {isLoading ? "Embedding + lookup" : "Run query"}
           </button>
         </div>
       </form>

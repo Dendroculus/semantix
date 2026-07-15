@@ -5,14 +5,15 @@ import { QueryForm } from "./components/QueryForm";
 import { QueryLog } from "./components/QueryLog";
 import { ResponseCard } from "./components/ResponseCard";
 import { SimilarityRadar } from "./components/SimilarityRadar";
+import { useQuery } from "./hooks/useQuery";
 import {
+  clearCache,
   getCacheStats,
   getCacheThreshold,
   updateCacheThreshold,
 } from "./services/apiClient";
 import type { CacheStatsResponse } from "./types/api";
 import type { QueryTrace } from "./types/dashboard";
-import { useQuery } from "./hooks/useQuery";
 
 function UptimeClock(): JSX.Element {
   const [startedAt] = useState(() => Date.now());
@@ -33,9 +34,7 @@ function UptimeClock(): JSX.Element {
 
   return (
     <div className="text-right">
-      <p className="ui-label text-[color:rgba(234,230,221,0.35)]">
-        Session uptime
-      </p>
+      <p className="ui-label text-[var(--text-faint)]">Session uptime</p>
       <time className="font-data mt-1 block text-xs">
         {hours.toString().padStart(2, "0")}:
         {minutes.toString().padStart(2, "0")}:
@@ -47,11 +46,11 @@ function UptimeClock(): JSX.Element {
 
 export default function App(): JSX.Element {
   const { state, submit } = useQuery();
-
   const [traces, setTraces] = useState<QueryTrace[]>([]);
   const [threshold, setThreshold] = useState(0.92);
-  const [cacheStats, setCacheStats] =
-    useState<CacheStatsResponse | null>(null);
+  const [cacheStats, setCacheStats] = useState<CacheStatsResponse | null>(null);
+  const [controlError, setControlError] = useState<string | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
 
   const refreshCacheState = useCallback(async (): Promise<void> => {
     const [statsResult, thresholdResult] = await Promise.all([
@@ -79,16 +78,20 @@ export default function App(): JSX.Element {
       return;
     }
 
-    const trace: QueryTrace = {
-      id: crypto.randomUUID(),
-      prompt,
-      similarity: result.similarity_score ?? 0,
-      latencyMs: result.latency_ms,
-      recordedAt: new Date(),
-      actualCacheHit: result.cache_hit,
-    };
+    setTraces((current) =>
+      [
+        {
+          id: crypto.randomUUID(),
+          prompt,
+          similarity: result.similarity_score ?? 0,
+          latencyMs: result.latency_ms,
+          recordedAt: new Date(),
+          actualCacheHit: result.cache_hit,
+        },
+        ...current,
+      ].slice(0, 40),
+    );
 
-    setTraces((current) => [trace, ...current].slice(0, 40));
     await refreshCacheState();
   }
 
@@ -97,16 +100,36 @@ export default function App(): JSX.Element {
 
     if (result.ok) {
       setThreshold(result.data.threshold);
+      setControlError(null);
+      return;
     }
+
+    setControlError("THRESHOLD UPDATE FAILED; THE SERVER VALUE WAS RESTORED");
+    await refreshCacheState();
+  }
+
+  async function handleClearCache(): Promise<void> {
+    setIsClearing(true);
+    const result = await clearCache();
+    setIsClearing(false);
+
+    if (!result.ok) {
+      setControlError("CACHE CLEAR FAILED; THE STORE WAS LEFT ALONE");
+      return;
+    }
+
+    setTraces([]);
+    setControlError(null);
+    await refreshCacheState();
   }
 
   return (
     <div className="min-h-screen bg-[var(--ink)] px-4 py-6 text-[var(--text)] sm:px-8 sm:py-8">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-10 flex items-end justify-between border-b border-[var(--hairline)] pb-7">
+        <header className="mb-10 flex items-end justify-between gap-6 border-b border-[var(--hairline)] pb-7">
           <div>
             <p className="ui-label text-[var(--gold)]">Semantix</p>
-            <p className="font-display mt-1 text-xl italic text-[color:rgba(234,230,221,0.78)]">
+            <p className="font-display mt-1 text-xl italic text-[var(--text-soft)]">
               Semantic cache field monitor
             </p>
           </div>
@@ -121,12 +144,8 @@ export default function App(): JSX.Element {
           />
 
           {state.status === "error" && (
-            <p
-              className="font-data mt-4 text-[11px] text-[var(--coral)]"
-              role="alert"
-            >
-              QUERY FAILED ·{" "}
-              {state.error.detail ?? "THE PROVIDER RETURNED NO USEFUL DETAIL"}
+            <p className="font-data mt-4 text-[11px] text-[var(--coral)]" role="alert">
+              QUERY FAILED / {state.error.detail ?? "THE PROVIDER RETURNED NO DETAIL"}
             </p>
           )}
 
@@ -146,11 +165,19 @@ export default function App(): JSX.Element {
           />
 
           <FieldMetrics
-            traces={traces}
-            threshold={threshold}
             cacheStats={cacheStats}
+            isClearing={isClearing}
+            threshold={threshold}
+            traces={traces}
+            onClear={() => void handleClearCache()}
           />
         </main>
+
+        {controlError !== null && (
+          <p className="font-data mt-8 text-[11px] text-[var(--coral)]" role="alert">
+            {controlError}
+          </p>
+        )}
 
         <QueryLog traces={traces} threshold={threshold} />
       </div>
