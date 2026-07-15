@@ -1,28 +1,37 @@
 services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
+    volumes:
+      - ./backend/app:/app/app
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+    ports:
+      - "8000:8000"
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-
-    command: npm run dev -- --host 0.0.0.0 --port 4173
-
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
     environment:
       VITE_API_BASE_URL: http://localhost:8000
-      CHOKIDAR_USEPOLLING: "true"
-      CHOKIDAR_INTERVAL: "200"
-
     volumes:
-      # Synchronizes your local frontend code with the container.
       - ./frontend:/app
-
-      # Prevents the bind mount from hiding container dependencies.
-      - frontend_node_modules:/app/node_modules
-
+      - /app/node_modules
     ports:
       - "4173:4173"
-
     depends_on:
       - backend
-
-volumes:
-  frontend_node_modules:
