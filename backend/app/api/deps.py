@@ -1,7 +1,5 @@
 from typing import cast
-
 from fastapi import Request
-
 from app.services.cache_service import SemanticCache
 from app.services.huggingface_service import HuggingFaceService
 

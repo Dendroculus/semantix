@@ -4,6 +4,8 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  cacheDir: ".vite-cache",
+
   plugins: [react(), tailwindcss()],
 
   resolve: {

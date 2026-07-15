@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request
-
 from app.core.config import get_settings
 from app.middleware.rate_limit import limiter
 from app.models.schemas import HealthResponse

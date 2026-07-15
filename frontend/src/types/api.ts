@@ -20,6 +20,10 @@ export interface ClearCacheResponse {
   cleared: true;
 }
 
+export interface CacheThresholdResponse {
+  threshold: number;
+}
+
 export interface ApiError {
   code: string;
   detail: string | null;

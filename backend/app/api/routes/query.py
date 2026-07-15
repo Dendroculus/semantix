@@ -27,15 +27,19 @@ async def query(
     lookup = await cache.lookup(payload.prompt)
 
     if lookup.cache_hit:
-        response_text = lookup.response
-        if response_text is None:
+        if lookup.response is None:
             raise RuntimeError("Validated cache hit had no response")
+        response_text = lookup.response
     else:
         response_text = await provider.generate(payload.prompt)
         await cache.store(payload.prompt, response_text, lookup.embedding)
 
     latency_ms = (perf_counter() - started_at) * 1_000
-    logger.info("Query completed cache_hit=%s latency_ms=%.2f", lookup.cache_hit, latency_ms)
+    logger.info(
+        "Query completed cache_hit=%s latency_ms=%.2f",
+        lookup.cache_hit,
+        latency_ms,
+    )
     return QueryResponse(
         response=response_text,
         cache_hit=lookup.cache_hit,

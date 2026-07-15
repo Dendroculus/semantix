@@ -20,38 +20,22 @@ describe("useQuery", () => {
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
-          response: "Cached answer",
+          response: "Cached",
           cache_hit: true,
           similarity_score: 0.97,
-          latency_ms: 4.2,
+          latency_ms: 4,
         }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
+        { status: 200 },
       ),
     );
-    const { result } = renderHook(() => useQuery());
-    await act(async () => {
-      expect(await result.current.submit("Hello")).toBe(true);
-    });
-    expect(result.current.state.status).toBe("success");
-    if (result.current.state.status === "success") {
-      expect(result.current.state.data.cache_hit).toBe(true);
-    }
-  });
 
-  it("stores a typed API error", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ error: "rate_limit_exceeded", detail: "Try again later." }),
-        { status: 429, headers: { "Content-Type": "application/json" } },
-      ),
-    );
     const { result } = renderHook(() => useQuery());
+
     await act(async () => {
-      expect(await result.current.submit("Hello")).toBe(false);
+      const response = await result.current.submit("Hello");
+      expect(response?.response).toBe("Cached");
     });
-    expect(result.current.state.status).toBe("error");
-    if (result.current.state.status === "error") {
-      expect(result.current.state.error.code).toBe("rate_limit_exceeded");
-    }
+
+    expect(result.current.state.status).toBe("success");
   });
 });

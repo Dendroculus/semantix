@@ -1,17 +1,13 @@
 from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlparse
-
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
     )
     hf_api_key: SecretStr = Field(min_length=1)
     hf_base_url: str = "https://router.huggingface.co/hf-inference/models"
@@ -23,7 +19,9 @@ class Settings(BaseSettings):
     max_cache_size: int = Field(default=500, ge=1, le=100_000)
     cache_ttl_seconds: int | None = Field(default=3600, gt=0)
     allowed_origins: list[str] = Field(min_length=1)
-    rate_limit: str = Field(default="20/minute", pattern=r"^\d+/(second|minute|hour|day)$")
+    rate_limit: str = Field(
+        default="20/minute", pattern=r"^\d+/(second|minute|hour|day)$"
+    )
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
     @field_validator("hf_base_url")

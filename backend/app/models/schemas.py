@@ -2,7 +2,6 @@ import math
 import re
 from datetime import datetime
 from typing import Literal
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 EMBEDDING_DIMENSIONS = 384
@@ -24,9 +23,9 @@ class QueryRequest(StrictModel):
     def sanitize_prompt(cls, value: object) -> object:
         if not isinstance(value, str):
             return value
-        cleaned = _CONTROL_CHARACTERS.sub(" ", value)
-        cleaned = _REPEATED_WHITESPACE.sub(" ", cleaned)
-        return cleaned.strip()
+        return _REPEATED_WHITESPACE.sub(
+            " ", _CONTROL_CHARACTERS.sub(" ", value)
+        ).strip()
 
 
 class QueryResponse(StrictModel):
@@ -36,7 +35,7 @@ class QueryResponse(StrictModel):
     latency_ms: float = Field(ge=0)
 
     @model_validator(mode="after")
-    def validate_cache_hit_score(self) -> "QueryResponse":
+    def validate_hit(self) -> "QueryResponse":
         if self.cache_hit and self.similarity_score is None:
             raise ValueError("A cache hit must include a similarity score")
         return self
@@ -66,7 +65,9 @@ class CacheEntry(StrictModel):
     cache_key: str = Field(pattern=r"^[a-f0-9]{64}$")
     prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
     response: str = Field(min_length=1, max_length=MAX_RESPONSE_LENGTH)
-    embedding: list[float] = Field(min_length=EMBEDDING_DIMENSIONS, max_length=EMBEDDING_DIMENSIONS)
+    embedding: list[float] = Field(
+        min_length=EMBEDDING_DIMENSIONS, max_length=EMBEDDING_DIMENSIONS
+    )
     created_at: datetime
 
     @field_validator("embedding")
@@ -93,12 +94,20 @@ class CacheLookupResult(StrictModel):
     cache_hit: bool
     response: str | None = Field(default=None, max_length=MAX_RESPONSE_LENGTH)
     similarity_score: float | None = Field(default=None, ge=-1, le=1)
-    embedding: list[float] = Field(min_length=EMBEDDING_DIMENSIONS, max_length=EMBEDDING_DIMENSIONS)
+    embedding: list[float] = Field(
+        min_length=EMBEDDING_DIMENSIONS, max_length=EMBEDDING_DIMENSIONS
+    )
 
     @model_validator(mode="after")
     def validate_hit(self) -> "CacheLookupResult":
-        if self.cache_hit and self.response is None:
-            raise ValueError("A cache hit must include a response")
-        if self.cache_hit and self.similarity_score is None:
-            raise ValueError("A cache hit must include a similarity score")
+        if self.cache_hit and (self.response is None or self.similarity_score is None):
+            raise ValueError("A cache hit must include a response and similarity score")
         return self
+
+
+class CacheThresholdRequest(StrictModel):
+    threshold: float = Field(ge=0, le=1)
+
+
+class CacheThresholdResponse(StrictModel):
+    threshold: float = Field(ge=0, le=1)

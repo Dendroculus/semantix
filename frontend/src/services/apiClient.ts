@@ -3,6 +3,7 @@ import type {
   ApiError,
   ApiResult,
   CacheStatsResponse,
+  CacheThresholdResponse,
   ClearCacheResponse,
   QueryRequest,
   QueryResponse,
@@ -18,7 +19,7 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function parseQueryResponse(value: unknown): QueryResponse {
+function decodeQueryResponse(value: unknown): QueryResponse {
   if (
     !isRecord(value) ||
     typeof value.response !== "string" ||
@@ -28,6 +29,7 @@ function parseQueryResponse(value: unknown): QueryResponse {
   ) {
     throw new Error("Invalid query response");
   }
+
   return {
     response: value.response,
     cache_hit: value.cache_hit,
@@ -36,7 +38,7 @@ function parseQueryResponse(value: unknown): QueryResponse {
   };
 }
 
-function parseCacheStats(value: unknown): CacheStatsResponse {
+function decodeCacheStats(value: unknown): CacheStatsResponse {
   if (
     !isRecord(value) ||
     !isFiniteNumber(value.size) ||
@@ -44,8 +46,9 @@ function parseCacheStats(value: unknown): CacheStatsResponse {
     !isFiniteNumber(value.misses) ||
     !isFiniteNumber(value.hit_rate)
   ) {
-    throw new Error("Invalid cache statistics response");
+    throw new Error("Invalid cache stats response");
   }
+
   return {
     size: value.size,
     hits: value.hits,
@@ -54,29 +57,28 @@ function parseCacheStats(value: unknown): CacheStatsResponse {
   };
 }
 
-function parseClearResponse(value: unknown): ClearCacheResponse {
+function decodeClearCache(value: unknown): ClearCacheResponse {
   if (!isRecord(value) || value.cleared !== true) {
     throw new Error("Invalid clear-cache response");
   }
+
   return { cleared: true };
 }
 
-async function readJson(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (text.trim() === "") {
-    return null;
+function decodeCacheThreshold(value: unknown): CacheThresholdResponse {
+  if (
+    !isRecord(value) ||
+    !isFiniteNumber(value.threshold) ||
+    value.threshold < 0 ||
+    value.threshold > 1
+  ) {
+    throw new Error("Invalid cache-threshold response");
   }
-  try {
-    return JSON.parse(text) as unknown;
-  } catch (error: unknown) {
-    if (error instanceof SyntaxError) {
-      throw new Error("Server returned malformed JSON");
-    }
-    throw error;
-  }
+
+  return { threshold: value.threshold };
 }
 
-function parseApiError(value: unknown, status: number): ApiError {
+function decodeApiError(value: unknown, status: number): ApiError {
   if (
     isRecord(value) &&
     typeof value.error === "string" &&
@@ -84,9 +86,10 @@ function parseApiError(value: unknown, status: number): ApiError {
   ) {
     return { code: value.error, detail: value.detail, status };
   }
+
   return {
     code: "invalid_error_response",
-    detail: "The server returned an unexpected error response.",
+    detail: "The server returned an unexpected response.",
     status,
   };
 }
@@ -94,15 +97,16 @@ function parseApiError(value: unknown, status: number): ApiError {
 async function request<T>(
   path: string,
   decoder: Decoder<T>,
-  init?: RequestInit,
+  init: RequestInit,
 ): Promise<ApiResult<T>> {
   let response: Response;
+
   try {
-    response = await fetch(API_BASE_URL + path, {
+    response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",
-        ...init?.headers,
+        ...init.headers,
       },
     });
   } catch (error: unknown) {
@@ -110,28 +114,30 @@ async function request<T>(
       ok: false,
       error: {
         code: "network_error",
-        detail: error instanceof Error ? error.message : "The network request failed.",
+        detail: error instanceof Error ? error.message : "Network request failed.",
         status: null,
       },
     };
   }
 
   let payload: unknown;
+
   try {
-    payload = await readJson(response);
-  } catch (error: unknown) {
+    const text = await response.text();
+    payload = text.trim() === "" ? null : (JSON.parse(text) as unknown);
+  } catch {
     return {
       ok: false,
       error: {
         code: "invalid_response",
-        detail: error instanceof Error ? error.message : "The server response could not be read.",
+        detail: "The server returned malformed JSON.",
         status: response.status,
       },
     };
   }
 
   if (!response.ok) {
-    return { ok: false, error: parseApiError(payload, response.status) };
+    return { ok: false, error: decodeApiError(payload, response.status) };
   }
 
   try {
@@ -141,7 +147,7 @@ async function request<T>(
       ok: false,
       error: {
         code: "invalid_response",
-        detail: error instanceof Error ? error.message : "The server returned an invalid response.",
+        detail: error instanceof Error ? error.message : "Invalid response.",
         status: response.status,
       },
     };
@@ -149,10 +155,7 @@ async function request<T>(
 }
 
 function withSignal(init: RequestInit, signal?: AbortSignal): RequestInit {
-  if (signal === undefined) {
-    return init;
-  }
-  return { ...init, signal };
+  return signal === undefined ? init : { ...init, signal };
 }
 
 export function submitQuery(
@@ -161,27 +164,32 @@ export function submitQuery(
 ): Promise<ApiResult<QueryResponse>> {
   return request(
     "/api/v1/query",
-    parseQueryResponse,
-    withSignal(
-      {
-        method: "POST",
-        body: JSON.stringify(payload),
-      },
-      signal,
-    ),
+    decodeQueryResponse,
+    withSignal({ method: "POST", body: JSON.stringify(payload) }, signal),
   );
 }
 
-export function getCacheStats(
-  signal?: AbortSignal,
-): Promise<ApiResult<CacheStatsResponse>> {
+export function getCacheStats(signal?: AbortSignal): Promise<ApiResult<CacheStatsResponse>> {
   return request(
     "/api/v1/cache/stats",
-    parseCacheStats,
+    decodeCacheStats,
     withSignal({ method: "GET" }, signal),
   );
 }
 
 export function clearCache(): Promise<ApiResult<ClearCacheResponse>> {
-  return request("/api/v1/cache", parseClearResponse, { method: "DELETE" });
+  return request("/api/v1/cache", decodeClearCache, { method: "DELETE" });
+}
+
+export function getCacheThreshold(): Promise<ApiResult<CacheThresholdResponse>> {
+  return request("/api/v1/cache/threshold", decodeCacheThreshold, { method: "GET" });
+}
+
+export function updateCacheThreshold(
+  threshold: number,
+): Promise<ApiResult<CacheThresholdResponse>> {
+  return request("/api/v1/cache/threshold", decodeCacheThreshold, {
+    method: "PUT",
+    body: JSON.stringify({ threshold }),
+  });
 }
