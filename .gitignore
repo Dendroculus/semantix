@@ -1,27 +1,13 @@
-# Environment and secrets
 .env
 **/.env
 !.env.example
 !**/.env.example
-
-# Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
 .venv/
-dist/
 *.egg-info/
-
-# Node
 node_modules/
 frontend/dist/
 coverage/
-
-# Editors and operating systems
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-.ruff_cache

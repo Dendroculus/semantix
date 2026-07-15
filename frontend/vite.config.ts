@@ -1,25 +1,27 @@
-/// <reference types="vitest/config" />
-
-import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
-import { fileURLToPath, URL } from 'node:url'
-import { defineConfig } from 'vite'
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url";
+import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-  ],
+  plugins: [react(), tailwindcss()],
 
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
 
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: './tests/setup.js',
+  server: {
+    host: "0.0.0.0",
+    port: 4173,
+    strictPort: true,
+    watch: {
+      usePolling: true,
+      interval: 200,
+    },
+    hmr: {
+      clientPort: 4173,
+    },
   },
-})
+});
