@@ -12,6 +12,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
     ports:
       - "4173:4173"
     depends_on:
