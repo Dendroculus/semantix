@@ -71,65 +71,130 @@ class HuggingFaceService:
         generation_model: str,
         max_new_tokens: int,
         retry_factory: RetryFactory = default_retry_factory,
+        chat_base_url: str = "https://router.huggingface.co/v1",
     ) -> None:
-        self._client, self._api_key, self._base_url = (
-            client,
-            api_key,
-            base_url.rstrip("/"),
-        )
-        self._embedding_model, self._generation_model = (
-            embedding_model,
-            generation_model,
-        )
-        self._max_new_tokens, self._retry_factory = max_new_tokens, retry_factory
+        self._client = client
+        self._api_key = api_key
+        self._base_url = base_url.rstrip("/")
+        self._chat_base_url = chat_base_url.rstrip("/")
+        self._embedding_model = embedding_model
+        self._generation_model = generation_model
+        self._max_new_tokens = max_new_tokens
+        self._retry_factory = retry_factory
 
     async def create_embedding(self, text: str) -> Sequence[float]:
-        rows = _rows(
-            await self._post(
-                self._embedding_model,
-                {"inputs": text, "options": {"wait_for_model": True}},
-            )
+        model_path = quote(self._embedding_model, safe="/")
+        endpoint = (
+            f"{self._base_url}/{model_path}"
+            "/pipeline/feature-extraction"
         )
-        if rows is None:
-            raise InvalidProviderResponseError("Invalid embedding shape")
-        vector = np.mean(np.asarray(rows, dtype=np.float64), axis=0)
-        if vector.shape != (EMBEDDING_DIMENSIONS,):
-            raise InvalidProviderResponseError("Invalid embedding dimensions")
-        return [float(v) for v in vector]
 
-    async def generate(self, prompt: str) -> str:
         payload = await self._post(
-            self._generation_model,
+            endpoint,
             {
-                "inputs": prompt,
-                "parameters": {
-                    "max_new_tokens": self._max_new_tokens,
-                    "return_full_text": False,
-                },
-                "options": {"wait_for_model": True},
+                "inputs": [text],
+                "normalize": True,
             },
         )
-        value: object = (
-            payload[0].get("generated_text")
-            if isinstance(payload, list) and payload and isinstance(payload[0], dict)
-            else payload.get("generated_text")
-            if isinstance(payload, dict)
-            else None
-        )
-        if not isinstance(value, str) or not value.strip():
-            raise InvalidProviderResponseError("Invalid generation response")
-        return value.strip()
 
-    async def _post(self, model: str, body: dict[str, object]) -> object:
+        rows = _rows(payload)
+
+        if rows is None:
+            raise InvalidProviderResponseError(
+                "Invalid embedding shape",
+            )
+
+        vector = np.mean(
+            np.asarray(rows, dtype=np.float64),
+            axis=0,
+        )
+
+        if (
+            vector.shape != (EMBEDDING_DIMENSIONS,)
+            or not np.isfinite(vector).all()
+        ):
+            raise InvalidProviderResponseError(
+                "Invalid embedding vector",
+            )
+
+        return [float(component) for component in vector]
+
+
+    async def generate(self, prompt: str) -> str:
+        endpoint = f"{self._chat_base_url}/chat/completions"
+
+        payload = await self._post(
+            endpoint,
+            {
+                "model": self._generation_model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
+                "max_tokens": self._max_new_tokens,
+                "stream": False,
+            },
+        )
+
+        if not isinstance(payload, dict):
+            raise InvalidProviderResponseError(
+                "Invalid chat-completion response",
+            )
+
+        choices = payload.get("choices")
+
+        if not isinstance(choices, list) or not choices:
+            raise InvalidProviderResponseError(
+                "Chat response contained no choices",
+            )
+
+        first_choice = choices[0]
+
+        if not isinstance(first_choice, dict):
+            raise InvalidProviderResponseError(
+                "Invalid chat choice",
+            )
+
+        message = first_choice.get("message")
+
+        if not isinstance(message, dict):
+            raise InvalidProviderResponseError(
+                "Chat response contained no message",
+            )
+
+        content = message.get("content")
+
+        if not isinstance(content, str) or not content.strip():
+            raise InvalidProviderResponseError(
+                "Chat response contained no text",
+            )
+
+        return content.strip()
+
+
+    async def _post(
+        self,
+        endpoint: str,
+        body: dict[str, object],
+    ) -> object:
         async for attempt in self._retry_factory():
             with attempt:
-                return await self._once(model, body)
-        raise ProviderRetryableError("Retry policy ended")
+                return await self._once(endpoint, body)
 
-    async def _once(self, model: str, body: dict[str, object]) -> object:
+        raise ProviderRetryableError(
+            "Retry policy ended",
+        )
+
+    async def _once(
+        self,
+        endpoint: str,
+        body: dict[str, object],
+    ) -> object:
         try:
             response = await self._client.post(
-                f"{self._base_url}/{quote(model, safe='/')}",
+                endpoint,
                 headers={
                     "Authorization": f"Bearer {self._api_key}",
                     "Content-Type": "application/json",
@@ -137,14 +202,31 @@ class HuggingFaceService:
                 json=body,
             )
         except httpx.RequestError as exc:
-            raise ProviderRetryableError("Network failure") from exc
+            raise ProviderRetryableError(
+                "Network failure",
+            ) from exc
+
         if response.status_code == 429 or response.status_code >= 500:
-            raise ProviderRetryableError(f"Retryable status {response.status_code}")
+            raise ProviderRetryableError(
+                f"Retryable status {response.status_code}",
+            )
+
         if response.status_code in {401, 403}:
-            raise ProviderAuthenticationError("Credentials rejected")
+            raise ProviderAuthenticationError(
+                "Credentials rejected",
+            )
+
         if response.status_code >= 400:
-            raise ProviderRequestError(f"Provider status {response.status_code}")
+            detail = response.text.strip().replace("\n", " ")[:300]
+
+            raise ProviderRequestError(
+                f"Provider status {response.status_code}: "
+                f"{detail or 'No response detail'}",
+            )
+
         try:
             return cast(object, json.loads(response.text))
         except json.JSONDecodeError as exc:
-            raise InvalidProviderResponseError("Malformed JSON") from exc
+            raise InvalidProviderResponseError(
+                "Malformed JSON",
+            ) from exc

@@ -11,3 +11,5 @@ __pycache__/
 node_modules/
 frontend/dist/
 coverage/
+.vite_cache/
+frontend/.vite-cache
