@@ -13,17 +13,17 @@ export function BenchmarkDashboard(): JSX.Element {
   return (
     <section
       aria-labelledby="benchmark-heading"
-      className="mt-16 border-t border-[var(--hairline)] pt-12"
+      className="pb-4"
     >
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="ui-label text-[var(--gold)]">Controlled evaluation</p>
-          <h2
+          <h1
             className="font-display mt-1 text-3xl italic"
             id="benchmark-heading"
           >
             Benchmark laboratory
-          </h2>
+          </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
             Measure cache quality, latency, provider savings, and threshold
             trade-offs against prompts with explicit expected decisions.

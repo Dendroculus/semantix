@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "../src/App";
@@ -113,7 +114,11 @@ describe("dashboard correctness", () => {
   });
 
   it("starts without simulated radar traces", async () => {
-    const { container } = render(<App />);
+    const { container } = render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>,
+    );
 
     expect(await screen.findByText("0 of 0 traces plotted")).toBeTruthy();
     expect(container.querySelectorAll('[data-testid="similarity-point"]')).toHaveLength(0);
@@ -137,7 +142,11 @@ describe("dashboard correctness", () => {
       }),
       reset: vi.fn(),
     });
-    const { container } = render(<App />);
+    const { container } = render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>,
+    );
 
     fireEvent.change(screen.getByLabelText("Query text"), {
       target: { value: "First cache query" },

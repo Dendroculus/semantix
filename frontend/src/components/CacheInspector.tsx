@@ -24,7 +24,7 @@ export function CacheInspector({
   return (
     <section
       aria-labelledby="cache-inspector-heading"
-      className="mt-14 border-t border-[var(--hairline)] pt-10"
+      className="border-t border-[var(--hairline)] pt-8"
     >
       <CacheInspectorControls
         canClear={inspector.data !== null}

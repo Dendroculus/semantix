@@ -39,7 +39,7 @@ export function CacheInspectorControls({
             className="font-display text-2xl italic"
             id="cache-inspector-heading"
           >
-            Cache inspector
+            Cache entries
           </h2>
           <p className="ui-label mt-1 text-[var(--text-faint)]">
             Live entry metadata / embeddings excluded

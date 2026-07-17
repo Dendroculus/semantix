@@ -155,6 +155,37 @@ CACHE_TTL_SECONDS=3600
 
 A higher similarity threshold makes cache matching stricter. A lower threshold increases the chance of reuse but also increases the risk of returning a response for a query that is not similar enough.
 
+### Frontend routes and session state
+
+The frontend is a client-routed React application with three focused workspaces:
+
+| Route | Workspace |
+|---|---|
+| `/` | Monitor queries, response evidence, field metrics, similarity projections, and the session query log |
+| `/cache` | Inspect, search, sort, delete, and clear live cache entries |
+| `/benchmarks` | Configure and run the isolated threshold benchmark laboratory |
+
+The shared layout owns cache statistics, the applied/preview threshold state,
+and the current monitor trace session. Those values survive navigation with
+the top navigation, browser Back, and browser Forward because route changes do
+not remount the providers. The trace log is intentionally browser-memory state:
+a full page reload starts a new trace session, while the backend cache entries
+remain available until their TTL expires or the cache/backend is cleared.
+
+Benchmark data is route-local and is only fetched when `/benchmarks` mounts.
+Deleting one cache entry refreshes shared statistics without erasing monitor
+traces. Clearing the entire cache refreshes statistics and clears the local
+trace session so the monitor does not present stale evidence.
+
+Each feature registry lazy-loads its page through the shared route factory.
+The persistent layout and navigation remain mounted while a single reusable
+workspace loader covers route chunk downloads.
+
+The Docker/Vite runtime serves `index.html` for direct client-route requests,
+so refreshing any route above works in the provided deployment. If `dist/` is
+later hosted by a different static server, configure its unknown-path fallback
+or rewrite to `index.html` so BrowserRouter can resolve deep links.
+
 ### Dashboard metric definitions
 
 The dashboard starts with an empty local trace and never inserts simulated queries.
@@ -292,10 +323,16 @@ semantix/
     ├── tsconfig.json
     ├── vite.config.ts
     ├── src/
-    │   ├── components/                 # Query, response, and cache-stat UI
+    │   ├── components/                 # Feature UI and navigation components
+    │   ├── context/                    # Shared cache-control and monitor providers
     │   ├── config/env.ts               # Browser environment validation
-    │   ├── hooks/useQuery.ts            # Query state workflow
-    │   ├── services/apiClient.ts        # Typed backend client
+    │   ├── hooks/                       # Query and provider access hooks
+    │   ├── layouts/AppLayout.tsx        # Persistent navigation and providers
+    │   ├── pages/                       # Monitor, cache, benchmark, and 404 routes
+    │   ├── routes/                      # Feature-owned route registries
+    │   ├── routes.ts                    # Combined public route facade
+    │   ├── services/api/                # Feature-scoped typed backend clients
+    │   ├── services/apiClient.ts        # Compatibility export facade
     │   └── types/api.ts                 # API types
     └── tests/
         ├── setup.ts
@@ -535,6 +572,7 @@ Normal tests should mock provider calls so test runs do not consume Hugging Face
 | Frontend cannot be reached | `docker compose ps` should show `4173->4173/tcp` |
 | `VITE_API_BASE_URL must be configured` | Rebuild the frontend image because Vite variables are embedded at build time |
 | Frontend uses an old API URL | Run `docker compose build frontend --no-cache`, then recreate the container |
+| Frontend cannot resolve a newly added package after rebuilding | Run `docker compose up -d --force-recreate --renew-anon-volumes frontend` to refresh the mounted dependency volume |
 | Backend rejects browser requests | Ensure `ALLOWED_ORIGINS` contains the active frontend URL |
 | Hugging Face reports `model_not_supported` | Choose a model/provider currently enabled for the account |
 | Hugging Face returns an authentication error | Verify the token has inference permission and was copied without quotes or spaces |
