@@ -7,7 +7,11 @@ import { QueryLog } from "../src/components/QueryLog";
 import { ResponseCard } from "../src/components/ResponseCard";
 import { SimilarityRadar } from "../src/components/SimilarityRadar";
 import { useQuery } from "../src/hooks/useQuery";
-import { getCacheStats, getCacheThreshold } from "../src/services/apiClient";
+import {
+  getCacheStats,
+  getCacheThreshold,
+  listCacheEntries,
+} from "../src/services/apiClient";
 import type { QueryTrace } from "../src/types/dashboard";
 
 vi.mock("../src/hooks/useQuery");
@@ -63,6 +67,16 @@ describe("dashboard correctness", () => {
     vi.mocked(getCacheThreshold).mockResolvedValue({
       ok: true,
       data: { threshold: 0.9 },
+    });
+    vi.mocked(listCacheEntries).mockResolvedValue({
+      ok: true,
+      data: {
+        items: [],
+        total: 0,
+        offset: 0,
+        limit: 10,
+        has_more: false,
+      },
     });
   });
 
@@ -192,10 +206,8 @@ describe("dashboard correctness", () => {
     render(
       <FieldMetrics
         cacheStats={{ size: 7, hits: 1, misses: 3, hit_rate: 0.25 }}
-        isClearing={false}
         threshold={0.9}
         traces={traces}
-        onClear={vi.fn()}
       />,
     );
 

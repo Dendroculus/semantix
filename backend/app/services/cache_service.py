@@ -2,7 +2,15 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Protocol
 
-from app.models.schemas import CacheEntry, CacheLookupResult, CacheStatsResponse
+from app.core.exceptions import CacheEntryNotFoundError
+from app.models.schemas import (
+    CacheEntry,
+    CacheEntryListResponse,
+    CacheEntryMetadata,
+    CacheEntrySort,
+    CacheLookupResult,
+    CacheStatsResponse,
+)
 from app.services.cache_backend import CacheBackend, prompt_cache_key
 
 
@@ -90,6 +98,31 @@ class SemanticCache:
 
     async def clear(self) -> None:
         await self._backend.clear()
+
+    async def list_entries(
+        self,
+        *,
+        offset: int,
+        limit: int,
+        search: str | None,
+        sort: CacheEntrySort,
+    ) -> CacheEntryListResponse:
+        return await self._backend.list_entries(
+            offset=offset,
+            limit=limit,
+            search=search,
+            sort=sort,
+        )
+
+    async def get_entry(self, cache_key: str) -> CacheEntryMetadata:
+        entry = await self._backend.get_entry(cache_key)
+        if entry is None:
+            raise CacheEntryNotFoundError
+        return entry
+
+    async def delete_entry(self, cache_key: str) -> None:
+        if not await self._backend.delete_entry(cache_key):
+            raise CacheEntryNotFoundError
 
     async def stats(self) -> CacheStatsResponse:
         return await self._backend.stats()

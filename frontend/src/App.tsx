@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 
+import {
+  CacheInspector,
+  type CacheMutation,
+} from "./components/CacheInspector";
 import { FieldMetrics } from "./components/FieldMetrics";
 import { QueryForm } from "./components/QueryForm";
 import { QueryLog } from "./components/QueryLog";
@@ -7,7 +11,6 @@ import { ResponseCard } from "./components/ResponseCard";
 import { SimilarityRadar } from "./components/SimilarityRadar";
 import { useQuery } from "./hooks/useQuery";
 import {
-  clearCache,
   getCacheStats,
   getCacheThreshold,
   updateCacheThreshold,
@@ -51,8 +54,8 @@ export default function App(): JSX.Element {
   const [previewThreshold, setPreviewThreshold] = useState(0.92);
   const [cacheStats, setCacheStats] = useState<CacheStatsResponse | null>(null);
   const [controlError, setControlError] = useState<string | null>(null);
-  const [isClearing, setIsClearing] = useState(false);
   const [isApplyingThreshold, setIsApplyingThreshold] = useState(false);
+  const [inspectorRefreshKey, setInspectorRefreshKey] = useState(0);
 
   const refreshCacheState = useCallback(
     async (syncPreview: boolean): Promise<void> => {
@@ -101,6 +104,7 @@ export default function App(): JSX.Element {
       ].slice(0, 40),
     );
 
+    setInspectorRefreshKey((current) => current + 1);
     await refreshCacheState(false);
   }
 
@@ -120,18 +124,10 @@ export default function App(): JSX.Element {
     await refreshCacheState(true);
   }
 
-  async function handleClearCache(): Promise<void> {
-    setIsClearing(true);
-    const result = await clearCache();
-    setIsClearing(false);
-
-    if (!result.ok) {
-      setControlError("CACHE CLEAR FAILED; THE STORE WAS LEFT ALONE");
-      return;
+  async function handleCacheMutation(mutation: CacheMutation): Promise<void> {
+    if (mutation === "clear") {
+      setTraces([]);
     }
-
-    setTraces([]);
-    setControlError(null);
     await refreshCacheState(false);
   }
 
@@ -175,10 +171,8 @@ export default function App(): JSX.Element {
         <main className="grid grid-cols-1 gap-14 min-[760px]:grid-cols-[minmax(280px,3fr)_minmax(0,2fr)]">
           <FieldMetrics
             cacheStats={cacheStats}
-            isClearing={isClearing}
             threshold={previewThreshold}
             traces={traces}
-            onClear={() => void handleClearCache()}
           />
 
           <SimilarityRadar
@@ -190,6 +184,11 @@ export default function App(): JSX.Element {
             onThresholdChange={setPreviewThreshold}
           />
         </main>
+
+        <CacheInspector
+          refreshKey={inspectorRefreshKey}
+          onMutation={(mutation) => void handleCacheMutation(mutation)}
+        />
 
         {controlError !== null && (
           <p

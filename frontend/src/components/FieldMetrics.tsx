@@ -3,10 +3,8 @@ import type { QueryTrace } from "../types/dashboard";
 
 interface FieldMetricsProps {
   cacheStats: CacheStatsResponse | null;
-  isClearing: boolean;
   threshold: number;
   traces: QueryTrace[];
-  onClear: () => void;
 }
 
 interface MetricRowProps {
@@ -43,10 +41,8 @@ function MetricRow({ detail, label, value, tone }: MetricRowProps): JSX.Element 
 
 export function FieldMetrics({
   cacheStats,
-  isClearing,
   threshold,
   traces,
-  onClear,
 }: FieldMetricsProps): JSX.Element {
   const scoredTraces = traces.filter((trace) => trace.similarity !== null);
   const unscoredCount = traces.length - scoredTraces.length;
@@ -126,15 +122,6 @@ export function FieldMetrics({
         Projection changes with the selected threshold and excludes unscored traces.
         Backend hit rate remains the historical accounting record.
       </p>
-
-      <button
-        className="ui-label mt-6 border-b border-[var(--coral)] pb-1 text-[var(--coral)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-[var(--coral)] disabled:opacity-50"
-        disabled={isClearing}
-        type="button"
-        onClick={onClear}
-      >
-        {isClearing ? "Clearing store" : "Clear cache + local trace"}
-      </button>
     </aside>
   );
 }

@@ -31,6 +31,14 @@ class CacheStorageError(AppError):
     )
 
 
+class CacheEntryNotFoundError(AppError):
+    status_code, error_code, public_detail = (
+        404,
+        "cache_entry_not_found",
+        "The requested cache entry does not exist or has expired.",
+    )
+
+
 class ProviderRetryableError(AppError):
     status_code, error_code, public_detail = (
         503,

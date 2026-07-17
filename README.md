@@ -186,6 +186,22 @@ A cache hit also identifies the cached prompt and reports the entry's age. On a
 miss, all matched-entry fields are `null`; the nearest similarity may still be
 present when an entry existed but did not qualify.
 
+### Cache inspector
+
+The cache inspector shows the live contents of the current in-memory cache
+without exposing embeddings or full cached responses. Each row includes the
+cache key, original prompt, a response preview, creation and expiration times,
+remaining TTL, per-entry hit count, last-access time, and LRU recency rank.
+Expired entries are purged under the cache backend lock before inspector data is
+returned.
+
+Prompt search and sorting are handled by the backend so they remain correct
+across paginated results. Available sorts are newest, oldest, most-hit, and
+nearest-expiry. Deleting one entry leaves historical aggregate hit/miss counters
+unchanged; clearing the whole cache removes every entry and resets those
+counters. The dashboard asks for confirmation before either destructive action
+and refreshes both inspector data and aggregate statistics afterward.
+
 ## 🔄 Runtime Flow
 
 1. The frontend sends a query to the FastAPI backend.
@@ -222,7 +238,7 @@ Semantic cache lookup
 ## 🧠 Architecture Highlights
 
 - **Embedding boundary** — `EmbeddingService` validates provider output and produces normalized NumPy vectors.
-- **Cache boundary** — `CacheBackend` owns similarity lookup, TTL expiry, LRU eviction, statistics, and invalidation.
+- **Cache boundary** — `CacheBackend` owns similarity lookup, TTL expiry, LRU eviction, inspector metadata, statistics, and invalidation.
 - **Generation boundary** — `HuggingFaceService` owns external HTTP calls, authentication, timeouts, retries, and provider error handling.
 - **Application orchestration** — `CacheService` coordinates embedding, lookup, generation, and insertion without coupling API routes to implementation details.
 - **Typed API contract** — Pydantic schemas and TypeScript API types keep frontend/backend payloads explicit.
@@ -303,6 +319,11 @@ semantix/
 |---|---|---|
 | `POST` | `/api/v1/query` | Submit a query and receive a cached or generated response |
 | `GET` | `/api/v1/cache/stats` | Read current cache statistics |
+| `GET` | `/api/v1/cache/threshold` | Read the active similarity threshold |
+| `PUT` | `/api/v1/cache/threshold` | Update the active similarity threshold |
+| `GET` | `/api/v1/cache/entries` | Search, sort, and paginate safe cache-entry metadata |
+| `GET` | `/api/v1/cache/entries/{cache_key}` | Read one cache entry's safe metadata |
+| `DELETE` | `/api/v1/cache/entries/{cache_key}` | Delete one cache entry |
 | `DELETE` | `/api/v1/cache` | Clear all in-memory cache entries |
 | `GET` | `/health` | Check whether the backend is healthy |
 | `GET` | `/docs` | Open interactive FastAPI documentation |
@@ -330,6 +351,18 @@ For a cache miss, `matched_prompt`, `matched_cache_key`,
 `cache_entry_created_at`, and `cache_entry_age_seconds` are all `null`;
 `generation_skipped` is `false` and `provider_called` is `true`. Embeddings are
 internal cache data and are never included in this response.
+
+`GET /api/v1/cache/entries` accepts:
+
+- `search`: optional case-insensitive prompt fragment
+- `sort`: `newest`, `oldest`, `most_hit`, or `nearest_expiry`
+- `offset`: zero-based result offset
+- `limit`: page size from 1 through 100
+
+Its response contains `items`, `total`, `offset`, `limit`, and `has_more`.
+Inspector items intentionally contain only a truncated `response_preview`;
+neither full responses nor embeddings are returned. An expired or unknown key
+returns the stable `cache_entry_not_found` error.
 
 All application errors use a stable JSON structure containing `error` and `detail`.
 
