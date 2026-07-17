@@ -8,6 +8,7 @@ import { ResponseCard } from "../src/components/ResponseCard";
 import { SimilarityRadar } from "../src/components/SimilarityRadar";
 import { useQuery } from "../src/hooks/useQuery";
 import {
+  getBenchmarkDatasets,
   getCacheStats,
   getCacheThreshold,
   listCacheEntries,
@@ -67,6 +68,31 @@ describe("dashboard correctness", () => {
     vi.mocked(getCacheThreshold).mockResolvedValue({
       ok: true,
       data: { threshold: 0.9 },
+    });
+    vi.mocked(getBenchmarkDatasets).mockResolvedValue({
+      ok: true,
+      data: {
+        datasets: [
+          {
+            dataset_id: "quick",
+            name: "Quick semantic safety set",
+            description: "Controlled prompts.",
+            query_count: 8,
+            expected_hits: 4,
+            expected_misses: 4,
+            categories: [
+              "seed",
+              "exact_duplicate",
+              "paraphrase",
+              "unrelated",
+              "typo",
+              "negation",
+              "different_intent",
+            ],
+          },
+        ],
+        default_dataset_id: "quick",
+      },
     });
     vi.mocked(listCacheEntries).mockResolvedValue({
       ok: true,

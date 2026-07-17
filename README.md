@@ -327,6 +327,8 @@ semantix/
 | `GET` | `/api/v1/cache/entries/{cache_key}` | Read one cache entry's safe metadata |
 | `DELETE` | `/api/v1/cache/entries/{cache_key}` | Delete one cache entry |
 | `DELETE` | `/api/v1/cache` | Clear all in-memory cache entries |
+| `GET` | `/api/v1/benchmarks/datasets` | List controlled datasets and expected classifications |
+| `POST` | `/api/v1/benchmarks/run` | Run an isolated benchmark with metrics and per-query evidence |
 | `GET` | `/health` | Check whether the backend is healthy |
 | `GET` | `/docs` | Open interactive FastAPI documentation |
 
@@ -365,6 +367,33 @@ Its response contains `items`, `total`, `offset`, `limit`, and `has_more`.
 Inspector items intentionally contain only a truncated `response_preview`;
 neither full responses nor embeddings are returned. An expired or unknown key
 returns the stable `cache_entry_not_found` error.
+
+### Controlled benchmark
+
+The benchmark laboratory uses a cache isolated from the interactive query
+cache. Its built-in `quick` dataset covers exact duplicates, paraphrases,
+unrelated queries, typographical variations, negation, and similar wording
+with different intent. The `extended` dataset adds more boundary cases. Every
+ordered query has an explicit expected `HIT` or `MISS` classification.
+
+Before a run, the frontend shows the query count and expected external
+generation calls and requires explicit confirmation. Inputs include the
+dataset, threshold, repetition count, cache-reset behavior, estimated USD cost
+per provider request, and estimated USD cost per 1,000 tokens. When reset is
+enabled, each dataset repetition starts with an empty isolated cache.
+
+`POST /api/v1/benchmarks/run` also requires
+`"allow_external_provider_calls": true`; omitting that acknowledgement is a
+validation error. Results include hits/misses, provider calls and calls
+avoided, hit rate, average/median/P95 latency, average hit/miss latency, false
+positives/negatives, precision, recall, F1, and per-query evidence.
+
+The dashboard exports the full result as JSON or the per-query evidence as
+CSV. Threshold charts reclassify measured nearest-match scores without making
+extra provider calls. Projected threshold latency uses the run's measured
+average hit and miss latency. Estimated latency savings, provider cost
+savings, and token counts are not billing records; token estimates use a
+simple character-based approximation.
 
 All application errors use a stable JSON structure containing `error` and `detail`.
 

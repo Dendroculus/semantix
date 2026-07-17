@@ -7,4 +7,8 @@ export {
   listCacheEntries,
   updateCacheThreshold,
 } from "./api/cacheApi";
+export {
+  getBenchmarkDatasets,
+  runBenchmark,
+} from "./api/benchmarkApi";
 export { submitQuery } from "./api/queryApi";

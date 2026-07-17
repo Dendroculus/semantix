@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 
-from app.api.routes import cache, health, query
+from app.api.routes import benchmark, cache, health, query
 from app.core.config import Settings, get_settings
 from app.core.exceptions import (
     AppError,
@@ -19,6 +19,7 @@ from app.core.exceptions import (
 )
 from app.core.logging import configure_logging
 from app.middleware.rate_limit import limiter
+from app.services.benchmark_service import BenchmarkService
 from app.services.cache_backend import InMemoryCacheBackend
 from app.services.cache_service import SemanticCache
 from app.services.embedding_service import EmbeddingService
@@ -48,11 +49,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 resolved_settings.cache_ttl_seconds,
             )
 
+            embedding_service = EmbeddingService(provider)
             application.state.huggingface_service = provider
             application.state.semantic_cache = SemanticCache(
-                EmbeddingService(provider),
+                embedding_service,
                 backend,
                 resolved_settings.similarity_threshold,
+            )
+            application.state.benchmark_service = BenchmarkService(
+                embedding_service,
+                provider,
+                max_cache_size=resolved_settings.max_cache_size,
+                cache_ttl_seconds=resolved_settings.cache_ttl_seconds,
+                initial_threshold=resolved_settings.similarity_threshold,
             )
             yield
 
@@ -78,6 +87,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     application.include_router(query.router)
     application.include_router(cache.router)
+    application.include_router(benchmark.router)
     application.include_router(health.router)
     return application
 

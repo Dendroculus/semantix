@@ -4,6 +4,7 @@ import {
   CacheInspector,
   type CacheMutation,
 } from "./components/CacheInspector";
+import { BenchmarkDashboard } from "./components/BenchmarkDashboard";
 import { FieldMetrics } from "./components/FieldMetrics";
 import { QueryForm } from "./components/QueryForm";
 import { QueryLog } from "./components/QueryLog";
@@ -189,6 +190,8 @@ export default function App(): JSX.Element {
           refreshKey={inspectorRefreshKey}
           onMutation={(mutation) => void handleCacheMutation(mutation)}
         />
+
+        <BenchmarkDashboard />
 
         {controlError !== null && (
           <p

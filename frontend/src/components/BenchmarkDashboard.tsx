@@ -1,0 +1,63 @@
+import { BenchmarkCharts } from "./benchmark/BenchmarkCharts";
+import { BenchmarkControls } from "./benchmark/BenchmarkControls";
+import { BenchmarkExports } from "./benchmark/BenchmarkExports";
+import { BenchmarkResultsTable } from "./benchmark/BenchmarkResultsTable";
+import { BenchmarkRunWarning } from "./benchmark/BenchmarkRunWarning";
+import { BenchmarkSummary } from "./benchmark/BenchmarkSummary";
+import { useBenchmark } from "./benchmark/useBenchmark";
+
+export function BenchmarkDashboard(): JSX.Element {
+  const controller = useBenchmark();
+  const { error, isRunning, result, selectedDataset } = controller;
+
+  return (
+    <section
+      aria-labelledby="benchmark-heading"
+      className="mt-16 border-t border-[var(--hairline)] pt-12"
+    >
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="ui-label text-[var(--gold)]">Controlled evaluation</p>
+          <h2
+            className="font-display mt-1 text-3xl italic"
+            id="benchmark-heading"
+          >
+            Benchmark laboratory
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
+            Measure cache quality, latency, provider savings, and threshold
+            trade-offs against prompts with explicit expected decisions.
+          </p>
+        </div>
+        {result !== null && <BenchmarkExports result={result} />}
+      </div>
+
+      <BenchmarkControls controller={controller} />
+      {selectedDataset !== null && (
+        <p className="font-data mt-3 text-[10px] leading-5 text-[var(--text-faint)]">
+          {selectedDataset.description}
+        </p>
+      )}
+      <BenchmarkRunWarning controller={controller} />
+
+      {isRunning && (
+        <p className="font-data mt-6 text-xs text-[var(--gold)]" role="status">
+          RUNNING CONTROLLED QUERY SEQUENCE / DO NOT REFRESH
+        </p>
+      )}
+      {error !== null && (
+        <p className="font-data mt-6 text-xs text-[var(--coral)]" role="alert">
+          BENCHMARK FAILED / {error}
+        </p>
+      )}
+
+      {result !== null && (
+        <>
+          <BenchmarkSummary result={result} />
+          <BenchmarkCharts result={result} />
+          <BenchmarkResultsTable results={result.query_results} />
+        </>
+      )}
+    </section>
+  );
+}
