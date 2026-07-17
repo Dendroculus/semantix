@@ -1,7 +1,7 @@
 export interface QueryTrace {
   id: string;
   prompt: string;
-  similarity: number;
+  similarity: number | null;
   latencyMs: number;
   recordedAt: Date;
   actualCacheHit: boolean;

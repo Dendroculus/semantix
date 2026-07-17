@@ -29,12 +29,13 @@ export function QueryLog({ traces, threshold }: QueryLogProps): JSX.Element {
             <span>Time</span>
             <span>Score</span>
             <span>Query</span>
-            <span>Verdict</span>
+            <span>Projection</span>
             <span className="text-right">Latency</span>
           </div>
 
           {traces.map((trace) => {
-            const isHit = trace.similarity >= threshold;
+            const isProjectedHit =
+              trace.similarity !== null && trace.similarity >= threshold;
 
             return (
               <div
@@ -43,7 +44,9 @@ export function QueryLog({ traces, threshold }: QueryLogProps): JSX.Element {
               >
                 <div className="flex justify-between gap-4 min-[760px]:contents">
                   <time className="text-[var(--text-faint)]">{formatTime(trace.recordedAt)}</time>
-                  <span className="text-[var(--teal)]">{trace.similarity.toFixed(3)}</span>
+                  <span className="text-[var(--teal)]">
+                    {trace.similarity === null ? "n/a" : trace.similarity.toFixed(3)}
+                  </span>
                 </div>
 
                 <span className="break-words text-[var(--text-soft)] min-[760px]:truncate">
@@ -51,8 +54,8 @@ export function QueryLog({ traces, threshold }: QueryLogProps): JSX.Element {
                 </span>
 
                 <div className="flex justify-between gap-4 min-[760px]:contents">
-                  <span style={{ color: isHit ? "var(--gold)" : "var(--coral)" }}>
-                    {isHit ? "HIT" : "MISS"}
+                  <span style={{ color: isProjectedHit ? "var(--gold)" : "var(--coral)" }}>
+                    {isProjectedHit ? "HIT" : "MISS"}
                   </span>
                   <span className="text-[var(--text-muted)] min-[760px]:text-right">
                     {trace.latencyMs.toFixed(1)} ms

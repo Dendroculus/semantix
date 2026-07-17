@@ -47,28 +47,37 @@ function UptimeClock(): JSX.Element {
 export default function App(): JSX.Element {
   const { state, submit } = useQuery();
   const [traces, setTraces] = useState<QueryTrace[]>([]);
-  const [threshold, setThreshold] = useState(0.92);
+  const [appliedThreshold, setAppliedThreshold] = useState(0.92);
+  const [previewThreshold, setPreviewThreshold] = useState(0.92);
   const [cacheStats, setCacheStats] = useState<CacheStatsResponse | null>(null);
   const [controlError, setControlError] = useState<string | null>(null);
   const [isClearing, setIsClearing] = useState(false);
+  const [isApplyingThreshold, setIsApplyingThreshold] = useState(false);
 
-  const refreshCacheState = useCallback(async (): Promise<void> => {
-    const [statsResult, thresholdResult] = await Promise.all([
-      getCacheStats(),
-      getCacheThreshold(),
-    ]);
+  const refreshCacheState = useCallback(
+    async (syncPreview: boolean): Promise<void> => {
+      const [statsResult, thresholdResult] = await Promise.all([
+        getCacheStats(),
+        getCacheThreshold(),
+      ]);
 
-    if (statsResult.ok) {
-      setCacheStats(statsResult.data);
-    }
+      if (statsResult.ok) {
+        setCacheStats(statsResult.data);
+      }
 
-    if (thresholdResult.ok) {
-      setThreshold(thresholdResult.data.threshold);
-    }
-  }, []);
+      if (thresholdResult.ok) {
+        setAppliedThreshold(thresholdResult.data.threshold);
+
+        if (syncPreview) {
+          setPreviewThreshold(thresholdResult.data.threshold);
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    void refreshCacheState();
+    void refreshCacheState(true);
   }, [refreshCacheState]);
 
   async function handleSubmit(prompt: string): Promise<void> {
@@ -83,7 +92,7 @@ export default function App(): JSX.Element {
         {
           id: crypto.randomUUID(),
           prompt,
-          similarity: result.similarity_score ?? 0,
+          similarity: result.similarity_score,
           latencyMs: result.latency_ms,
           recordedAt: new Date(),
           actualCacheHit: result.cache_hit,
@@ -92,20 +101,23 @@ export default function App(): JSX.Element {
       ].slice(0, 40),
     );
 
-    await refreshCacheState();
+    await refreshCacheState(false);
   }
 
   async function commitThreshold(value: number): Promise<void> {
+    setIsApplyingThreshold(true);
     const result = await updateCacheThreshold(value);
+    setIsApplyingThreshold(false);
 
     if (result.ok) {
-      setThreshold(result.data.threshold);
+      setAppliedThreshold(result.data.threshold);
+      setPreviewThreshold(result.data.threshold);
       setControlError(null);
       return;
     }
 
     setControlError("THRESHOLD UPDATE FAILED; THE SERVER VALUE WAS RESTORED");
-    await refreshCacheState();
+    await refreshCacheState(true);
   }
 
   async function handleClearCache(): Promise<void> {
@@ -120,7 +132,7 @@ export default function App(): JSX.Element {
 
     setTraces([]);
     setControlError(null);
-    await refreshCacheState();
+    await refreshCacheState(false);
   }
 
   return (
@@ -144,8 +156,12 @@ export default function App(): JSX.Element {
           />
 
           {state.status === "error" && (
-            <p className="font-data mt-4 text-[11px] text-[var(--coral)]" role="alert">
-              QUERY FAILED / {state.error.detail ?? "THE PROVIDER RETURNED NO DETAIL"}
+            <p
+              className="font-data mt-4 text-[11px] text-[var(--coral)]"
+              role="alert"
+            >
+              QUERY FAILED /{" "}
+              {state.error.detail ?? "THE PROVIDER RETURNED NO DETAIL"}
             </p>
           )}
 
@@ -156,30 +172,35 @@ export default function App(): JSX.Element {
           )}
         </div>
 
-        <main className="grid grid-cols-1 gap-14 min-[760px]:grid-cols-[minmax(0,3fr)_minmax(260px,2fr)]">
-          <SimilarityRadar
-            traces={traces}
-            threshold={threshold}
-            onThresholdChange={setThreshold}
-            onThresholdCommit={(value) => void commitThreshold(value)}
-          />
-
+        <main className="grid grid-cols-1 gap-14 min-[760px]:grid-cols-[minmax(280px,3fr)_minmax(0,2fr)]">
           <FieldMetrics
             cacheStats={cacheStats}
             isClearing={isClearing}
-            threshold={threshold}
+            threshold={previewThreshold}
             traces={traces}
             onClear={() => void handleClearCache()}
+          />
+
+          <SimilarityRadar
+            appliedThreshold={appliedThreshold}
+            isApplyingThreshold={isApplyingThreshold}
+            traces={traces}
+            threshold={previewThreshold}
+            onThresholdApply={(value) => void commitThreshold(value)}
+            onThresholdChange={setPreviewThreshold}
           />
         </main>
 
         {controlError !== null && (
-          <p className="font-data mt-8 text-[11px] text-[var(--coral)]" role="alert">
+          <p
+            className="font-data mt-8 text-[11px] text-[var(--coral)]"
+            role="alert"
+          >
             {controlError}
           </p>
         )}
 
-        <QueryLog traces={traces} threshold={threshold} />
+        <QueryLog traces={traces} threshold={previewThreshold} />
       </div>
     </div>
   );

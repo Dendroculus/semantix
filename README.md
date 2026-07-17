@@ -155,6 +155,28 @@ CACHE_TTL_SECONDS=3600
 
 A higher similarity threshold makes cache matching stricter. A lower threshold increases the chance of reuse but also increases the risk of returning a response for a query that is not similar enough.
 
+### Dashboard metric definitions
+
+The dashboard starts with an empty local trace and never inserts simulated queries.
+Its current readings use these formulas:
+
+- **Frontend projected hit rate** = scored visible traces at or above the selected
+  threshold divided by all scored visible traces. Traces without a similarity
+  score are excluded from this projection and reported separately.
+- **Actual backend hit rate** = backend hits divided by backend hits plus misses,
+  counted since the backend cache was last cleared or restarted.
+- **Mean latency** = total latency of visible successful traces divided by the
+  number of visible successful traces.
+- **Provider calls (visible)** = visible successful traces whose backend
+  `cache_hit` value is `false`.
+- **Cache entries** = the backend's current in-memory cache size.
+
+The similarity radar is secondary visual evidence. It plots only scored traces,
+with similarity `1.0` at the center and `0.0` at the edge. A point's angle is
+stable for that trace but has no semantic meaning; changing the threshold only
+changes the threshold ring and the projected hit/miss color. The plotted count
+always states how many visible traces have scores.
+
 ## 🔄 Runtime Flow
 
 1. The frontend sends a query to the FastAPI backend.

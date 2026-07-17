@@ -6,26 +6,37 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
+    "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "lint:no-any": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\" --no-eslintrc --parser @typescript-eslint/parser --plugin @typescript-eslint --rule \"@typescript-eslint/no-explicit-any:error\""
+    "lint:no-any": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\""
   },
   "dependencies": {
+    "katex": "^0.17.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "10.1.0",
-    "remark-gfm": "4.0.1"
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "4.0.1",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@tailwindcss/vite": "^4.3.2",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^20.17.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@typescript-eslint/eslint-plugin": "^8.16.0",
-    "@typescript-eslint/parser": "^8.16.0",
+    "@typescript-eslint/eslint-plugin": "^8.64.0",
+    "@typescript-eslint/parser": "^8.64.0",
     "@vitejs/plugin-react": "4.3.4",
-    "eslint": "^8.57.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "eslint-plugin-sonarjs": "^4.2.0",
+    "globals": "^17.7.0",
     "jsdom": "^25.0.1",
     "tailwindcss": "^4.3.2",
     "typescript": "^5.7.2",
