@@ -177,6 +177,15 @@ stable for that trace but has no semantic meaning; changing the threshold only
 changes the threshold ring and the projected hit/miss color. The plotted count
 always states how many visible traces have scores.
 
+### Query decision evidence
+
+Every successful query response reports the cache decision that was actually
+made. The dashboard shows the similarity score, the threshold used for that
+request, whether generation and the provider call ran, and the total latency.
+A cache hit also identifies the cached prompt and reports the entry's age. On a
+miss, all matched-entry fields are `null`; the nearest similarity may still be
+present when an entry existed but did not qualify.
+
 ## 🔄 Runtime Flow
 
 1. The frontend sends a query to the FastAPI backend.
@@ -297,6 +306,30 @@ semantix/
 | `DELETE` | `/api/v1/cache` | Clear all in-memory cache entries |
 | `GET` | `/health` | Check whether the backend is healthy |
 | `GET` | `/docs` | Open interactive FastAPI documentation |
+
+Successful `POST /api/v1/query` responses use this additive explainability
+contract:
+
+```json
+{
+  "response": "A previously generated answer",
+  "cache_hit": true,
+  "similarity_score": 0.967,
+  "similarity_threshold": 0.92,
+  "matched_prompt": "What is semantic caching?",
+  "matched_cache_key": "29769c1b33db361734e377b6e20368cd58ab3d7d048545073402ad830a0513ab",
+  "cache_entry_created_at": "2026-07-17T10:00:00Z",
+  "cache_entry_age_seconds": 18.4,
+  "generation_skipped": true,
+  "provider_called": false,
+  "latency_ms": 7.2
+}
+```
+
+For a cache miss, `matched_prompt`, `matched_cache_key`,
+`cache_entry_created_at`, and `cache_entry_age_seconds` are all `null`;
+`generation_skipped` is `false` and `provider_called` is `true`. Embeddings are
+internal cache data and are never included in this response.
 
 All application errors use a stable JSON structure containing `error` and `detail`.
 

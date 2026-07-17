@@ -6,6 +6,13 @@ export interface QueryResponse {
   response: string;
   cache_hit: boolean;
   similarity_score: number | null;
+  similarity_threshold: number;
+  matched_prompt: string | null;
+  matched_cache_key: string | null;
+  cache_entry_created_at: string | null;
+  cache_entry_age_seconds: number | null;
+  generation_skipped: boolean;
+  provider_called: boolean;
   latency_ms: number;
 }
 

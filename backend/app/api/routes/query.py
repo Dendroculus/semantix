@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 from time import perf_counter
 from typing import Annotated
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/query", response_model=QueryResponse)
-@limiter.limit(lambda: get_settings().rate_limit)  # type: ignore[untyped-decorator]
+@limiter.limit(lambda: get_settings().rate_limit)
 async def query(
     request: Request,
     payload: QueryRequest,
@@ -34,15 +35,31 @@ async def query(
         response_text = await provider.generate(payload.prompt)
         await cache.store(payload.prompt, response_text, lookup.embedding)
 
+    cache_entry_age_seconds = (
+        None
+        if lookup.cache_entry_created_at is None
+        else max(
+            0.0,
+            (datetime.now(UTC) - lookup.cache_entry_created_at).total_seconds(),
+        )
+    )
     latency_ms = (perf_counter() - started_at) * 1_000
     logger.info(
-        "Query completed cache_hit=%s latency_ms=%.2f",
+        "Query completed cache_hit=%s provider_called=%s latency_ms=%.2f",
         lookup.cache_hit,
+        not lookup.cache_hit,
         latency_ms,
     )
     return QueryResponse(
         response=response_text,
         cache_hit=lookup.cache_hit,
         similarity_score=lookup.similarity_score,
+        similarity_threshold=lookup.similarity_threshold,
+        matched_prompt=lookup.matched_prompt,
+        matched_cache_key=lookup.matched_cache_key,
+        cache_entry_created_at=lookup.cache_entry_created_at,
+        cache_entry_age_seconds=cache_entry_age_seconds,
+        generation_skipped=lookup.cache_hit,
+        provider_called=not lookup.cache_hit,
         latency_ms=latency_ms,
     )

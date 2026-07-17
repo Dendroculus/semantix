@@ -7,6 +7,6 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/health", response_model=HealthResponse)
-@limiter.limit(lambda: get_settings().rate_limit)  # type: ignore[untyped-decorator]
+@limiter.limit(lambda: get_settings().rate_limit)
 async def health(request: Request) -> HealthResponse:
     return HealthResponse(status="ok")

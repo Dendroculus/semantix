@@ -36,6 +36,7 @@ class SemanticCache:
         return self._similarity_threshold
 
     async def lookup(self, prompt: str) -> CacheLookupResult:
+        similarity_threshold = self._similarity_threshold
         embedding = [
             float(value) for value in await self._embedding_service.embed(prompt)
         ]
@@ -43,13 +44,17 @@ class SemanticCache:
 
         if (
             candidate is not None
-            and candidate.similarity_score >= self._similarity_threshold
+            and candidate.similarity_score >= similarity_threshold
             and await self._backend.record_hit(candidate.entry.cache_key)
         ):
             return CacheLookupResult(
                 cache_hit=True,
                 response=candidate.entry.response,
                 similarity_score=candidate.similarity_score,
+                similarity_threshold=similarity_threshold,
+                matched_prompt=candidate.entry.prompt,
+                matched_cache_key=candidate.entry.cache_key,
+                cache_entry_created_at=candidate.entry.created_at,
                 embedding=embedding,
             )
 
@@ -60,6 +65,10 @@ class SemanticCache:
             similarity_score=(
                 None if candidate is None else candidate.similarity_score
             ),
+            similarity_threshold=similarity_threshold,
+            matched_prompt=None,
+            matched_cache_key=None,
+            cache_entry_created_at=None,
             embedding=embedding,
         )
 

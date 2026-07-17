@@ -3,7 +3,12 @@ function readRequiredUrl(value: string | undefined, name: string): string {
     throw new Error(`${name} must be configured`);
   }
 
-  const normalizedValue = value.trim().replace(/\/+$/, "");
+  let normalizedValue = value.trim();
+
+  while (normalizedValue.endsWith("/")) {
+    normalizedValue = normalizedValue.slice(0, -1);
+  }
+
   const parsedUrl = new URL(normalizedValue);
 
   if (!["http:", "https:"].includes(parsedUrl.protocol)) {

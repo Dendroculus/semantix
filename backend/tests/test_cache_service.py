@@ -26,7 +26,13 @@ async def test_semantic_hit() -> None:
     miss = await cache.lookup("one")
     await cache.store("one", "answer", miss.embedding)
     hit = await cache.lookup("similar")
-    assert hit.cache_hit and hit.response == "answer"
+
+    assert hit.cache_hit
+    assert hit.response == "answer"
+    assert hit.similarity_threshold == pytest.approx(0.92)
+    assert hit.matched_prompt == "one"
+    assert hit.matched_cache_key is not None
+    assert hit.cache_entry_created_at is not None
 
 
 @pytest.mark.asyncio
@@ -52,6 +58,14 @@ async def test_updated_threshold_changes_lookup_rule() -> None:
     initial_lookup = await cache.lookup("one")
     await cache.store("one", "answer", initial_lookup.embedding)
 
-    assert not (await cache.lookup("near")).cache_hit
+    miss = await cache.lookup("near")
+    assert not miss.cache_hit
+    assert miss.similarity_threshold == pytest.approx(0.9)
+    assert miss.matched_prompt is None
+    assert miss.matched_cache_key is None
+    assert miss.cache_entry_created_at is None
+
     assert cache.update_similarity_threshold(0.75) == 0.75
-    assert (await cache.lookup("near")).cache_hit
+    hit = await cache.lookup("near")
+    assert hit.cache_hit
+    assert hit.similarity_threshold == pytest.approx(0.75)

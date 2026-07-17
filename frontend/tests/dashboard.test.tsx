@@ -86,6 +86,13 @@ describe("dashboard correctness", () => {
         response: "Generated response",
         cache_hit: false,
         similarity_score: null,
+        similarity_threshold: 0.9,
+        matched_prompt: null,
+        matched_cache_key: null,
+        cache_entry_created_at: null,
+        cache_entry_age_seconds: null,
+        generation_skipped: false,
+        provider_called: true,
         latency_ms: 12,
       }),
       reset: vi.fn(),
@@ -108,10 +115,12 @@ describe("dashboard correctness", () => {
     const onThresholdCommit = vi.fn();
     const { container, rerender } = render(
       <SimilarityRadar
+        appliedThreshold={0.9}
+        isApplyingThreshold={false}
         traces={traces}
         threshold={0.9}
+        onThresholdApply={onThresholdCommit}
         onThresholdChange={onThresholdChange}
-        onThresholdCommit={onThresholdCommit}
       />,
     );
 
@@ -124,10 +133,12 @@ describe("dashboard correctness", () => {
 
     rerender(
       <SimilarityRadar
+        appliedThreshold={0.9}
+        isApplyingThreshold={false}
         traces={traces}
         threshold={0.99}
+        onThresholdApply={onThresholdCommit}
         onThresholdChange={onThresholdChange}
-        onThresholdCommit={onThresholdCommit}
       />,
     );
 
@@ -159,12 +170,22 @@ describe("dashboard correctness", () => {
           response: "Generated response",
           cache_hit: false,
           similarity_score: null,
+          similarity_threshold: 0.9,
+          matched_prompt: null,
+          matched_cache_key: null,
+          cache_entry_created_at: null,
+          cache_entry_age_seconds: null,
+          generation_skipped: false,
+          provider_called: true,
           latency_ms: 12,
         }}
       />,
     );
 
-    expect(screen.getByText("n/a")).toBeTruthy();
+    const similarityLabel = screen.getByText("Similarity");
+    expect(
+      similarityLabel.parentElement?.querySelector("dd")?.textContent,
+    ).toBe("n/a");
   });
 
   it("uses scored-only projection and explicit metric formulas", () => {

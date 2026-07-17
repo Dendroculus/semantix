@@ -18,7 +18,7 @@ SemanticCacheDependency = Annotated[SemanticCache, Depends(get_semantic_cache)]
 
 
 @router.get("/stats", response_model=CacheStatsResponse)
-@limiter.limit(lambda: get_settings().rate_limit)  # type: ignore[untyped-decorator]
+@limiter.limit(lambda: get_settings().rate_limit)
 async def cache_stats(
     request: Request,
     cache: SemanticCacheDependency,
@@ -27,7 +27,7 @@ async def cache_stats(
 
 
 @router.delete("", response_model=ClearCacheResponse)
-@limiter.limit(lambda: get_settings().rate_limit)  # type: ignore[untyped-decorator]
+@limiter.limit(lambda: get_settings().rate_limit)
 async def clear_cache(
     request: Request,
     cache: SemanticCacheDependency,
@@ -37,7 +37,7 @@ async def clear_cache(
 
 
 @router.get("/threshold", response_model=CacheThresholdResponse)
-@limiter.limit(lambda: get_settings().rate_limit)  # type: ignore[untyped-decorator]
+@limiter.limit(lambda: get_settings().rate_limit)
 async def get_threshold(
     request: Request,
     cache: SemanticCacheDependency,
@@ -46,7 +46,7 @@ async def get_threshold(
 
 
 @router.put("/threshold", response_model=CacheThresholdResponse)
-@limiter.limit(lambda: get_settings().rate_limit)  # type: ignore[untyped-decorator]
+@limiter.limit(lambda: get_settings().rate_limit)
 async def update_threshold(
     request: Request,
     payload: CacheThresholdRequest,

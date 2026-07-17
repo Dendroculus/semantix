@@ -55,7 +55,11 @@ async def test_retries_then_succeeds() -> None:
 @pytest.mark.asyncio
 async def test_generation() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, request=request, json=[{"generated_text": "answer"}])
+        return httpx.Response(
+            200,
+            request=request,
+            json={"choices": [{"message": {"content": "answer"}}]},
+        )
 
     assert await service(handler).generate("x") == "answer"
 

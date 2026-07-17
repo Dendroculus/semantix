@@ -84,10 +84,7 @@ class HuggingFaceService:
 
     async def create_embedding(self, text: str) -> Sequence[float]:
         model_path = quote(self._embedding_model, safe="/")
-        endpoint = (
-            f"{self._base_url}/{model_path}"
-            "/pipeline/feature-extraction"
-        )
+        endpoint = f"{self._base_url}/{model_path}/pipeline/feature-extraction"
 
         payload = await self._post(
             endpoint,
@@ -109,16 +106,12 @@ class HuggingFaceService:
             axis=0,
         )
 
-        if (
-            vector.shape != (EMBEDDING_DIMENSIONS,)
-            or not np.isfinite(vector).all()
-        ):
+        if vector.shape != (EMBEDDING_DIMENSIONS,) or not np.isfinite(vector).all():
             raise InvalidProviderResponseError(
                 "Invalid embedding vector",
             )
 
         return [float(component) for component in vector]
-
 
     async def generate(self, prompt: str) -> str:
         endpoint = f"{self._chat_base_url}/chat/completions"
@@ -172,7 +165,6 @@ class HuggingFaceService:
             )
 
         return content.strip()
-
 
     async def _post(
         self,

@@ -23,6 +23,7 @@ const testGlobals = {
 
 export default defineConfig([
   globalIgnores([
+    '.vite-cache',
     'coverage',
     'dist',
     'node_modules',
@@ -139,6 +140,12 @@ export default defineConfig([
        */
       'react/jsx-uses-react': 'off',
       'react/react-in-jsx-scope': 'off',
+
+      /*
+       * Initial data-loading effects call async request functions whose state
+       * updates happen only after the first awaited network response.
+       */
+      'react-hooks/set-state-in-effect': 'off',
 
       /*
        * TypeScript interfaces/types replace runtime PropTypes.
