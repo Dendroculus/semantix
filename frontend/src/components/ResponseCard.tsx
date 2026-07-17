@@ -1,46 +1,8 @@
-import ReactMarkdown from "react-markdown";
-import rehypeKatex from "rehype-katex";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import "katex/dist/katex.min.css";
-import type { Components } from "react-markdown";
-
-import { unwrapOuterMarkdownFence } from "../lib/markdown";
 import type { QueryResponse } from "../types/api";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface ResponseCardProps {
   result: QueryResponse;
-}
-
-const CODE_SEGMENT = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)/g;
-const DISPLAY_MATH = /\\\[([\s\S]*?)\\\]/g;
-const INLINE_MATH = /\\\(([\s\S]*?)\\\)/g;
-
-function replaceDisplayMath(_match: string, expression: string): string {
-  return `\n\n$$\n${expression.trim()}\n$$\n\n`;
-}
-
-function replaceInlineMath(_match: string, expression: string): string {
-  return `$${expression.trim()}$`;
-}
-
-function normalizeMathDelimiters(markdown: string): string {
-  return markdown
-    .split(CODE_SEGMENT)
-    .map((segment) => {
-      if (
-        segment.startsWith("```") ||
-        segment.startsWith("~~~") ||
-        segment.startsWith("`")
-      ) {
-        return segment;
-      }
-
-      return segment
-        .replace(DISPLAY_MATH, replaceDisplayMath)
-        .replace(INLINE_MATH, replaceInlineMath);
-    })
-    .join("");
 }
 
 function formatCacheAge(seconds: number | null): string {
@@ -92,139 +54,6 @@ function explainDecision(result: QueryResponse): string {
   return "Generated a fresh response because the nearest candidate was unavailable at reuse time.";
 }
 
-const markdownComponents: Components = {
-  p: ({ ...props }) => (
-    <p
-      className="mb-3 whitespace-pre-wrap break-words leading-7 last:mb-0"
-      {...props}
-    />
-  ),
-
-  strong: ({ ...props }) => (
-    <strong
-      className="font-semibold text-[var(--text)]"
-      {...props}
-    />
-  ),
-
-  em: ({ ...props }) => <em {...props} />,
-
-  a: ({ children, ...props }) => (
-    <a
-      className="text-[var(--teal)] underline decoration-[rgba(91,156,148,0.35)] underline-offset-4 hover:text-[var(--text)]"
-      rel="noopener noreferrer"
-      target="_blank"
-      {...props}
-    >
-      {children}
-    </a>
-  ),
-
-  ul: ({ ...props }) => (
-    <ul
-      className="mb-3 list-disc space-y-1 pl-5 last:mb-0"
-      {...props}
-    />
-  ),
-
-  ol: ({ ...props }) => (
-    <ol
-      className="mb-3 list-decimal space-y-1 pl-5 last:mb-0"
-      {...props}
-    />
-  ),
-
-  li: ({ ...props }) => (
-    <li className="leading-6" {...props} />
-  ),
-
-  blockquote: ({ ...props }) => (
-    <blockquote
-      className="mb-3 border-l-2 border-[var(--hairline)] pl-4 italic text-[var(--text-muted)] last:mb-0"
-      {...props}
-    />
-  ),
-
-  code: ({ className, children, ...props }) => {
-    const isBlock = className?.includes("language-");
-
-    return isBlock ? (
-      <code
-        className={`font-data block whitespace-pre-wrap break-words ${
-          className ?? ""
-        }`}
-        {...props}
-      >
-        {children}
-      </code>
-    ) : (
-      <code
-        className="font-data rounded bg-[rgba(234,230,221,0.08)] px-1.5 py-0.5 text-[0.85em] text-[var(--gold)]"
-        {...props}
-      >
-        {children}
-      </code>
-    );
-  },
-
-  pre: ({ ...props }) => (
-    <pre
-      className="scrollbar-thin mb-3 overflow-x-auto rounded border border-[var(--hairline)] bg-[rgba(0,0,0,0.25)] p-3 text-xs last:mb-0"
-      {...props}
-    />
-  ),
-
-  h1: ({ children, ...props }) => (
-    <h3
-      className="font-display mb-2 text-lg italic"
-      {...props}
-    >
-      {children}
-    </h3>
-  ),
-
-  h2: ({ children, ...props }) => (
-    <h3
-      className="font-display mb-2 text-lg italic"
-      {...props}
-    >
-      {children}
-    </h3>
-  ),
-
-  h3: ({ children, ...props }) => (
-    <h3
-      className="font-display mb-2 text-base italic"
-      {...props}
-    >
-      {children}
-    </h3>
-  ),
-
-  table: ({ ...props }) => (
-    <div className="mb-3 overflow-x-auto last:mb-0">
-      <table
-        className="font-data w-full border-collapse text-xs"
-        {...props}
-      />
-    </div>
-  ),
-
-  th: ({ ...props }) => (
-    <th
-      className="border-b border-[var(--hairline)] px-2 py-1.5 text-left text-[var(--text-faint)]"
-      {...props}
-    />
-  ),
-
-  td: ({ ...props }) => (
-    <td
-      className="border-b border-[rgba(234,230,221,0.05)] px-2 py-1.5"
-      {...props}
-    />
-  ),
-};
-
 export function ResponseCard({
   result,
 }: ResponseCardProps): JSX.Element {
@@ -241,10 +70,6 @@ export function ResponseCard({
   const verdictColor = result.cache_hit
     ? "var(--gold)"
     : "var(--coral)";
-
-  const markdown = normalizeMathDelimiters(
-    unwrapOuterMarkdownFence(result.response),
-  );
 
   return (
     <article
@@ -264,15 +89,10 @@ export function ResponseCard({
         </span>
       </header>
 
-      <div className="text-sm text-[var(--text-soft)] [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.katex-display]:py-2">
-        <ReactMarkdown
-          components={markdownComponents}
-          rehypePlugins={[rehypeKatex]}
-          remarkPlugins={[remarkGfm, remarkMath]}
-        >
-          {markdown}
-        </ReactMarkdown>
-      </div>
+      <MarkdownContent
+        className="text-sm text-[var(--text-soft)]"
+        markdown={result.response}
+      />
 
       <section
         aria-label="Cache decision explanation"

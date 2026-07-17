@@ -91,6 +91,32 @@ describe("CacheInspector", () => {
     ).toBeTruthy();
   });
 
+  it("renders markdown and math in response previews", async () => {
+    const formattedEntry = {
+      ...alphaEntry,
+      response_preview: [
+        "**Formatted preview**",
+        "",
+        "- First item",
+        "- Second item",
+        "",
+        "Inline math: \\(x^2 + y^2\\)",
+      ].join("\n"),
+    };
+    vi.mocked(listCacheEntries).mockImplementation(async (params) =>
+      successfulPage([formattedEntry], params),
+    );
+
+    const { container } = render(
+      <CacheInspector refreshKey={0} onMutation={vi.fn()} />,
+    );
+
+    const strongText = await screen.findByText("Formatted preview");
+    expect(strongText.tagName).toBe("STRONG");
+    expect(screen.getByText("First item").closest("ul")).not.toBeNull();
+    expect(container.querySelector(".katex")).not.toBeNull();
+  });
+
   it("searches cached prompts through the inspector API", async () => {
     vi.mocked(listCacheEntries).mockImplementation(async (params) => {
       const items = params.search.toLowerCase().includes("semantic")

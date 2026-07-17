@@ -171,11 +171,13 @@ Its current readings use these formulas:
   `cache_hit` value is `false`.
 - **Cache entries** = the backend's current in-memory cache size.
 
-The similarity radar is secondary visual evidence. It plots only scored traces,
-with similarity `1.0` at the center and `0.0` at the edge. A point's angle is
-stable for that trace but has no semantic meaning; changing the threshold only
-changes the threshold ring and the projected hit/miss color. The plotted count
-always states how many visible traces have scores.
+The similarity threshold plot is secondary visual evidence. It plots only
+scored traces on a horizontal `0.0` through `1.0` scale; vertical position only
+prevents overlapping points and has no semantic meaning. Hovering, focusing, or
+selecting a point opens an in-chart card with its prompt, exact score, projected
+decision, and actual backend decision. Changing the preview threshold updates
+projected hit/miss colors without moving points or changing backend behavior
+until the new threshold is explicitly applied.
 
 ### Query decision evidence
 

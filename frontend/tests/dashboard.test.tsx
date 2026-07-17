@@ -163,6 +163,51 @@ describe("dashboard correctness", () => {
     ]).toEqual(initialPosition);
   });
 
+  it("shows and highlights trace evidence on hover and keyboard focus", () => {
+    render(
+      <SimilarityRadar
+        appliedThreshold={0.9}
+        isApplyingThreshold={false}
+        traces={traces}
+        threshold={0.9}
+        onThresholdApply={vi.fn()}
+        onThresholdChange={vi.fn()}
+      />,
+    );
+
+    const point = screen.getByRole("button", {
+      name: /Prompt: Close match\./,
+    });
+
+    fireEvent.mouseEnter(point);
+
+    const hoverTooltip = screen.getByRole("tooltip");
+    expect(hoverTooltip.textContent).toContain("Close match");
+    expect(hoverTooltip.textContent).toContain("Score 0.950");
+    expect(hoverTooltip.textContent).toContain("Preview HIT");
+    expect(hoverTooltip.textContent).toContain("Actual HIT");
+    expect(point.getAttribute("data-active")).toBe("true");
+    expect(
+      point.querySelector('[data-testid="similarity-point"]')?.getAttribute(
+        "r",
+      ),
+    ).toBe("8");
+
+    fireEvent.mouseLeave(point);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.focus(point);
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+    expect(point.getAttribute("data-active")).toBe("true");
+
+    fireEvent.blur(point);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.click(point);
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+    expect(point.getAttribute("data-active")).toBe("true");
+  });
+
   it("renders missing similarity as n/a and classifies it as a miss", () => {
     const unscoredTrace = traces[2];
     expect(unscoredTrace).toBeDefined();

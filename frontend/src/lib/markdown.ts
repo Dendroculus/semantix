@@ -1,3 +1,7 @@
+const CODE_SEGMENT = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)/g;
+const DISPLAY_MATH = /\\\[([\s\S]*?)\\\]/g;
+const INLINE_MATH = /\\\(([\s\S]*?)\\\)/g;
+
 /**
  * LLMs sometimes wrap an entire markdown-formatted answer in an outer
  * ```markdown fence (e.g. when asked to demonstrate markdown syntax).
@@ -20,4 +24,35 @@ export function unwrapOuterMarkdownFence(text: string): string {
   // response may also be truncated mid-stream with no closing fence at all.
   inner = inner.replace(/\r?\n```[ \t]*$/, "");
   return inner;
+}
+
+function replaceDisplayMath(_match: string, expression: string): string {
+  return `\n\n$$\n${expression.trim()}\n$$\n\n`;
+}
+
+function replaceInlineMath(_match: string, expression: string): string {
+  return `$${expression.trim()}$`;
+}
+
+export function normalizeMathDelimiters(markdown: string): string {
+  return markdown
+    .split(CODE_SEGMENT)
+    .map((segment) => {
+      if (
+        segment.startsWith("```") ||
+        segment.startsWith("~~~") ||
+        segment.startsWith("`")
+      ) {
+        return segment;
+      }
+
+      return segment
+        .replace(DISPLAY_MATH, replaceDisplayMath)
+        .replace(INLINE_MATH, replaceInlineMath);
+    })
+    .join("");
+}
+
+export function prepareMarkdown(markdown: string): string {
+  return normalizeMathDelimiters(unwrapOuterMarkdownFence(markdown));
 }
