@@ -1,8 +1,8 @@
 from typing import cast
 from fastapi import Request
-from app.services.benchmark_service import BenchmarkService
-from app.services.cache_service import SemanticCache
-from app.services.huggingface_service import HuggingFaceService
+from app.benchmark.service import BenchmarkService
+from app.cache.service import SemanticCache
+from app.providers.huggingface import HuggingFaceService
 
 
 def get_benchmark_service(request: Request) -> BenchmarkService:

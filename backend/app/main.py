@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 
 from app.api.routes import benchmark, cache, health, query
+from app.benchmark.service import BenchmarkService
+from app.cache.memory import InMemoryCacheBackend
+from app.cache.service import SemanticCache
 from app.core.config import Settings, get_settings
 from app.core.exceptions import (
     AppError,
@@ -19,11 +22,8 @@ from app.core.exceptions import (
 )
 from app.core.logging import configure_logging
 from app.middleware.rate_limit import limiter
-from app.services.benchmark_service import BenchmarkService
-from app.services.cache_backend import InMemoryCacheBackend
-from app.services.cache_service import SemanticCache
-from app.services.embedding_service import EmbeddingService
-from app.services.huggingface_service import HuggingFaceService
+from app.providers.embedding import EmbeddingService
+from app.providers.huggingface import HuggingFaceService
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

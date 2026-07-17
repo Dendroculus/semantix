@@ -3,14 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 
 from app.api.deps import get_benchmark_service
-from app.core.config import get_settings
-from app.middleware.rate_limit import limiter
-from app.models.benchmark import (
+from app.benchmark.schemas import (
     BenchmarkDatasetListResponse,
     BenchmarkRunRequest,
     BenchmarkRunResponse,
 )
-from app.services.benchmark_service import BenchmarkService
+from app.benchmark.service import BenchmarkService
+from app.core.config import get_settings
+from app.middleware.rate_limit import limiter
 
 router = APIRouter(prefix="/api/v1/benchmarks", tags=["benchmarks"])
 BenchmarkDependency = Annotated[BenchmarkService, Depends(get_benchmark_service)]

@@ -283,61 +283,42 @@ A persistent vector database can later implement the cache interface without rew
 
 ```text
 semantix/
-├── docker-compose.yml                 # Starts the backend and frontend
-├── LICENSE
-├── README.md
+├── docker-compose.yml
 ├── backend/
-│   ├── .dockerignore
-│   ├── .env.example                   # Backend configuration template
-│   ├── Dockerfile
-│   ├── pyproject.toml                 # Runtime and development dependencies
 │   ├── app/
-│   │   ├── main.py                    # FastAPI application entrypoint
-│   │   ├── api/
-│   │   │   ├── deps.py                # Shared route dependencies
-│   │   │   └── routes/
-│   │   │       ├── cache.py           # Cache statistics and invalidation
-│   │   │       ├── health.py          # Health endpoint
-│   │   │       └── query.py           # Semantic query workflow
-│   │   ├── core/
-│   │   │   ├── config.py              # Pydantic settings
-│   │   │   ├── exceptions.py          # Stable application errors
-│   │   │   └── logging.py             # Logging configuration
+│   │   ├── api/                        # Thin HTTP routes and dependencies
+│   │   ├── benchmark/                  # Datasets, metrics, schemas, and runner
+│   │   ├── cache/                      # Keys, models, storage, and cache service
+│   │   ├── providers/                  # Embedding and Hugging Face integrations
+│   │   ├── query/                      # Query request/response contract
+│   │   ├── core/                       # Settings, errors, logging, shared schemas
 │   │   ├── middleware/
-│   │   │   └── rate_limit.py          # Per-client API rate limiting
-│   │   ├── models/
-│   │   │   └── schemas.py             # Request and response schemas
-│   │   └── services/
-│   │       ├── cache_backend.py        # In-memory vector cache
-│   │       ├── cache_service.py        # Cache orchestration
-│   │       ├── embedding_service.py    # Embedding validation
-│   │       └── huggingface_service.py  # Hugging Face client
-│   └── tests/                          # Backend unit and route tests
+│   │   └── main.py
+│   └── tests/
+│       ├── benchmark/
+│       ├── cache/
+│       ├── providers/
+│       └── query/
 └── frontend/
-    ├── .dockerignore
-    ├── .env.example                    # Local frontend configuration
-    ├── Dockerfile
-    ├── eslint.config.js
-    ├── package.json
-    ├── package-lock.json
-    ├── tsconfig.json
-    ├── vite.config.ts
     ├── src/
-    │   ├── components/                 # Feature UI and navigation components
-    │   ├── context/                    # Shared cache-control and monitor providers
-    │   ├── config/env.ts               # Browser environment validation
-    │   ├── hooks/                       # Query and provider access hooks
-    │   ├── layouts/AppLayout.tsx        # Persistent navigation and providers
-    │   ├── pages/                       # Monitor, cache, benchmark, and 404 routes
-    │   ├── routes/                      # Feature-owned route registries
-    │   ├── routes.ts                    # Combined public route facade
-    │   ├── services/api/                # Feature-scoped typed backend clients
-    │   ├── services/apiClient.ts        # Compatibility export facade
-    │   └── types/api.ts                 # API types
+    │   ├── app/                         # Layout, navigation, providers, router
+    │   ├── features/
+    │   │   ├── monitor/                 # Live query workflow and radar
+    │   │   ├── cache/                   # Cache inspection and controls
+    │   │   └── benchmark/               # Controlled evaluation laboratory
+    │   ├── shared/                      # HTTP, validation, config, markdown
+    │   ├── App.tsx
+    │   └── main.tsx
     └── tests/
-        ├── setup.ts
-        └── useQuery.test.tsx
+        ├── app/
+        └── features/                    # Tests mirror feature ownership
 ```
+
+Frontend features own their pages, route registries, API adapters, state,
+components, and types. `app/router/routes.ts` only composes those registries,
+and every page is lazy-loaded behind the shared route loader. Backend domains
+likewise own their models, schemas, protocols, and services; API route modules
+translate HTTP requests without absorbing domain behavior.
 
 ## 🏗️ Technology Stack
 

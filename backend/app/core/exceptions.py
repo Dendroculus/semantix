@@ -4,7 +4,7 @@ from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
-from app.models.schemas import ErrorResponse
+from app.core.schemas import ErrorResponse
 
 logger = logging.getLogger(__name__)
 

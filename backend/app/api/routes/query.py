@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, Request
 from app.api.deps import get_huggingface_service, get_semantic_cache
 from app.core.config import get_settings
 from app.middleware.rate_limit import limiter
-from app.models.schemas import QueryRequest, QueryResponse
-from app.services.cache_service import SemanticCache
-from app.services.huggingface_service import HuggingFaceService
+from app.cache.service import SemanticCache
+from app.providers.huggingface import HuggingFaceService
+from app.query.schemas import QueryRequest, QueryResponse
 
 router = APIRouter(prefix="/api/v1", tags=["query"])
 logger = logging.getLogger(__name__)

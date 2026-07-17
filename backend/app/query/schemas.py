@@ -1,0 +1,77 @@
+import re
+from datetime import datetime
+
+from pydantic import Field, field_validator, model_validator
+
+from app.core.schemas import MAX_PROMPT_LENGTH, MAX_RESPONSE_LENGTH, StrictModel
+
+_CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
+_REPEATED_WHITESPACE = re.compile(r"[ \t]+")
+
+
+class QueryRequest(StrictModel):
+    prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
+
+    @field_validator("prompt", mode="before")
+    @classmethod
+    def sanitize_prompt(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        return _REPEATED_WHITESPACE.sub(
+            " ", _CONTROL_CHARACTERS.sub(" ", value)
+        ).strip()
+
+
+class QueryResponse(StrictModel):
+    response: str = Field(min_length=1, max_length=MAX_RESPONSE_LENGTH)
+    cache_hit: bool
+    similarity_score: float | None = Field(default=None, ge=-1, le=1)
+    similarity_threshold: float = Field(ge=0, le=1)
+    matched_prompt: str | None = Field(
+        default=None, min_length=1, max_length=MAX_PROMPT_LENGTH
+    )
+    matched_cache_key: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    cache_entry_created_at: datetime | None = None
+    cache_entry_age_seconds: float | None = Field(default=None, ge=0)
+    generation_skipped: bool
+    provider_called: bool
+    latency_ms: float = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_explainability(self) -> "QueryResponse":
+        matched_fields = (
+            self.matched_prompt,
+            self.matched_cache_key,
+            self.cache_entry_created_at,
+            self.cache_entry_age_seconds,
+        )
+
+        if self.cache_hit:
+            if self.similarity_score is None or any(
+                value is None for value in matched_fields
+            ):
+                raise ValueError(
+                    "A cache hit must include its score and matched-entry metadata"
+                )
+            if self.similarity_score < self.similarity_threshold:
+                raise ValueError("A cache-hit score must meet the request threshold")
+            if not self.generation_skipped or self.provider_called:
+                raise ValueError(
+                    "A cache hit must skip generation and not call the provider"
+                )
+        else:
+            if any(value is not None for value in matched_fields):
+                raise ValueError("A cache miss cannot include matched-entry metadata")
+            if self.generation_skipped or not self.provider_called:
+                raise ValueError(
+                    "A cache miss must run generation and call the provider"
+                )
+
+        return self
+
+    @field_validator("cache_entry_created_at")
+    @classmethod
+    def require_cache_entry_timezone(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("cache_entry_created_at must be timezone-aware")
+        return value
