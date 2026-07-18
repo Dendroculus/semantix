@@ -15,8 +15,8 @@ import {
   vi,
 } from "vitest";
 
-import App from "../../src/App";
-import { useQuery } from "../../src/features/monitor/hooks/useQuery";
+import App from "@/App";
+import { useQuery } from "@/features/monitor/hooks/useQuery";
 import {
   clearCache,
   deleteCacheEntry,
@@ -24,12 +24,12 @@ import {
   getCacheThreshold,
   listCacheEntries,
   updateCacheThreshold,
-} from "../../src/features/cache/api/cacheApi";
-import { getBenchmarkDatasets } from "../../src/features/benchmark/api/benchmarkApi";
+} from "@/features/cache/api/cacheApi";
+import { getBenchmarkDatasets } from "@/features/benchmark/api/benchmarkApi";
 import type {
   CacheEntryMetadata,
-} from "../../src/features/cache/types";
-import type { QueryResponse } from "../../src/features/monitor/types";
+} from "@/features/cache/types";
+import type { QueryResponse } from "@/features/monitor/types";
 
 vi.mock("../../src/features/monitor/hooks/useQuery");
 vi.mock("../../src/features/cache/api/cacheApi");
