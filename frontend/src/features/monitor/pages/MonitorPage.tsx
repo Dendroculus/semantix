@@ -3,7 +3,7 @@ import { QueryForm } from "../components/QueryForm";
 import { QueryLog } from "../components/QueryLog";
 import { ResponseCard } from "../components/ResponseCard";
 import { SimilarityRadar } from "../components/similarity-radar/SimilarityRadar";
-import { useCacheControl } from "../../cache/hooks/useCacheControl";
+import { useCacheControl } from "@/features/cache/hooks/useCacheControl";
 import { useMonitor } from "../hooks/useMonitor";
 
 export function MonitorPage(): JSX.Element {

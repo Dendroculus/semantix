@@ -2,19 +2,19 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import App from "../../../src/App";
-import { FieldMetrics } from "../../../src/features/monitor/components/FieldMetrics";
-import { QueryLog } from "../../../src/features/monitor/components/QueryLog";
-import { ResponseCard } from "../../../src/features/monitor/components/ResponseCard";
-import { SimilarityRadar } from "../../../src/features/monitor/components/similarity-radar/SimilarityRadar";
-import { useQuery } from "../../../src/features/monitor/hooks/useQuery";
+import App from "@/App";
+import { FieldMetrics } from "@/features/monitor/components/FieldMetrics";
+import { QueryLog } from "@/features/monitor/components/QueryLog";
+import { ResponseCard } from "@/features/monitor/components/ResponseCard";
+import { SimilarityRadar } from "@/features/monitor/components/similarity-radar/SimilarityRadar";
+import { useQuery } from "@/features/monitor/hooks/useQuery";
 import {
   getCacheStats,
   getCacheThreshold,
   listCacheEntries,
-} from "../../../src/features/cache/api/cacheApi";
-import { getBenchmarkDatasets } from "../../../src/features/benchmark/api/benchmarkApi";
-import type { QueryTrace } from "../../../src/features/monitor/types";
+} from "@/features/cache/api/cacheApi";
+import { getBenchmarkDatasets } from "@/features/benchmark/api/benchmarkApi";
+import type { QueryTrace } from "@/features/monitor/types";
 
 vi.mock("../../../src/features/monitor/hooks/useQuery");
 vi.mock("../../../src/features/cache/api/cacheApi");

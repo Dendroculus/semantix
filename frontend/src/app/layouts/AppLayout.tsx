@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
 
-import { useCacheControl } from "../../features/cache/hooks/useCacheControl";
+import { useCacheControl } from "@/features/cache/hooks/useCacheControl";
 import { Navbar } from "../navigation/Navbar";
 import { AppProviders } from "../providers/AppProviders";
 

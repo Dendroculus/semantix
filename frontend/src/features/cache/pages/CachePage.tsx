@@ -3,7 +3,7 @@ import {
   type CacheMutation,
 } from "../components/CacheInspector";
 import { useCacheControl } from "../hooks/useCacheControl";
-import { useMonitor } from "../../monitor/hooks/useMonitor";
+import { useMonitor } from "@/features/monitor/hooks/useMonitor";
 
 export function CachePage(): JSX.Element {
   const { refreshCacheState } = useCacheControl();

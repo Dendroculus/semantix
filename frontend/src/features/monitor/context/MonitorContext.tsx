@@ -5,7 +5,7 @@ import {
 } from "react";
 
 import { MonitorContext } from "./monitorState";
-import { useCacheControl } from "../../cache/hooks/useCacheControl";
+import { useCacheControl } from "@/features/cache/hooks/useCacheControl";
 import { useQuery } from "../hooks/useQuery";
 import type { QueryTrace } from "../types";
 

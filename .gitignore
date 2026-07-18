@@ -14,3 +14,7 @@ frontend/dist/
 coverage/
 .vite_cache/
 frontend/.vite-cache
+.vscode/settings.json
+.vscode/extensions.json
+.vscode/tasks.json
+.vscode/launch.json

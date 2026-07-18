@@ -1,4 +1,4 @@
-import { defineLazyPathRoute } from "../../app/router/lazyPage";
+import { defineLazyPathRoute } from "@/app/router/lazyPage";
 
 const cacheRoutes = [
   defineLazyPathRoute(

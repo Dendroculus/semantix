@@ -7,8 +7,8 @@ import type {
   ClearCacheResponse,
   DeleteCacheEntryResponse,
 } from "../types";
-import type { ApiResult } from "../../../shared/api/types";
-import { request, withSignal } from "../../../shared/api/httpClient";
+import type { ApiResult } from "@/shared/api/types";
+import { request, withSignal } from "@/shared/api/httpClient";
 import {
   isFiniteNumber,
   isIsoDate,
@@ -16,7 +16,7 @@ import {
   isNullableFiniteNumber,
   isNullableString,
   isRecord,
-} from "../../../shared/api/validators";
+} from "@/shared/api/validators";
 
 function decodeCacheStats(value: unknown): CacheStatsResponse {
   if (

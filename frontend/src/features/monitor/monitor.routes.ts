@@ -1,4 +1,4 @@
-import { defineLazyIndexRoute } from "../../app/router/lazyPage";
+import { defineLazyIndexRoute } from "@/app/router/lazyPage";
 
 const monitorRoutes = [
   defineLazyIndexRoute(

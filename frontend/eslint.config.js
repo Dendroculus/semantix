@@ -1,13 +1,13 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import typescriptEslint from '@typescript-eslint/eslint-plugin'
-import typescriptParser from '@typescript-eslint/parser'
-import react from 'eslint-plugin-react'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import jsxA11y from 'eslint-plugin-jsx-a11y'
-import sonarjs from 'eslint-plugin-sonarjs'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import js from '@eslint/js';
+import globals from 'globals';
+import typescriptEslint from '@typescript-eslint/eslint-plugin';
+import typescriptParser from '@typescript-eslint/parser';
+import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
+import sonarjs from 'eslint-plugin-sonarjs';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
 const testGlobals = {
   afterAll: 'readonly',
@@ -19,15 +19,10 @@ const testGlobals = {
   it: 'readonly',
   test: 'readonly',
   vi: 'readonly',
-}
+};
 
 export default defineConfig([
-  globalIgnores([
-    '.vite-cache',
-    'coverage',
-    'dist',
-    'node_modules',
-  ]),
+  globalIgnores(['.vite-cache', 'coverage', 'dist', 'node_modules']),
 
   /*
    * JavaScript configuration files:
@@ -83,6 +78,18 @@ export default defineConfig([
       ...typescriptEslint.configs.recommended.rules,
       ...sonarjs.configs.recommended.rules,
 
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^\\.\\./\\.\\./',
+              message:
+                'Use the @/ alias for imports that traverse two or more parent directories.',
+            },
+          ],
+        },
+      ],
       /*
        * TypeScript handles these more accurately than ESLint.
        */
@@ -164,14 +171,10 @@ export default defineConfig([
    * Vitest test globals.
    */
   {
-    files: [
-      'tests/**/*.{ts,tsx}',
-      '**/*.test.{ts,tsx}',
-      '**/*.spec.{ts,tsx}',
-    ],
+    files: ['tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
 
     languageOptions: {
       globals: testGlobals,
     },
   },
-])
+]);

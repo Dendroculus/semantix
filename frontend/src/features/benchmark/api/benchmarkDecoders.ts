@@ -16,7 +16,7 @@ import {
   isNullableFiniteNumber,
   isNullableString,
   isRecord,
-} from "../../../shared/api/validators";
+} from "@/shared/api/validators";
 
 const DATASET_IDS: readonly BenchmarkDatasetId[] = ["quick", "extended"];
 const CATEGORIES: readonly BenchmarkCategory[] = [

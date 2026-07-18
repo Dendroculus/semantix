@@ -9,7 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "lint:no-any": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\""
+    "lint:no-any": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
+    "imports:preview": "node scripts/normalize-imports.mjs",
+    "imports:fix": "node scripts/normalize-imports.mjs --write --strict",
+    "imports:check": "node scripts/normalize-imports.mjs --check --strict"
+    
   },
   "dependencies": {
     "katex": "^0.17.0",

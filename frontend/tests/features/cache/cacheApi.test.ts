@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   deleteCacheEntry,
   listCacheEntries,
-} from "../../../src/features/cache/api/cacheApi";
+} from "@/features/cache/api/cacheApi";
 
 describe("cache inspector API client", () => {
   let fetchMock: MockedFunction<typeof fetch>;

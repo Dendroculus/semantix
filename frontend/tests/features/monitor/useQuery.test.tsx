@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { MockedFunction } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useQuery } from "../../../src/features/monitor/hooks/useQuery";
+import { useQuery } from "@/features/monitor/hooks/useQuery";
 
 describe("useQuery", () => {
   let fetchMock: MockedFunction<typeof fetch>;

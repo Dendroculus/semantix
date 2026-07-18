@@ -4,8 +4,9 @@ import { Route, Routes } from "react-router-dom";
 import { AppLayout } from "../layouts/AppLayout";
 import { RouteLoader } from "./RouteLoader";
 import routes from "./routes";
+import type { AppRouteDefinition } from "./types";
 
-function renderRoute(route: (typeof routes)[number]): JSX.Element {
+function renderRoute(route: AppRouteDefinition): JSX.Element {
   const Component = route.component;
   const element = (
     <Suspense fallback={<RouteLoader />}>
@@ -13,16 +14,14 @@ function renderRoute(route: (typeof routes)[number]): JSX.Element {
     </Suspense>
   );
 
-  if ("index" in route) {
+  if (route.index) {
     return <Route key={route.key} index element={element} />;
   }
 
   return (
-    <Route
-      key={route.key}
-      path={route.path}
-      element={element}
-    />
+    <Route key={route.key} path={route.path} element={element}>
+      {route.children?.map(renderRoute)}
+    </Route>
   );
 }
 

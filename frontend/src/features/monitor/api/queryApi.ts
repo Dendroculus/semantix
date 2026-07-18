@@ -2,17 +2,17 @@ import type {
   QueryRequest,
   QueryResponse,
 } from "../types";
-import type { ApiResult } from "../../../shared/api/types";
+import type { ApiResult } from "@/shared/api/types";
 import {
   request,
   withSignal,
-} from "../../../shared/api/httpClient";
+} from "@/shared/api/httpClient";
 import {
   isFiniteNumber,
   isNullableFiniteNumber,
   isNullableString,
   isRecord,
-} from "../../../shared/api/validators";
+} from "@/shared/api/validators";
 
 function decodeQueryResponse(value: unknown): QueryResponse {
   if (

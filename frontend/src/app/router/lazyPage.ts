@@ -1,60 +1,60 @@
-import { lazy, type ComponentType } from "react";
+import {
+  lazy,
+  type ComponentType,
+  type LazyExoticComponent,
+} from "react";
 
 import type {
+  AppRouteDefinition,
   IndexRouteDefinition,
   PathRouteDefinition,
 } from "./types";
 
-type ComponentExportName<TModule> = {
-  [TKey in keyof TModule]: TModule[TKey] extends ComponentType
-    ? TKey
-    : never;
-}[keyof TModule] &
-  string;
-
 function lazyNamedPage<
-  TModule,
-  TExportName extends ComponentExportName<TModule>,
+  TExportName extends string,
+  TModule extends Record<TExportName, ComponentType>,
 >(
-  loadModule: () => Promise<TModule>,
+  importer: () => Promise<TModule>,
   exportName: TExportName,
-) {
+): LazyExoticComponent<ComponentType> {
   return lazy(async () => {
-    const module = await loadModule();
+    const module = await importer();
 
     return {
-      default: module[exportName] as ComponentType,
+      default: module[exportName],
     };
   });
 }
 
 export function defineLazyIndexRoute<
-  TModule,
-  TExportName extends ComponentExportName<TModule>,
+  TExportName extends string,
+  TModule extends Record<TExportName, ComponentType>,
 >(
   key: string,
-  loadModule: () => Promise<TModule>,
+  importer: () => Promise<TModule>,
   exportName: TExportName,
 ): IndexRouteDefinition {
   return {
     key,
     index: true,
-    component: lazyNamedPage(loadModule, exportName),
+    component: lazyNamedPage(importer, exportName),
   };
 }
 
 export function defineLazyPathRoute<
-  TModule,
-  TExportName extends ComponentExportName<TModule>,
+  TExportName extends string,
+  TModule extends Record<TExportName, ComponentType>,
 >(
   key: string,
   path: string,
-  loadModule: () => Promise<TModule>,
+  importer: () => Promise<TModule>,
   exportName: TExportName,
+  children?: AppRouteDefinition[],
 ): PathRouteDefinition {
   return {
     key,
     path,
-    component: lazyNamedPage(loadModule, exportName),
+    component: lazyNamedPage(importer, exportName),
+    ...(children?.length ? { children } : {}),
   };
 }

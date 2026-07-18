@@ -3,9 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import {
   clearCache,
   getCacheStats,
-} from "../../cache/api/cacheApi";
-import type { CacheStatsResponse } from "../../cache/types";
-import type { ApiError } from "../../../shared/api/types";
+} from "@/features/cache/api/cacheApi";
+import type { CacheStatsResponse } from "@/features/cache/types";
+import type { ApiError } from "@/shared/api/types";
 
 interface CacheStatsProps {
   refreshKey: number;

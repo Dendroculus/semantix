@@ -1,4 +1,4 @@
-import { MarkdownContent } from "../../../shared/components/markdown/MarkdownContent";
+import { MarkdownContent } from "@/shared/components/markdown/MarkdownContent";
 import type { QueryResponse } from "../types";
 
 interface ResponseCardProps {

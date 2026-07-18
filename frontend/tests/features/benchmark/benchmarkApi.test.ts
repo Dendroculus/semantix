@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getBenchmarkDatasets,
   runBenchmark,
-} from "../../../src/features/benchmark/api/benchmarkApi";
+} from "@/features/benchmark/api/benchmarkApi";
 
 const dataset = {
   dataset_id: "quick",

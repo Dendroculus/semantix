@@ -5,7 +5,7 @@ import remarkMath from "remark-math";
 import type { Components } from "react-markdown";
 import "katex/dist/katex.min.css";
 
-import { prepareMarkdown } from "../../lib/markdown";
+import { prepareMarkdown } from "@/shared/lib/markdown";
 
 type MarkdownDensity = "comfortable" | "compact";
 

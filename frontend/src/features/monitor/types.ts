@@ -1,4 +1,4 @@
-import type { ApiError } from "../../shared/api/types";
+import type { ApiError } from "@/shared/api/types";
 
 export interface QueryRequest {
   prompt: string;

@@ -7,16 +7,16 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CacheInspector } from "../../../src/features/cache/components/CacheInspector";
+import { CacheInspector } from "@/features/cache/components/CacheInspector";
 import {
   clearCache,
   deleteCacheEntry,
   listCacheEntries,
-} from "../../../src/features/cache/api/cacheApi";
+} from "@/features/cache/api/cacheApi";
 import type {
   CacheEntryListParams,
   CacheEntryMetadata,
-} from "../../../src/features/cache/types";
+} from "@/features/cache/types";
 
 vi.mock("../../../src/features/cache/api/cacheApi");
 

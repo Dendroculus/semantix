@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import type { QueryTrace } from "../../types";
+import type { QueryTrace } from "@/features/monitor/types";
 import { buildPlotPoints } from "./model";
 import { SimilarityPlot } from "./SimilarityPlot";
 import { SimilarityStats } from "./SimilarityStats";

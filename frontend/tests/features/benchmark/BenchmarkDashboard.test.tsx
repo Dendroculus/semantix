@@ -8,16 +8,16 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { BenchmarkDashboard } from "../../../src/features/benchmark/components/BenchmarkDashboard";
+import { BenchmarkDashboard } from "@/features/benchmark/components/BenchmarkDashboard";
 import {
   buildBenchmarkCsv,
   buildBenchmarkJson,
-} from "../../../src/features/benchmark/lib/exportBuilders";
+} from "@/features/benchmark/lib/exportBuilders";
 import {
   getBenchmarkDatasets,
   runBenchmark,
-} from "../../../src/features/benchmark/api/benchmarkApi";
-import type { BenchmarkRunResponse } from "../../../src/features/benchmark/types";
+} from "@/features/benchmark/api/benchmarkApi";
+import type { BenchmarkRunResponse } from "@/features/benchmark/types";
 
 vi.mock("../../../src/features/benchmark/api/benchmarkApi");
 

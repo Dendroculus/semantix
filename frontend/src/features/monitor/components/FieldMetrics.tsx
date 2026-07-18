@@ -1,4 +1,4 @@
-import type { CacheStatsResponse } from "../../cache/types";
+import type { CacheStatsResponse } from "@/features/cache/types";
 import type { QueryTrace } from "../types";
 
 interface FieldMetricsProps {

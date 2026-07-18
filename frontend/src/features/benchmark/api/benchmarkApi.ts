@@ -1,4 +1,4 @@
-import type { ApiResult } from "../../../shared/api/types";
+import type { ApiResult } from "@/shared/api/types";
 import type {
   BenchmarkDatasetListResponse,
   BenchmarkRunRequest,
@@ -8,7 +8,7 @@ import {
   decodeBenchmarkDatasets,
   decodeBenchmarkRun,
 } from "./benchmarkDecoders";
-import { request, withSignal } from "../../../shared/api/httpClient";
+import { request, withSignal } from "@/shared/api/httpClient";
 
 export async function getBenchmarkDatasets(
   signal?: AbortSignal,

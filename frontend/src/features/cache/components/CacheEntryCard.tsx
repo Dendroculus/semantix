@@ -1,4 +1,4 @@
-import { MarkdownContent } from "../../../shared/components/markdown/MarkdownContent";
+import { MarkdownContent } from "@/shared/components/markdown/MarkdownContent";
 import type { CacheEntryMetadata } from "../types";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {

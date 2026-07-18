@@ -1,8 +1,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ResponseCard } from "../../../src/features/monitor/components/ResponseCard";
-import type { QueryResponse } from "../../../src/features/monitor/types";
+import { ResponseCard } from "@/features/monitor/components/ResponseCard";
+import type { QueryResponse } from "@/features/monitor/types";
 
 const missResult: QueryResponse = {
   response: "Generated response",
