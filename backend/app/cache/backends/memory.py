@@ -19,6 +19,7 @@ from app.cache.schemas import (
     CacheEntrySort,
     CacheStatsResponse,
 )
+from app.cache.vector_validation import validated_cache_vector
 from app.core.exceptions import CacheStorageError
 
 
@@ -61,9 +62,11 @@ class InMemoryCacheBackend:
         *,
         namespace: str,
     ) -> CacheCandidate | None:
-        query: NDArray[np.float64] = np.asarray(embedding, dtype=np.float64)
-        if query.shape != (self._dimensions,) or not np.isfinite(query).all():
-            raise CacheStorageError("Query embedding is invalid")
+        query = validated_cache_vector(
+            embedding,
+            dimensions=self._dimensions,
+            description="Query",
+        )
         async with self._lock:
             self._purge()
             items = [
@@ -78,9 +81,7 @@ class InMemoryCacheBackend:
             )
             norms = np.linalg.norm(matrix, axis=1)
             query_norm = float(np.linalg.norm(query))
-            if query_norm <= np.finfo(np.float64).eps or np.any(
-                norms <= np.finfo(np.float64).eps
-            ):
+            if np.any(norms <= np.finfo(np.float64).eps):
                 raise CacheStorageError("Zero magnitude embedding")
             scores = (matrix @ query) / (norms * query_norm)
             index = int(np.argmax(scores))
@@ -90,12 +91,11 @@ class InMemoryCacheBackend:
             )
 
     async def put(self, entry: CacheEntry) -> None:
-        embedding: NDArray[np.float64] = np.asarray(
+        validated_cache_vector(
             entry.embedding,
-            dtype=np.float64,
+            dimensions=self._dimensions,
+            description="Stored",
         )
-        if embedding.shape != (self._dimensions,) or not np.isfinite(embedding).all():
-            raise CacheStorageError("Stored embedding is invalid")
         async with self._lock:
             self._purge()
             stored_at = datetime.now(UTC)

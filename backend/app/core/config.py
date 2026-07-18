@@ -12,6 +12,7 @@ GenerationProviderName = Literal[
     "anthropic",
     "gemini",
 ]
+CacheBackendName = Literal["memory", "pgvector"]
 
 
 class Settings(BaseSettings):
@@ -67,6 +68,7 @@ class Settings(BaseSettings):
         ge=0,
         le=1,
     )
+    cache_backend: CacheBackendName = "memory"
     max_cache_size: int = Field(
         default=500,
         ge=1,
@@ -76,6 +78,10 @@ class Settings(BaseSettings):
         default=3_600,
         gt=0,
     )
+    database_url: SecretStr | None = None
+    database_pool_min_size: int = Field(default=1, ge=1, le=50)
+    database_pool_max_size: int = Field(default=5, ge=1, le=50)
+    database_connect_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
 
     allowed_origins: list[str] = Field(min_length=1)
     rate_limit: str = Field(
@@ -233,6 +239,14 @@ class Settings(BaseSettings):
                 "GEMINI_GENERATION_MODEL",
             )
 
+        if self.cache_backend == "pgvector":
+            self._require_secret(self.database_url, "DATABASE_URL")
+            self._validate_database_url()
+            if self.database_pool_min_size > self.database_pool_max_size:
+                raise ValueError(
+                    "DATABASE_POOL_MIN_SIZE cannot exceed DATABASE_POOL_MAX_SIZE"
+                )
+
         return self
 
     @property
@@ -248,18 +262,58 @@ class Settings(BaseSettings):
             raise RuntimeError("Selected embedding dimensions were not validated")
         return value
 
+    @property
+    def embedding_space(self) -> str:
+        if self.embedding_provider == "huggingface":
+            model = self.hf_embedding_model
+        elif self.embedding_provider == "openai":
+            model = self.openai_embedding_model
+        else:
+            model = self.gemini_embedding_model
+
+        if model is None:
+            raise RuntimeError("Selected embedding model was not validated")
+        return f"{self.embedding_provider}:{model}"
+
+    @property
+    def database_dsn(self) -> str:
+        if self.database_url is None:
+            raise RuntimeError("DATABASE_URL was not validated")
+        return self.database_url.get_secret_value()
+
     def configured_secrets(self) -> tuple[str, ...]:
         secrets = (
             self.hf_api_key,
             self.openai_api_key,
             self.anthropic_api_key,
             self.gemini_api_key,
+            self.database_url,
         )
-        return tuple(
+        configured = [
             secret.get_secret_value()
             for secret in secrets
             if secret is not None and secret.get_secret_value()
-        )
+        ]
+        if self.database_url is not None:
+            parsed = urlparse(self.database_url.get_secret_value())
+            if parsed.password:
+                configured.append(parsed.password)
+        return tuple(configured)
+
+    def _validate_database_url(self) -> None:
+        if self.database_url is None:
+            return
+
+        parsed = urlparse(self.database_url.get_secret_value())
+        if (
+            parsed.scheme not in {"postgres", "postgresql"}
+            or not parsed.hostname
+            or not parsed.path.strip("/")
+            or parsed.fragment
+        ):
+            raise ValueError(
+                "DATABASE_URL must be an absolute PostgreSQL URL with a database name"
+            )
 
     @staticmethod
     def _require_secret(

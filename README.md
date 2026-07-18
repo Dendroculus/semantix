@@ -10,7 +10,7 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/Cache-In--Memory-7C3AED" alt="In-memory cache">
+  <img src="https://img.shields.io/badge/Cache-Memory%20%7C%20pgvector-7C3AED" alt="Memory or pgvector cache">
   <img src="https://img.shields.io/badge/License-MIT-22C55E?logo=opensourceinitiative&logoColor=white" alt="MIT License">
   <img src="https://img.shields.io/badge/Deployment-Local%20Docker-2563EB" alt="Local Docker deployment">
 </p>
@@ -86,6 +86,7 @@ PROVIDER_TIMEOUT_SECONDS=30
 GENERATION_MAX_NEW_TOKENS=512
 
 SIMILARITY_THRESHOLD=0.92
+CACHE_BACKEND=memory
 MAX_CACHE_SIZE=500
 CACHE_TTL_SECONDS=3600
 
@@ -98,16 +99,55 @@ The generation model above was used during local verification. Provider availabi
 
 Create a Hugging Face token from **Settings → Access Tokens**. Use a dedicated fine-grained token with inference permission. Never commit the real token.
 
-### 3. Build and start both services
+### 3. Choose the cache backend and start the stack
+
+`--build` rebuilds service images; it does not activate optional Compose
+profiles.
+
+#### Memory cache
+
+Keep this in `backend/.env`:
+
+```env
+CACHE_BACKEND=memory
+```
+
+Then start the frontend and backend:
 
 ```bash
 docker compose up --build -d
 ```
 
+#### Persistent pgvector cache
+
+Set the Docker-internal PostgreSQL hostname in `backend/.env`:
+
+```env
+CACHE_BACKEND=pgvector
+DATABASE_URL=postgresql://semantix:semantix@postgres:5432/semantix
+```
+
+Then activate the pgvector profile to build and start PostgreSQL, the backend,
+and the frontend together:
+
+```bash
+docker compose --profile pgvector up --build -d
+```
+
+The `--profile pgvector` flag is required because PostgreSQL is intentionally
+optional. Compose waits for PostgreSQL to become healthy before starting the
+backend, and the backend applies database migrations before becoming ready.
+
 ### 4. Verify the containers
 
 ```bash
 docker compose ps
+```
+
+For the pgvector profile, include the profile when inspecting services:
+
+```bash
+docker compose --profile pgvector ps
 ```
 
 Expected local services:
@@ -116,6 +156,7 @@ Expected local services:
 |---|---|
 | Frontend | http://localhost:4173 |
 | Backend | http://localhost:8000 |
+| PostgreSQL | localhost:5432 (pgvector profile only) |
 | FastAPI documentation | http://localhost:8000/docs |
 | Health endpoint | http://localhost:8000/health |
 
@@ -199,12 +240,12 @@ Its current readings use these formulas:
   threshold divided by all scored visible traces. Traces without a similarity
   score are excluded from this projection and reported separately.
 - **Actual backend hit rate** = backend hits divided by backend hits plus misses,
-  counted since the backend cache was last cleared or restarted.
+  counted since the selected backend's counters were last cleared.
 - **Mean latency** = total latency of visible successful traces divided by the
   number of visible successful traces.
 - **Provider calls (visible)** = visible successful traces whose backend
   `cache_hit` value is `false`.
-- **Cache entries** = the backend's current in-memory cache size.
+- **Cache entries** = the selected backend's current active-space cache size.
 
 The similarity threshold plot is secondary visual evidence. It plots only
 scored traces on a horizontal `0.0` through `1.0` scale; vertical position only
@@ -225,11 +266,11 @@ present when an entry existed but did not qualify.
 
 ### Cache inspector
 
-The cache inspector shows the live contents of the current in-memory cache
+The cache inspector shows the live contents of the selected cache backend
 without exposing embeddings or full cached responses. Each row includes the
 cache key, original prompt, a response preview, creation and expiration times,
 remaining TTL, per-entry hit count, last-access time, and LRU recency rank.
-Expired entries are purged under the cache backend lock before inspector data is
+Expired entries are purged by the cache backend before inspector data is
 returned.
 
 Prompt search and sorting are handled by the backend so they remain correct
@@ -247,7 +288,7 @@ and refreshes both inspector data and aggregate statistics afterward.
 4. `CacheBackend` removes expired entries and searches for the nearest cached vector.
 5. If the best score meets `SIMILARITY_THRESHOLD`, the cached response is returned.
 6. Otherwise, the selected `GenerationProvider` requests a new completion.
-7. The query vector and generated response are stored in the in-memory cache.
+7. The query vector and generated response are stored in the selected cache backend.
 8. TTL expiry and LRU eviction keep cache growth bounded.
 
 ```text
@@ -281,9 +322,10 @@ Semantic cache lookup
 - **Application orchestration** — `QueryService` coordinates semantic lookup, generation, insertion, timing, and decision evidence while the route only translates HTTP.
 - **Request coalescing** — identical in-flight queries share one lookup, provider call, and cache write instead of creating a provider stampede.
 - **Typed API contract** — Pydantic schemas and TypeScript API types keep frontend/backend payloads explicit.
-- **Single-instance storage** — cache entries live in process memory and are reset when the backend container restarts.
-
-A persistent vector database can later implement the cache interface without rewriting the query routes or orchestration flow.
+- **Replaceable cache adapters** — memory remains the zero-configuration
+  default, while PostgreSQL + pgvector adds persistence through the same port.
+- **Embedding-space isolation** — persistent rows are partitioned by provider,
+  model, and dimensions so incompatible vectors are never compared.
 
 ### Request coalescing
 
@@ -360,7 +402,7 @@ dependencies.
 | Backend | FastAPI, Pydantic, HTTPX | Validation, orchestration, errors, rate limiting |
 | Embeddings | Hugging Face, OpenAI, or Gemini | Converts queries into semantic vectors |
 | Generation | Hugging Face, OpenAI, Anthropic, or Gemini | Generates responses on cache misses |
-| Cache | NumPy in-memory vector store | Cosine similarity, TTL expiry, LRU eviction |
+| Cache | NumPy memory store or PostgreSQL + pgvector | Cosine similarity, TTL expiry, LRU eviction, optional persistence |
 | Testing | Vitest, Testing Library, Pytest | Frontend hooks, backend services, API routes |
 | Quality | ESLint, TypeScript, Ruff, mypy | Linting, formatting, and static analysis |
 | Runtime | Docker Compose | Reproducible local frontend/backend environment |
@@ -502,8 +544,13 @@ All application errors use a stable JSON structure containing `error` and `detai
 | `PROVIDER_TIMEOUT_SECONDS` | No | External request timeout |
 | `GENERATION_MAX_NEW_TOKENS` | No | Maximum generated response length |
 | `SIMILARITY_THRESHOLD` | No | Minimum cosine similarity required for a hit |
-| `MAX_CACHE_SIZE` | No | Maximum number of in-memory entries |
+| `CACHE_BACKEND` | No | `memory` (default) or `pgvector` |
+| `MAX_CACHE_SIZE` | No | Maximum entries in the active embedding space |
 | `CACHE_TTL_SECONDS` | No | Entry lifetime in seconds |
+| `DATABASE_URL` | For pgvector | PostgreSQL connection URL |
+| `DATABASE_POOL_MIN_SIZE` | No | Minimum pgvector connection-pool size |
+| `DATABASE_POOL_MAX_SIZE` | No | Maximum pgvector connection-pool size |
+| `DATABASE_CONNECT_TIMEOUT_SECONDS` | No | PostgreSQL connect and command timeout |
 | `ALLOWED_ORIGINS` | No | Browser origins allowed by CORS |
 | `RATE_LIMIT` | No | Per-client request limit |
 | `LOG_LEVEL` | No | Application log level |
@@ -541,9 +588,11 @@ selectors. `HF_EMBEDDING_DIMENSIONS` defaults to `384` for the existing
 30-second default.
 
 Changing an embedding provider, model, or dimension makes existing vectors
-incompatible. The current cache is in memory and resets with the backend. A
-future persistent vector store must isolate entries by embedding provider,
-model, and dimensions instead of comparing incompatible vectors.
+incompatible. The memory backend resets with the process. The optional
+pgvector backend partitions rows by provider, model, and dimensions so
+incompatible vectors are never compared. See
+[`docs/pgvector.md`](docs/pgvector.md) for Docker setup, automatic migrations,
+integration tests, and cleanup behavior.
 
 To make one real provider call after configuring `backend/.env`:
 
@@ -677,7 +726,8 @@ Normal tests use `httpx.MockTransport`; test runs must not consume external prov
 | Hugging Face returns an authentication error | Verify the token has inference permission and was copied without quotes or spaces |
 | Similar queries miss the cache | Review the embedding model and lower the similarity threshold carefully |
 | Unrelated queries hit the cache | Increase the similarity threshold |
-| Cache disappears after restart | The current cache is intentionally in memory and is not persistent |
+| Cache disappears after restart | `CACHE_BACKEND=memory` is process-local; select `pgvector` for persistence |
+| pgvector backend does not start | Verify `DATABASE_URL`, database health, schema/extension permissions, and the backend startup log |
 
 Useful commands:
 
@@ -718,7 +768,9 @@ docker compose up -d
 - CORS does not allow wildcard origins.
 - `DELETE /api/v1/cache` has no authentication because this project is intended for local use.
 
-Add authentication and persistent shared storage before exposing the cache-management endpoint or running multiple backend instances publicly.
+Add authentication and distributed coordination for rate limits and in-flight
+request coalescing before exposing cache management or running multiple backend
+instances publicly.
 
 ## 🤝 Contributing
 

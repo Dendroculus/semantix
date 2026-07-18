@@ -5,7 +5,7 @@ import httpx
 from fastapi import FastAPI
 
 from app.benchmark.service import BenchmarkService
-from app.cache.backends.memory import InMemoryCacheBackend
+from app.cache.factory import cache_backend_lifespan
 from app.cache.service import SemanticCache
 from app.core.config import Settings
 from app.embedding.service import EmbeddingService
@@ -32,37 +32,36 @@ def create_lifespan(settings: Settings) -> Lifespan:
                 client,
                 settings,
             )
-            backend = InMemoryCacheBackend(
-                settings.max_cache_size,
-                settings.cache_ttl_seconds,
-                dimensions=providers.embedding_dimensions,
-            )
             embedding_service = EmbeddingService(
                 providers.embedding_provider,
                 dimensions=providers.embedding_dimensions,
             )
 
-            semantic_cache = SemanticCache(
-                embedding_service,
-                backend,
-                settings.similarity_threshold,
-            )
-            application.state.embedding_provider = providers.embedding_provider
-            application.state.generation_provider = providers.generation_provider
-            application.state.semantic_cache = semantic_cache
-            application.state.query_service = QueryService(
-                semantic_cache,
-                providers.generation_provider,
-            )
-            application.state.benchmark_service = BenchmarkService(
-                embedding_service,
-                providers.generation_provider,
-                max_cache_size=settings.max_cache_size,
-                cache_ttl_seconds=settings.cache_ttl_seconds,
-                initial_threshold=settings.similarity_threshold,
-                embedding_dimensions=providers.embedding_dimensions,
-            )
+            async with cache_backend_lifespan(
+                settings,
+                dimensions=providers.embedding_dimensions,
+            ) as backend:
+                semantic_cache = SemanticCache(
+                    embedding_service,
+                    backend,
+                    settings.similarity_threshold,
+                )
+                application.state.embedding_provider = providers.embedding_provider
+                application.state.generation_provider = providers.generation_provider
+                application.state.semantic_cache = semantic_cache
+                application.state.query_service = QueryService(
+                    semantic_cache,
+                    providers.generation_provider,
+                )
+                application.state.benchmark_service = BenchmarkService(
+                    embedding_service,
+                    providers.generation_provider,
+                    max_cache_size=settings.max_cache_size,
+                    cache_ttl_seconds=settings.cache_ttl_seconds,
+                    initial_threshold=settings.similarity_threshold,
+                    embedding_dimensions=providers.embedding_dimensions,
+                )
 
-            yield
+                yield
 
     return lifespan

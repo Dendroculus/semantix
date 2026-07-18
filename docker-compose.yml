@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    profiles:
+      - pgvector
+    environment:
+      POSTGRES_DB: semantix
+      POSTGRES_USER: semantix
+      POSTGRES_PASSWORD: semantix
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U semantix -d semantix
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+
   backend:
     build:
       context: ./backend
@@ -19,6 +39,10 @@ services:
       - --reload
     ports:
       - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
 
   frontend:
     build:
@@ -35,3 +59,6 @@ services:
       - "4173:4173"
     depends_on:
       - backend
+
+volumes:
+  pgvector_data:

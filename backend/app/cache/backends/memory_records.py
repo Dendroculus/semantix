@@ -2,11 +2,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.cache.models import CacheEntry
+from app.cache.metadata import response_preview
 from app.cache.schemas import (
     CacheEntryMetadata,
     CacheEntrySort,
 )
-from app.core.limits import MAX_RESPONSE_PREVIEW_LENGTH
 
 
 @dataclass(slots=True)
@@ -24,12 +24,6 @@ class CacheCounters:
     misses: int = 0
 
 
-def _response_preview(response: str) -> str:
-    if len(response) <= MAX_RESPONSE_PREVIEW_LENGTH:
-        return response
-    return response[: MAX_RESPONSE_PREVIEW_LENGTH - 3] + "..."
-
-
 def entry_metadata(
     item: StoredCacheItem,
     *,
@@ -45,7 +39,7 @@ def entry_metadata(
         cache_key=item.entry.cache_key,
         namespace=item.entry.namespace,
         prompt=item.entry.prompt,
-        response_preview=_response_preview(item.entry.response),
+        response_preview=response_preview(item.entry.response),
         created_at=item.entry.created_at,
         expires_at=item.expires_at,
         remaining_ttl_seconds=remaining_ttl,
