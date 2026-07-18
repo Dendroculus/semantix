@@ -19,8 +19,8 @@ export function SessionUptime(): JSX.Element {
 
   return (
     <div className="shrink-0 text-right">
-      <p className="ui-label text-[var(--text-faint)]">Session uptime</p>
-      <time className="font-data mt-1 block text-[10px] text-[var(--text-soft)]">
+      <p className="ui-label text-(--text-faint)">Session uptime</p>
+      <time className="font-data mt-1 block text-[10px] text-(--text-soft)">
         {hours.toString().padStart(2, "0")}:
         {minutes.toString().padStart(2, "0")}:
         {seconds.toString().padStart(2, "0")}

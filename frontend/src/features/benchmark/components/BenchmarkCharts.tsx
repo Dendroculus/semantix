@@ -34,7 +34,7 @@ export function BenchmarkCharts({
       >
         Threshold evaluation
       </h3>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
+      <p className="mt-2 max-w-3xl text-sm/6  text-(--text-muted)">
         Threshold series reclassify the measured nearest-match scores. Their
         latency line uses this run’s measured average hit and miss latency as
         an estimate; it does not make additional provider calls.

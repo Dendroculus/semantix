@@ -11,9 +11,9 @@ interface MetricProps {
 
 function Metric({ label, value }: MetricProps): JSX.Element {
   return (
-    <div className="border-t border-[var(--hairline)] pt-3">
-      <dt className="ui-label text-[var(--text-faint)]">{label}</dt>
-      <dd className="font-data mt-2 text-lg text-[var(--text)]">{value}</dd>
+    <div className="border-t border-(--hairline) pt-3">
+      <dt className="ui-label text-(--text-faint)">{label}</dt>
+      <dd className="font-data mt-2 text-lg text-(--text)">{value}</dd>
     </div>
   );
 }
@@ -31,14 +31,14 @@ export function BenchmarkSummary({
     <section aria-labelledby="benchmark-summary-heading" className="mt-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="ui-label text-[var(--teal)]">Measured run</p>
+          <p className="ui-label text-(--teal)">Measured run</p>
           <h3
             className="font-display mt-1 text-2xl italic"
             id="benchmark-summary-heading"
           >
             {result.dataset.name}
           </h3>
-          <p className="font-data mt-2 text-xs text-[var(--text-muted)]">
+          <p className="font-data mt-2 text-xs text-(--text-muted)">
             Threshold {result.threshold.toFixed(2)} · {result.repetitions}{" "}
             repetition{result.repetitions === 1 ? "" : "s"}
           </p>
@@ -77,7 +77,7 @@ export function BenchmarkSummary({
         />
       </dl>
 
-      <p className="font-data mt-5 text-[10px] leading-5 text-[var(--text-faint)]">
+      <p className="font-data mt-5 text-[10px]/5  text-(--text-faint)">
         Latency and classification values are measured. Latency saved, token
         count, provider cost savings, and threshold-series latency are
         estimates based on this run—not billing records or exact token usage.

@@ -7,13 +7,13 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "test": "vitest run",
     "lint:no-any": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
     "imports:preview": "node scripts/normalize-imports.mjs",
     "imports:fix": "node scripts/normalize-imports.mjs --write --strict",
     "imports:check": "node scripts/normalize-imports.mjs --check --strict"
-    
   },
   "dependencies": {
     "katex": "^0.17.0",
@@ -36,6 +36,7 @@
     "@typescript-eslint/parser": "^8.64.0",
     "@vitejs/plugin-react": "4.3.4",
     "eslint": "^9.39.5",
+    "eslint-plugin-better-tailwindcss": "^4.6.1",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",

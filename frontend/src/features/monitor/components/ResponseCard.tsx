@@ -74,9 +74,9 @@ export function ResponseCard({
   return (
     <article
       aria-live="polite"
-      className="border-y border-[var(--hairline)] bg-[var(--surface)] px-4 py-5 sm:px-6"
+      className="border-y border-(--hairline) bg-(--surface) px-4 py-5 sm:px-6"
     >
-      <header className="mb-5 flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--hairline)] pb-4">
+      <header className="mb-5 flex flex-wrap items-baseline justify-between gap-3 border-b border-(--hairline) pb-4">
         <h2 className="font-display text-xl italic">
           Latest response
         </h2>
@@ -90,79 +90,79 @@ export function ResponseCard({
       </header>
 
       <MarkdownContent
-        className="text-sm text-[var(--text-soft)]"
+        className="text-sm text-(--text-soft)"
         markdown={result.response}
       />
 
       <section
         aria-label="Cache decision explanation"
-        className="mt-6 border-t border-[var(--hairline)] pt-4"
+        className="mt-6 border-t border-(--hairline) pt-4"
       >
-        <p className="ui-label text-[var(--text-faint)]">
+        <p className="ui-label text-(--text-faint)">
           Decision evidence
         </p>
 
-        <p className="mt-2 text-sm leading-6 text-[var(--text-soft)]">
+        <p className="mt-2 text-sm/6  text-(--text-soft)">
           {explanation}
         </p>
 
-        <dl className="mt-4 grid grid-cols-1 border-t border-[var(--hairline)] min-[520px]:grid-cols-2 min-[860px]:grid-cols-4">
-          <div className="py-3 min-[520px]:border-r min-[520px]:border-[var(--hairline)]">
-            <dt className="ui-label text-[var(--text-faint)]">
+        <dl className="mt-4 grid grid-cols-1 border-t border-(--hairline) min-[520px]:grid-cols-2 min-[860px]:grid-cols-4">
+          <div className="py-3 min-[520px]:border-r min-[520px]:border-(--hairline)">
+            <dt className="ui-label text-(--text-faint)">
               Similarity
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-[var(--teal)]">
+            <dd className="font-data mt-1 text-xs text-(--teal)">
               {similarity}
             </dd>
           </div>
 
-          <div className="border-t border-[var(--hairline)] py-3 min-[520px]:border-t-0 min-[520px]:pl-4 min-[860px]:border-r min-[860px]:border-[var(--hairline)]">
-            <dt className="ui-label text-[var(--text-faint)]">
+          <div className="border-t border-(--hairline) py-3 min-[520px]:border-t-0 min-[520px]:pl-4 min-[860px]:border-r min-[860px]:border-(--hairline)">
+            <dt className="ui-label text-(--text-faint)">
               Threshold used
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-[var(--text-soft)]">
+            <dd className="font-data mt-1 text-xs text-(--text-soft)">
               {threshold}
             </dd>
           </div>
 
-          <div className="border-t border-[var(--hairline)] py-3 min-[520px]:border-r min-[520px]:border-[var(--hairline)] min-[860px]:border-t-0 min-[860px]:pl-4">
-            <dt className="ui-label text-[var(--text-faint)]">
+          <div className="border-t border-(--hairline) py-3 min-[520px]:border-r min-[520px]:border-(--hairline) min-[860px]:border-t-0 min-[860px]:pl-4">
+            <dt className="ui-label text-(--text-faint)">
               Generation
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-[var(--text-soft)]">
+            <dd className="font-data mt-1 text-xs text-(--text-soft)">
               {result.generation_skipped ? "Skipped" : "Ran"}
             </dd>
           </div>
 
-          <div className="border-t border-[var(--hairline)] py-3 min-[520px]:pl-4 min-[860px]:border-t-0">
-            <dt className="ui-label text-[var(--text-faint)]">
+          <div className="border-t border-(--hairline) py-3 min-[520px]:pl-4 min-[860px]:border-t-0">
+            <dt className="ui-label text-(--text-faint)">
               Provider
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-[var(--text-soft)]">
+            <dd className="font-data mt-1 text-xs text-(--text-soft)">
               {result.provider_called ? "Called" : "Not called"}
             </dd>
           </div>
 
-          <div className="border-t border-[var(--hairline)] py-3 min-[520px]:col-span-2 min-[520px]:border-r min-[520px]:border-[var(--hairline)] min-[860px]:col-span-2">
-            <dt className="ui-label text-[var(--text-faint)]">
+          <div className="border-t border-(--hairline) py-3 min-[520px]:col-span-2 min-[520px]:border-r min-[520px]:border-(--hairline) min-[860px]:col-span-2">
+            <dt className="ui-label text-(--text-faint)">
               Matched cached prompt
             </dt>
 
-            <dd className="mt-1 whitespace-pre-wrap break-words text-sm text-[var(--text-soft)]">
+            <dd className="mt-1 whitespace-pre-wrap wrap-break-word text-sm text-(--text-soft)">
               {result.matched_prompt ?? "No cached entry reused"}
             </dd>
           </div>
 
-          <div className="border-t border-[var(--hairline)] py-3 min-[520px]:border-r min-[520px]:border-[var(--hairline)] min-[520px]:pl-4">
-            <dt className="ui-label text-[var(--text-faint)]">
+          <div className="border-t border-(--hairline) py-3 min-[520px]:border-r min-[520px]:border-(--hairline) min-[520px]:pl-4">
+            <dt className="ui-label text-(--text-faint)">
               Cache entry age
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-[var(--text-soft)]">
+            <dd className="font-data mt-1 text-xs text-(--text-soft)">
               {result.cache_entry_created_at === null ? (
                 cacheAge
               ) : (
@@ -176,12 +176,12 @@ export function ResponseCard({
             </dd>
           </div>
 
-          <div className="border-t border-[var(--hairline)] py-3 min-[520px]:pl-4">
-            <dt className="ui-label text-[var(--text-faint)]">
+          <div className="border-t border-(--hairline) py-3 min-[520px]:pl-4">
+            <dt className="ui-label text-(--text-faint)">
               Request latency
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-[var(--text-soft)]">
+            <dd className="font-data mt-1 text-xs text-(--text-soft)">
               {result.latency_ms.toFixed(1)} ms
             </dd>
           </div>

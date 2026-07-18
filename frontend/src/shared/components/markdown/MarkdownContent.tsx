@@ -64,14 +64,14 @@ function createMarkdownComponents(
     ),
     strong: ({ ...props }) => (
       <strong
-        className="font-semibold text-[var(--text)]"
+        className="font-semibold text-(--text)"
         {...props}
       />
     ),
     em: ({ ...props }) => <em {...props} />,
     a: ({ children, ...props }) => (
       <a
-        className="text-[var(--teal)] underline decoration-[rgba(91,156,148,0.35)] underline-offset-4 hover:text-[var(--text)]"
+        className="text-(--teal) underline decoration-[rgba(91,156,148,0.35)] underline-offset-4 hover:text-(--text)"
         rel="noopener noreferrer"
         target="_blank"
         {...props}
@@ -100,7 +100,7 @@ function createMarkdownComponents(
 
       return isBlock ? (
         <code
-          className={`font-data block whitespace-pre-wrap break-words ${
+          className={`font-data block whitespace-pre-wrap wrap-break-word ${
             className ?? ""
           }`}
           {...props}
@@ -109,7 +109,7 @@ function createMarkdownComponents(
         </code>
       ) : (
         <code
-          className="font-data rounded bg-[rgba(234,230,221,0.08)] px-1.5 py-0.5 text-[0.85em] text-[var(--gold)]"
+          className="font-data rounded bg-[rgba(234,230,221,0.08)] px-1.5 py-0.5 text-[0.85em] text-(--gold)"
           {...props}
         >
           {children}
@@ -147,7 +147,7 @@ function createMarkdownComponents(
     th: ({ ...props }) => (
       <th
         {...props}
-        className="border-b border-[var(--hairline)] px-2 py-1.5 text-left text-[var(--text-faint)]"
+        className="border-b border-(--hairline) px-2 py-1.5 text-left text-(--text-faint)"
         scope="col"
       />
     ),
@@ -159,7 +159,7 @@ function createMarkdownComponents(
     ),
     hr: ({ ...props }) => (
       <hr
-        className="my-3 border-0 border-t border-[var(--hairline)]"
+        className="my-3 border-0 border-t border-(--hairline)"
         {...props}
       />
     ),

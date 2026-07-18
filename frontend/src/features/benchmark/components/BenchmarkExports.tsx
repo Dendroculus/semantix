@@ -11,14 +11,14 @@ export function BenchmarkExports({
   return (
     <div className="flex flex-wrap gap-3">
       <button
-        className="ui-label border border-[var(--hairline)] px-4 py-2 text-[var(--text-soft)]"
+        className="ui-label border border-(--hairline) px-4 py-2 text-(--text-soft)"
         type="button"
         onClick={() => downloadBenchmark(result, "json")}
       >
         Export JSON
       </button>
       <button
-        className="ui-label border border-[var(--hairline)] px-4 py-2 text-[var(--text-soft)]"
+        className="ui-label border border-(--hairline) px-4 py-2 text-(--text-soft)"
         type="button"
         onClick={() => downloadBenchmark(result, "csv")}
       >

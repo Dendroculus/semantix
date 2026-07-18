@@ -46,8 +46,8 @@ export function SimilarityDistribution({
   ).length;
 
   return (
-    <figure className="border-t border-[var(--hairline)] pt-4">
-      <figcaption className="ui-label text-[var(--text-muted)]">
+    <figure className="border-t border-(--hairline) pt-4">
+      <figcaption className="ui-label text-(--text-muted)">
         Similarity-score distribution
       </figcaption>
       <div
@@ -62,7 +62,7 @@ export function SimilarityDistribution({
             title={`${bin.label}: ${bin.count}`}
           >
             <div
-              className="w-full bg-[var(--teal)] opacity-75"
+              className="w-full bg-(--teal) opacity-75"
               style={{
                 height: `${Math.max(2, (bin.count / maxCount) * 100)}%`,
               }}
@@ -70,12 +70,12 @@ export function SimilarityDistribution({
           </div>
         ))}
       </div>
-      <div className="font-data mt-2 flex justify-between text-[8px] text-[var(--text-faint)]">
+      <div className="font-data mt-2 flex justify-between text-[8px] text-(--text-faint)">
         <span>−1.0</span>
         <span>0.0</span>
         <span>1.0</span>
       </div>
-      <p className="font-data mt-3 text-[9px] text-[var(--text-faint)]">
+      <p className="font-data mt-3 text-[9px] text-(--text-faint)">
         {unscored} unscored seed quer{unscored === 1 ? "y" : "ies"} excluded
         from the histogram.
       </p>

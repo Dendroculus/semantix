@@ -41,14 +41,14 @@ export function CacheInspectorControls({
           >
             Cache entries
           </h2>
-          <p className="ui-label mt-1 text-[var(--text-faint)]">
+          <p className="ui-label mt-1 text-(--text-faint)">
             Live entry metadata / embeddings excluded
           </p>
         </div>
 
         <div className="flex flex-wrap gap-5">
           <button
-            className="ui-label border-b border-[var(--teal)] pb-1 text-[var(--teal)] disabled:opacity-50"
+            className="ui-label border-b border-(--teal) pb-1 text-(--teal) disabled:opacity-50"
             disabled={isLoading || isMutating}
             type="button"
             onClick={onRefresh}
@@ -56,7 +56,7 @@ export function CacheInspectorControls({
             {isLoading ? "Refreshing" : "Refresh"}
           </button>
           <button
-            className="ui-label border-b border-[var(--coral)] pb-1 text-[var(--coral)] disabled:opacity-50"
+            className="ui-label border-b border-(--coral) pb-1 text-(--coral) disabled:opacity-50"
             disabled={isMutating || !canClear}
             type="button"
             onClick={onRequestClear}
@@ -69,15 +69,15 @@ export function CacheInspectorControls({
       {confirmClear && (
         <div
           aria-label="Confirm clear cache"
-          className="mt-5 border-l border-[var(--coral)] pl-4"
+          className="mt-5 border-l border-(--coral) pl-4"
           role="group"
         >
-          <p className="text-sm text-[var(--text-soft)]">
+          <p className="text-sm text-(--text-soft)">
             Clear every cache entry and reset backend cache statistics?
           </p>
           <div className="mt-3 flex gap-5">
             <button
-              className="ui-label text-[var(--coral)] disabled:opacity-50"
+              className="ui-label text-(--coral) disabled:opacity-50"
               disabled={isClearing}
               type="button"
               onClick={onConfirmClear}
@@ -85,7 +85,7 @@ export function CacheInspectorControls({
               {isClearing ? "Clearing" : "Confirm clear cache"}
             </button>
             <button
-              className="ui-label text-[var(--teal)] disabled:opacity-50"
+              className="ui-label text-(--teal) disabled:opacity-50"
               disabled={isClearing}
               type="button"
               onClick={onCancelClear}
@@ -99,13 +99,13 @@ export function CacheInspectorControls({
       <div className="mt-7 grid gap-5 min-[680px]:grid-cols-[minmax(0,1fr)_220px]">
         <div>
           <label
-            className="ui-label text-[var(--text-muted)]"
+            className="ui-label text-(--text-muted)"
             htmlFor="cache-search"
           >
             Search cached prompts
           </label>
           <input
-            className="font-data mt-2 w-full border border-[var(--hairline)] bg-[var(--surface)] px-3 py-2.5 text-xs text-[var(--text)] outline-none focus:border-[var(--teal)]"
+            className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2.5 text-xs text-(--text) outline-none focus:border-(--teal)"
             id="cache-search"
             placeholder="Filter by original prompt"
             type="search"
@@ -116,13 +116,13 @@ export function CacheInspectorControls({
 
         <div>
           <label
-            className="ui-label text-[var(--text-muted)]"
+            className="ui-label text-(--text-muted)"
             htmlFor="cache-sort"
           >
             Sort cache entries
           </label>
           <select
-            className="font-data mt-2 w-full border border-[var(--hairline)] bg-[var(--surface)] px-3 py-2.5 text-xs text-[var(--text)] outline-none focus:border-[var(--teal)]"
+            className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2.5 text-xs text-(--text) outline-none focus:border-(--teal)"
             id="cache-sort"
             value={sort}
             onChange={(event) =>

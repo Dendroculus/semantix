@@ -19,7 +19,7 @@ export function MonitorPage(): JSX.Element {
 
   return (
     <>
-      <section className="mb-12 border-b border-[var(--hairline)] pb-10">
+      <section className="mb-12 border-b border-(--hairline) pb-10">
         <QueryForm
           isLoading={queryState.status === "loading"}
           onSubmit={submitPrompt}
@@ -27,7 +27,7 @@ export function MonitorPage(): JSX.Element {
 
         {queryState.status === "error" && (
           <p
-            className="font-data mt-4 text-[11px] text-[var(--coral)]"
+            className="font-data mt-4 text-[11px] text-(--coral)"
             role="alert"
           >
             QUERY FAILED /{" "}

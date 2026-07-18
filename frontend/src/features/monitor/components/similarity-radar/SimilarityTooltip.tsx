@@ -51,13 +51,13 @@ export function SimilarityTooltip({
       y={position.y}
     >
       <div
-        className="h-full border border-[var(--teal)] bg-[var(--surface)] px-3 py-2.5 text-[var(--text)] shadow-lg"
+        className="h-full border border-(--teal) bg-(--surface) px-3 py-2.5 text-(--text) shadow-lg"
         role="tooltip"
       >
-        <p className="ui-label text-[var(--teal)]">
+        <p className="ui-label text-(--teal)">
           Selected trace
         </p>
-        <p className="mt-1 max-h-[34px] overflow-hidden break-words text-[11px] leading-[17px]">
+        <p className="mt-1 max-h-[34px] overflow-hidden wrap-break-word text-[11px] leading-[17px]">
           {point.prompt}
         </p>
         <div className="font-data mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[9px]">
@@ -68,8 +68,8 @@ export function SimilarityTooltip({
           <span
             className={
               point.actualCacheHit
-                ? "text-[var(--gold)]"
-                : "text-[var(--coral)]"
+                ? "text-(--gold)"
+                : "text-(--coral)"
             }
           >
             Actual {point.actualCacheHit ? "HIT" : "MISS"}

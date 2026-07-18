@@ -51,7 +51,7 @@ export function SimilarityRadar({
         >
           Similarity threshold plot
         </h2>
-        <p className="ui-label mt-1 text-[var(--text-faint)]">
+        <p className="ui-label mt-1 text-(--text-faint)">
           Position carries meaning / left 0.0 / right 1.0
         </p>
       </header>
@@ -62,12 +62,12 @@ export function SimilarityRadar({
         scoredCount={points.length}
       />
 
-      <p className="font-data mt-4 text-[10px] text-[var(--text-faint)]">
+      <p className="font-data mt-4 text-[10px] text-(--text-faint)">
         {points.length} of {traces.length} traces plotted
       </p>
 
       {points.length === 0 && (
-        <p className="mt-3 border-l border-[var(--gold)] pl-3 text-xs leading-5 text-[var(--text-muted)]">
+        <p className="mt-3 border-l border-(--gold) pl-3 text-xs/5  text-(--text-muted)">
           No scored comparison yet. The first query seeds the cache; the
           next query is the first one that can produce a similarity
           score.

@@ -41,8 +41,8 @@ export function LineChart({
     TOP + ((maxY - value) / (maxY - minY)) * (HEIGHT - TOP - BOTTOM);
 
   return (
-    <figure className="border-t border-[var(--hairline)] pt-4">
-      <figcaption className="ui-label text-[var(--text-muted)]">{title}</figcaption>
+    <figure className="border-t border-(--hairline) pt-4">
+      <figcaption className="ui-label text-(--text-muted)">{title}</figcaption>
       <svg
         aria-label={`${title}. Thresholds ${minX.toFixed(2)} through ${maxX.toFixed(2)}.`}
         className="mt-3 h-auto w-full"
@@ -110,12 +110,12 @@ export function LineChart({
       <div className="mt-2 flex flex-wrap gap-4">
         {series.map((item) => (
           <span
-            className="font-data flex items-center gap-2 text-[9px] text-[var(--text-muted)]"
+            className="font-data flex items-center gap-2 text-[9px] text-(--text-muted)"
             key={item.label}
           >
             <span
               aria-hidden="true"
-              className="h-1.5 w-1.5 rounded-full"
+              className="size-1.5  rounded-full"
               style={{ backgroundColor: item.color }}
             />
             {item.label}

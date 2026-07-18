@@ -25,12 +25,12 @@ export function BenchmarkControls({
   const { datasets, datasetsLoading, form, isRunning } = controller;
 
   return (
-    <div className="grid gap-5 border-y border-[var(--hairline)] py-6 md:grid-cols-3">
+    <div className="grid gap-5 border-y border-(--hairline) py-6 md:grid-cols-3">
       <label className="block">
-        <span className="ui-label text-[var(--text-muted)]">Dataset</span>
+        <span className="ui-label text-(--text-muted)">Dataset</span>
         <select
           aria-label="Benchmark dataset"
-          className="font-data mt-2 w-full border border-[var(--hairline)] bg-[var(--surface)] px-3 py-2 text-xs"
+          className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs"
           disabled={datasetsLoading || isRunning}
           value={form.datasetId}
           onChange={(event) =>
@@ -48,7 +48,7 @@ export function BenchmarkControls({
       </label>
 
       <label className="block">
-        <span className="ui-label text-[var(--text-muted)]">
+        <span className="ui-label text-(--text-muted)">
           Similarity threshold
         </span>
         <span className="font-data mt-2 flex items-center gap-3">
@@ -74,10 +74,10 @@ export function BenchmarkControls({
       </label>
 
       <label className="block">
-        <span className="ui-label text-[var(--text-muted)]">Repetitions</span>
+        <span className="ui-label text-(--text-muted)">Repetitions</span>
         <input
           aria-label="Benchmark repetitions"
-          className="font-data mt-2 w-full border border-[var(--hairline)] bg-[var(--surface)] px-3 py-2 text-xs"
+          className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs"
           disabled={isRunning}
           max="5"
           min="1"
@@ -92,12 +92,12 @@ export function BenchmarkControls({
       </label>
 
       <label className="block">
-        <span className="ui-label text-[var(--text-muted)]">
+        <span className="ui-label text-(--text-muted)">
           Cost / provider request (USD)
         </span>
         <input
           aria-label="Estimated cost per provider request"
-          className="font-data mt-2 w-full border border-[var(--hairline)] bg-[var(--surface)] px-3 py-2 text-xs"
+          className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs"
           disabled={isRunning}
           min="0"
           step="0.001"
@@ -115,12 +115,12 @@ export function BenchmarkControls({
       </label>
 
       <label className="block">
-        <span className="ui-label text-[var(--text-muted)]">
+        <span className="ui-label text-(--text-muted)">
           Cost / 1K tokens (USD)
         </span>
         <input
           aria-label="Estimated cost per 1K tokens"
-          className="font-data mt-2 w-full border border-[var(--hairline)] bg-[var(--surface)] px-3 py-2 text-xs"
+          className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs"
           disabled={isRunning}
           min="0"
           step="0.001"
@@ -138,7 +138,7 @@ export function BenchmarkControls({
       </label>
 
       <div className="flex flex-col justify-between gap-4">
-        <label className="font-data flex items-center gap-2 text-xs text-[var(--text-soft)]">
+        <label className="font-data flex items-center gap-2 text-xs text-(--text-soft)">
           <input
             checked={form.resetCacheBeforeRun}
             disabled={isRunning}
@@ -152,7 +152,7 @@ export function BenchmarkControls({
           Reset isolated benchmark cache first
         </label>
         <button
-          className="ui-label border border-[var(--gold)] px-4 py-3 text-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="ui-label border border-(--gold) px-4 py-3 text-(--gold) disabled:cursor-not-allowed disabled:opacity-40"
           disabled={datasetsLoading || isRunning || datasets.length === 0}
           type="button"
           onClick={controller.reviewRun}

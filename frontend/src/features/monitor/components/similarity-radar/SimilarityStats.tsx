@@ -10,9 +10,9 @@ export function SimilarityStats({
   scoredCount,
 }: SimilarityStatsProps): JSX.Element {
   return (
-    <div className="grid grid-cols-3 border-y border-[var(--hairline)]">
-      <div className="border-r border-[var(--hairline)] px-3 py-3">
-        <p className="ui-label text-[var(--text-faint)]">
+    <div className="grid grid-cols-3 border-y border-(--hairline)">
+      <div className="border-r border-(--hairline) p-3 ">
+        <p className="ui-label text-(--text-faint)">
           Scored
         </p>
         <p className="font-data mt-1 text-lg">
@@ -20,20 +20,20 @@ export function SimilarityStats({
         </p>
       </div>
 
-      <div className="border-r border-[var(--hairline)] px-3 py-3">
-        <p className="ui-label text-[var(--text-faint)]">
+      <div className="border-r border-(--hairline) p-3 ">
+        <p className="ui-label text-(--text-faint)">
           Projected hits
         </p>
-        <p className="font-data mt-1 text-lg text-[var(--gold)]">
+        <p className="font-data mt-1 text-lg text-(--gold)">
           {projectedHits}
         </p>
       </div>
 
-      <div className="px-3 py-3">
-        <p className="ui-label text-[var(--text-faint)]">
+      <div className="p-3 ">
+        <p className="ui-label text-(--text-faint)">
           Projected misses
         </p>
-        <p className="font-data mt-1 text-lg text-[var(--coral)]">
+        <p className="font-data mt-1 text-lg text-(--coral)">
           {projectedMisses}
         </p>
       </div>

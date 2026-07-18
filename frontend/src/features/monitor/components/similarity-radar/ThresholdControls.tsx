@@ -20,16 +20,16 @@ export function ThresholdControls({
     <div className="mt-7">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
         <label
-          className="ui-label text-[var(--text-muted)]"
+          className="ui-label text-(--text-muted)"
           htmlFor="projection-threshold"
         >
           Projection threshold
         </label>
         <div className="font-data flex gap-4 text-[10px]">
-          <span className="text-[var(--teal)]">
+          <span className="text-(--teal)">
             Preview {threshold.toFixed(2)}
           </span>
-          <span className="text-[var(--gold)]">
+          <span className="text-(--gold)">
             Backend applied {appliedThreshold.toFixed(2)}
           </span>
         </div>
@@ -49,14 +49,14 @@ export function ThresholdControls({
         }
       />
 
-      <div className="font-data mt-3 flex justify-between text-[10px] text-[var(--text-faint)]">
+      <div className="font-data mt-3 flex justify-between text-[10px] text-(--text-faint)">
         <span>0.00 / permissive</span>
         <span>1.00 / exact</span>
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button
-          className="ui-label border border-[var(--gold)] px-3 py-2 text-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="ui-label border border-(--gold) px-3 py-2 text-(--gold) disabled:cursor-not-allowed disabled:opacity-40"
           disabled={
             !hasPendingThreshold || isApplyingThreshold
           }
@@ -66,7 +66,7 @@ export function ThresholdControls({
           {isApplyingThreshold ? "Applying" : "Apply to cache"}
         </button>
         <button
-          className="ui-label border-b border-[var(--teal)] px-1 py-2 text-[var(--teal)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="ui-label border-b border-(--teal) px-1 py-2 text-(--teal) disabled:cursor-not-allowed disabled:opacity-40"
           disabled={
             !hasPendingThreshold || isApplyingThreshold
           }
@@ -78,7 +78,7 @@ export function ThresholdControls({
       </div>
 
       <p
-        className="mt-5 max-w-xl text-xs leading-5 text-[var(--text-muted)]"
+        className="mt-5 max-w-xl text-xs/5  text-(--text-muted)"
         id="threshold-note"
       >
         Every dot sits at its real similarity score. Vertical position

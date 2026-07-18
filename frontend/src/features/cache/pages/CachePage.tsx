@@ -19,9 +19,9 @@ export function CachePage(): JSX.Element {
   return (
     <>
       <header className="mb-9">
-        <p className="ui-label text-[var(--gold)]">Storage controls</p>
+        <p className="ui-label text-(--gold)">Storage controls</p>
         <h1 className="font-display mt-1 text-3xl italic">Cache inspector</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">
+        <p className="mt-3 max-w-3xl text-sm/6  text-(--text-muted)">
           Search safe entry metadata, inspect reuse activity and expiry, or
           remove stale responses without exposing stored embeddings.
         </p>

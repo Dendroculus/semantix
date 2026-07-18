@@ -23,33 +23,33 @@ export function BenchmarkResultsTable({
       >
         Per-query evidence
       </h3>
-      <div className="mt-5 overflow-x-auto border-y border-[var(--hairline)]">
+      <div className="mt-5 overflow-x-auto border-y border-(--hairline)">
         <table className="w-full min-w-[920px] border-collapse text-left">
           <thead>
-            <tr className="ui-label text-[var(--text-faint)]">
-              <th className="px-3 py-3 font-medium">#</th>
-              <th className="px-3 py-3 font-medium">Category</th>
-              <th className="px-3 py-3 font-medium">Query</th>
-              <th className="px-3 py-3 font-medium">Expected</th>
-              <th className="px-3 py-3 font-medium">Actual</th>
-              <th className="px-3 py-3 font-medium">Score</th>
-              <th className="px-3 py-3 font-medium">Latency</th>
-              <th className="px-3 py-3 font-medium">Outcome</th>
+            <tr className="ui-label text-(--text-faint)">
+              <th className="p-3  font-medium">#</th>
+              <th className="p-3  font-medium">Category</th>
+              <th className="p-3  font-medium">Query</th>
+              <th className="p-3  font-medium">Expected</th>
+              <th className="p-3  font-medium">Actual</th>
+              <th className="p-3  font-medium">Score</th>
+              <th className="p-3  font-medium">Latency</th>
+              <th className="p-3  font-medium">Outcome</th>
             </tr>
           </thead>
           <tbody className="font-data text-[11px]">
             {results.map((result) => (
               <tr
-                className="border-t border-[var(--hairline)] align-top"
+                className="border-t border-(--hairline) align-top"
                 key={`${result.repetition}-${result.case_id}`}
               >
-                <td className="px-3 py-4 text-[var(--text-faint)]">
+                <td className="px-3 py-4 text-(--text-faint)">
                   {result.sequence}
                 </td>
-                <td className="px-3 py-4 capitalize text-[var(--text-muted)]">
+                <td className="px-3 py-4 capitalize text-(--text-muted)">
                   {label(result.category)}
                 </td>
-                <td className="max-w-md px-3 py-4 leading-5 text-[var(--text-soft)]">
+                <td className="max-w-md px-3 py-4 leading-5 text-(--text-soft)">
                   {result.prompt}
                 </td>
                 <td className="px-3 py-4">
@@ -69,8 +69,8 @@ export function BenchmarkResultsTable({
                 <td
                   className={`px-3 py-4 capitalize ${
                     result.correct
-                      ? "text-[var(--teal)]"
-                      : "text-[var(--coral)]"
+                      ? "text-(--teal)"
+                      : "text-(--coral)"
                   }`}
                 >
                   {label(result.outcome)}

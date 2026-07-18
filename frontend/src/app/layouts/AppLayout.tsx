@@ -8,9 +8,9 @@ function AppShell(): JSX.Element {
   const { clearControlError, controlError } = useCacheControl();
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-[var(--ink)] px-4 text-[var(--text)] sm:px-8">
+    <div className="min-h-screen overflow-x-clip bg-(--ink) px-4 text-(--text) sm:px-8">
       <a
-        className="ui-label fixed left-4 top-3 z-50 -translate-y-20 bg-[var(--gold)] px-3 py-2 text-[var(--ink)] focus:translate-y-0"
+        className="ui-label fixed left-4 top-3 z-50 -translate-y-20 bg-(--gold) px-3 py-2 text-(--ink) focus:translate-y-0"
         href="#main-content"
       >
         Skip to content
@@ -20,12 +20,12 @@ function AppShell(): JSX.Element {
 
         {controlError !== null && (
           <div
-            className="font-data mt-5 flex flex-wrap items-center justify-between gap-4 border-l border-[var(--coral)] pl-4 text-[11px] text-[var(--coral)]"
+            className="font-data mt-5 flex flex-wrap items-center justify-between gap-4 border-l border-(--coral) pl-4 text-[11px] text-(--coral)"
             role="alert"
           >
             <span>{controlError}</span>
             <button
-              className="ui-label text-[var(--text-muted)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-3 focus-visible:outline-[var(--gold)]"
+              className="ui-label text-(--text-muted) focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
               type="button"
               onClick={clearControlError}
             >

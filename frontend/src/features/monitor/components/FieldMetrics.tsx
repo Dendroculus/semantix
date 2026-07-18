@@ -22,10 +22,10 @@ const TONE_COLOR = {
 
 function MetricRow({ detail, label, value, tone }: MetricRowProps): JSX.Element {
   return (
-    <div className="flex items-start justify-between gap-6 border-b border-[var(--hairline)] py-4">
+    <div className="flex items-start justify-between gap-6 border-b border-(--hairline) py-4">
       <div>
-        <dt className="ui-label text-[var(--text-muted)]">{label}</dt>
-        <p className="mt-1 max-w-sm text-[11px] leading-4 text-[var(--text-faint)]">
+        <dt className="ui-label text-(--text-muted)">{label}</dt>
+        <p className="mt-1 max-w-sm text-[11px]/4  text-(--text-faint)">
           {detail}
         </p>
       </div>
@@ -69,12 +69,12 @@ export function FieldMetrics({
         <h2 className="font-display text-2xl italic" id="metrics-heading">
           Field readings
         </h2>
-        <p className="ui-label mt-1 text-[var(--text-faint)]">
+        <p className="ui-label mt-1 text-(--text-faint)">
           Primary evidence / formulas shown
         </p>
       </header>
 
-      <dl className="border-t border-[var(--hairline)]">
+      <dl className="border-t border-(--hairline)">
         <MetricRow
           detail="scored visible traces at or above threshold ÷ scored visible traces"
           label="Frontend projected hit rate"
@@ -118,7 +118,7 @@ export function FieldMetrics({
         />
       </dl>
 
-      <p className="mt-5 text-xs leading-5 text-[var(--text-muted)]">
+      <p className="mt-5 text-xs/5  text-(--text-muted)">
         Projection changes with the selected threshold and excludes unscored traces.
         Backend hit rate remains the historical accounting record.
       </p>

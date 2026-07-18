@@ -20,18 +20,18 @@ export function Navbar(): JSX.Element {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--hairline)] bg-[var(--ink)] py-4">
+    <header className="sticky top-0 z-30 border-b border-(--hairline) bg-(--ink) py-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3 md:flex-nowrap md:gap-x-6">
         <div className="min-w-0 flex-1 md:min-w-48 md:flex-none">
-          <p className="ui-label text-[var(--gold)]">Semantix</p>
-          <p className="font-display mt-1 hidden text-lg italic text-[var(--text-soft)] sm:block">
+          <p className="ui-label text-(--gold)">Semantix</p>
+          <p className="font-display mt-1 hidden text-lg italic text-(--text-soft) sm:block">
             Semantic cache laboratory
           </p>
         </div>
 
         <nav
           aria-label="Primary navigation"
-          className={`${isMenuOpen ? "block" : "hidden"} order-4 w-full border border-[var(--hairline)] bg-[var(--surface)] p-1 md:order-none md:block md:min-w-0 md:flex-1`}
+          className={`${isMenuOpen ? "block" : "hidden"} order-4 w-full border border-(--hairline) bg-(--surface) p-1 md:order-0 md:block md:min-w-0 md:flex-1`}
           id="primary-navigation"
         >
           <div className="flex flex-col md:flex-row md:items-center md:gap-1">
@@ -57,7 +57,7 @@ export function Navbar(): JSX.Element {
           aria-label={
             isMenuOpen ? "Close primary menu" : "Open primary menu"
           }
-          className="flex size-11 shrink-0 items-center justify-center border border-[var(--hairline)] bg-[var(--surface)] text-[var(--gold)] transition-colors hover:border-[var(--gold)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--gold)] md:hidden"
+          className="flex size-11 shrink-0 items-center justify-center border border-(--hairline) bg-(--surface) text-(--gold) transition-colors hover:border-(--gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) md:hidden"
           type="button"
           onClick={() => setIsMenuOpen((current) => !current)}
         >
@@ -72,7 +72,7 @@ export function Navbar(): JSX.Element {
               className={`block h-px bg-current transition-opacity ${isMenuOpen ? "opacity-0" : ""}`}
             />
             <span
-              className={`block h-px bg-current transition-transform ${isMenuOpen ? "-translate-y-[7px] -rotate-45" : ""}`}
+              className={`block h-px bg-current transition-transform ${isMenuOpen ? "translate-y-[-7px] -rotate-45" : ""}`}
             />
           </span>
         </button>

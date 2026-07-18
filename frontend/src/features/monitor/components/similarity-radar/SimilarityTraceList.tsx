@@ -17,7 +17,7 @@ export function SimilarityTraceList({
 
   return (
     <div className="mt-4">
-      <div className="ui-label grid grid-cols-[minmax(0,1fr)_58px_52px] gap-3 border-b border-[var(--hairline)] pb-2 text-[var(--text-faint)]">
+      <div className="ui-label grid grid-cols-[minmax(0,1fr)_58px_52px] gap-3 border-b border-(--hairline) pb-2 text-(--text-faint)">
         <span>Recent scored query</span>
         <span className="text-right">Score</span>
         <span className="text-right">Preview</span>
@@ -42,14 +42,14 @@ export function SimilarityTraceList({
             <span
               className={
                 isActive
-                  ? "truncate text-[var(--text)]"
-                  : "truncate text-[var(--text-muted)]"
+                  ? "truncate text-(--text)"
+                  : "truncate text-(--text-muted)"
               }
               title={point.prompt}
             >
               {formatPrompt(point.prompt)}
             </span>
-            <span className="text-right text-[var(--teal)]">
+            <span className="text-right text-(--teal)">
               {point.similarity.toFixed(3)}
             </span>
             <span

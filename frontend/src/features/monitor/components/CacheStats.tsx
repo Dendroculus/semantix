@@ -31,9 +31,9 @@ const TONES: Record<StatTileProps["tone"], string> = {
 
 function StatTile({ label, value, tone }: StatTileProps): JSX.Element {
   return (
-    <div className="rounded-xl border border-white/5 bg-white/[0.025] p-3.5">
+    <div className="rounded-xl border border-white/5 bg-white/2.5 p-3.5">
       <div className="flex items-center gap-2">
-        <span className={"h-1.5 w-1.5 rounded-full " + TONES[tone]} />
+        <span className={"size-1.5  rounded-full " + TONES[tone]} />
         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">
           {label}
         </dt>
@@ -93,7 +93,7 @@ export function CacheStats({ refreshKey }: CacheStatsProps): JSX.Element {
         >
           <svg
             aria-hidden="true"
-            className="h-4 w-4"
+            className="size-4 "
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -117,7 +117,7 @@ export function CacheStats({ refreshKey }: CacheStatsProps): JSX.Element {
         {state.status === "error" && (
           <div className="rounded-xl border border-rose-400/15 bg-rose-400/5 p-4 text-sm text-rose-200">
             <p className="font-medium">Metrics unavailable</p>
-            <p className="mt-1 text-xs leading-5 text-rose-200/65">
+            <p className="mt-1 text-xs/5  text-rose-200/65">
               {state.error.detail ?? "Cache statistics could not be loaded."}
             </p>
           </div>
@@ -148,7 +148,7 @@ export function CacheStats({ refreshKey }: CacheStatsProps): JSX.Element {
                 aria-valuenow={Math.round(hitRate)}
               >
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-300 transition-[width] duration-500"
+                  className="h-full rounded-full bg-linear-to-r from-sky-400 to-emerald-300 transition-[width] duration-500"
                   style={{ width: Math.min(100, Math.max(0, hitRate)) + "%" }}
                 />
               </div>
@@ -161,11 +161,11 @@ export function CacheStats({ refreshKey }: CacheStatsProps): JSX.Element {
             type="button"
             disabled={isClearing}
             onClick={() => void handleClear()}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-2.5 text-xs font-semibold text-slate-400 transition hover:border-rose-400/25 hover:bg-rose-400/5 hover:text-rose-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/2.5 px-4 py-2.5 text-xs font-semibold text-slate-400 transition hover:border-rose-400/25 hover:bg-rose-400/5 hover:text-rose-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <svg
               aria-hidden="true"
-              className="h-4 w-4"
+              className="size-4 "
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -175,7 +175,7 @@ export function CacheStats({ refreshKey }: CacheStatsProps): JSX.Element {
             </svg>
             {isClearing ? "Clearing cache..." : "Clear cache"}
           </button>
-          <p className="mt-3 text-center text-[11px] leading-4 text-slate-600">
+          <p className="mt-3 text-center text-[11px]/4  text-slate-600">
             Clearing removes entries and resets session metrics.
           </p>
         </div>
