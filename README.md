@@ -279,10 +279,21 @@ Semantic cache lookup
 - **Provider ports** — application code depends only on `EmbeddingProvider` and `GenerationProvider`; provider selection is composed at startup.
 - **Provider adapters** — Hugging Face, OpenAI, Anthropic, and Gemini own their authentication, endpoints, payloads, parsing, retries, and provider-specific errors.
 - **Application orchestration** — `QueryService` coordinates semantic lookup, generation, insertion, timing, and decision evidence while the route only translates HTTP.
+- **Request coalescing** — identical in-flight queries share one lookup, provider call, and cache write instead of creating a provider stampede.
 - **Typed API contract** — Pydantic schemas and TypeScript API types keep frontend/backend payloads explicit.
 - **Single-instance storage** — cache entries live in process memory and are reset when the backend container restarts.
 
 A persistent vector database can later implement the cache interface without rewriting the query routes or orchestration flow.
+
+### Request coalescing
+
+`QueryService` indexes active query resolutions by the deterministic SHA-256
+prompt cache key. The first caller performs the semantic lookup and any needed
+generation; simultaneous callers with the identical prompt await that task.
+The registry lock is held only while reading, registering, or removing the
+in-flight task, never during embedding, cache access, or provider I/O.
+Completion and failure both remove the task, so later requests can use the
+cache or retry normally.
 
 ## 🏗️ Project Structure
 
@@ -379,8 +390,11 @@ contract:
 
 For a cache miss, `matched_prompt`, `matched_cache_key`,
 `cache_entry_created_at`, and `cache_entry_age_seconds` are all `null`;
-`generation_skipped` is `false` and `provider_called` is `true`. Embeddings are
-internal cache data and are never included in this response.
+the request that leads generation reports `generation_skipped` as `false` and
+`provider_called` as `true`. A coalesced waiter remains a cache miss but reports
+`generation_skipped` as `true` and `provider_called` as `false`, because it
+awaited the leader's result. Embeddings are internal cache data and are never
+included in this response.
 
 `GET /api/v1/cache/entries` accepts:
 

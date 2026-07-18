@@ -29,7 +29,11 @@ const TONES: Record<StatTileProps["tone"], string> = {
   amber: "bg-amber-400",
 };
 
-function StatTile({ label, value, tone }: StatTileProps): JSX.Element {
+function StatTile({
+  label,
+  value,
+  tone,
+}: Readonly<StatTileProps>): JSX.Element {
   return (
     <div className="rounded-xl border border-white/5 bg-white/2.5 p-3.5">
       <div className="flex items-center gap-2">
@@ -45,7 +49,9 @@ function StatTile({ label, value, tone }: StatTileProps): JSX.Element {
   );
 }
 
-export function CacheStats({ refreshKey }: CacheStatsProps): JSX.Element {
+export function CacheStats({
+  refreshKey,
+}: Readonly<CacheStatsProps>): JSX.Element {
   const [state, setState] = useState<StatsState>({ status: "loading" });
   const [isClearing, setIsClearing] = useState(false);
 
@@ -139,19 +145,12 @@ export function CacheStats({ refreshKey }: CacheStatsProps): JSX.Element {
                   {hitRate.toFixed(1)}%
                 </span>
               </div>
-              <div
-                className="h-1.5 overflow-hidden rounded-full bg-white/5"
-                role="progressbar"
+              <progress
+                className="h-1.5 w-full overflow-hidden rounded-full bg-white/5 accent-emerald-300"
                 aria-label="Cache hit rate"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(hitRate)}
-              >
-                <div
-                  className="h-full rounded-full bg-linear-to-r from-sky-400 to-emerald-300 transition-[width] duration-500"
-                  style={{ width: Math.min(100, Math.max(0, hitRate)) + "%" }}
-                />
-              </div>
+                max={100}
+                value={Math.min(100, Math.max(0, hitRate))}
+              />
             </div>
           </>
         )}

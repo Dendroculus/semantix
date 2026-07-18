@@ -10,7 +10,7 @@ export function SimilarityTraceList({
   activePointId,
   onActivePointChange,
   points,
-}: SimilarityTraceListProps): JSX.Element | null {
+}: Readonly<SimilarityTraceListProps>): JSX.Element | null {
   if (points.length === 0) {
     return null;
   }

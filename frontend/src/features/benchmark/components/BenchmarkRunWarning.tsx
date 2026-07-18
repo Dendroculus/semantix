@@ -6,7 +6,7 @@ interface BenchmarkRunWarningProps {
 
 export function BenchmarkRunWarning({
   controller,
-}: BenchmarkRunWarningProps): JSX.Element | null {
+}: Readonly<BenchmarkRunWarningProps>): JSX.Element | null {
   if (!controller.showWarning) {
     return null;
   }

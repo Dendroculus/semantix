@@ -21,7 +21,7 @@ function points(
 
 export function BenchmarkCharts({
   result,
-}: BenchmarkChartsProps): JSX.Element {
+}: Readonly<BenchmarkChartsProps>): JSX.Element {
   const evaluations = result.threshold_evaluations;
   const percent = (value: number): string => `${Math.round(value * 100)}%`;
   const number = (value: number): string => value.toFixed(0);

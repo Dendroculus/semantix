@@ -21,7 +21,7 @@ function update(
 
 export function BenchmarkControls({
   controller,
-}: BenchmarkControlsProps): JSX.Element {
+}: Readonly<BenchmarkControlsProps>): JSX.Element {
   const { datasets, datasetsLoading, form, isRunning } = controller;
 
   return (
@@ -149,7 +149,7 @@ export function BenchmarkControls({
               })
             }
           />
-          Reset isolated benchmark cache first
+          <span>Reset isolated benchmark cache first</span>
         </label>
         <button
           className="ui-label border border-(--gold) px-4 py-3 text-(--gold) disabled:cursor-not-allowed disabled:opacity-40"

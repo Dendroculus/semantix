@@ -51,8 +51,7 @@ function decodeQueryResponse(value: unknown): QueryResponse {
       value.matched_cache_key === null &&
       value.cache_entry_created_at === null &&
       value.cache_entry_age_seconds === null &&
-      !value.generation_skipped &&
-      value.provider_called;
+      value.generation_skipped !== value.provider_called;
 
   if (
     !hasValidMatchMetadata ||

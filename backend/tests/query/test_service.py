@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Sequence
 
 import pytest
@@ -22,10 +23,35 @@ class Provider:
         return "answer"
 
 
-@pytest.mark.asyncio
-async def test_explains_cache_miss_and_hit() -> None:
-    provider = Provider()
-    service = QueryService(
+class ControlledProvider:
+    def __init__(
+        self,
+        *,
+        expected_calls: int = 1,
+        failures_remaining: int = 0,
+    ) -> None:
+        self.call_count = 0
+        self.prompts: list[str] = []
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self._expected_calls = expected_calls
+        self._failures_remaining = failures_remaining
+
+    async def generate(self, prompt: str) -> str:
+        self.call_count += 1
+        self.prompts.append(prompt)
+        if self.call_count >= self._expected_calls:
+            self.started.set()
+
+        await self.release.wait()
+        if self._failures_remaining:
+            self._failures_remaining -= 1
+            raise RuntimeError("generation failed")
+        return f"answer:{prompt}"
+
+
+def query_service(provider: Provider | ControlledProvider) -> QueryService:
+    return QueryService(
         SemanticCache(
             Embeddings(),
             memory_backend(),
@@ -33,6 +59,12 @@ async def test_explains_cache_miss_and_hit() -> None:
         ),
         provider,
     )
+
+
+@pytest.mark.asyncio
+async def test_explains_cache_miss_and_hit() -> None:
+    provider = Provider()
+    service = query_service(provider)
 
     miss = await service.execute("one")
     assert miss.cache_hit is False
@@ -61,3 +93,58 @@ async def test_explains_cache_miss_and_hit() -> None:
     assert hit.generation_skipped is True
     assert hit.provider_called is False
     assert provider.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_coalesces_twenty_simultaneous_identical_misses() -> None:
+    provider = ControlledProvider()
+    service = query_service(provider)
+    requests = [asyncio.create_task(service.execute("same prompt")) for _ in range(20)]
+
+    await asyncio.wait_for(provider.started.wait(), timeout=1)
+    provider.release.set()
+    responses = await asyncio.gather(*requests)
+
+    assert provider.call_count == 1
+    assert {response.response for response in responses} == {"answer:same prompt"}
+    assert sum(response.provider_called for response in responses) == 1
+    assert sum(response.generation_skipped for response in responses) == 19
+    assert all(not response.cache_hit for response in responses)
+
+
+@pytest.mark.asyncio
+async def test_failed_generation_is_removed_before_retry() -> None:
+    provider = ControlledProvider(failures_remaining=1)
+    service = query_service(provider)
+    provider.release.set()
+
+    with pytest.raises(RuntimeError, match="generation failed"):
+        await service.execute("retry prompt")
+
+    response = await service.execute("retry prompt")
+
+    assert response.response == "answer:retry prompt"
+    assert response.provider_called is True
+    assert provider.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_different_prompts_do_not_share_in_flight_generation() -> None:
+    provider = ControlledProvider(expected_calls=2)
+    service = query_service(provider)
+    requests = [
+        asyncio.create_task(service.execute(prompt))
+        for prompt in ("first prompt", "second prompt")
+    ]
+
+    await asyncio.wait_for(provider.started.wait(), timeout=1)
+    provider.release.set()
+    responses = await asyncio.gather(*requests)
+
+    assert provider.call_count == 2
+    assert set(provider.prompts) == {"first prompt", "second prompt"}
+    assert {response.response for response in responses} == {
+        "answer:first prompt",
+        "answer:second prompt",
+    }
+    assert all(response.provider_called for response in responses)

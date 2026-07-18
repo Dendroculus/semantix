@@ -33,7 +33,7 @@ export interface CacheInspectorController {
   isLoading: boolean;
   isMutating: boolean;
   loadError: string | null;
-  mutation: "clear" | string | null;
+  mutation: string | null;
   nextPage: () => void;
   pendingDelete: string | null;
   previousPage: () => void;
@@ -51,11 +51,11 @@ export interface CacheInspectorController {
 export function useCacheInspector({
   onMutation,
   refreshKey,
-}: UseCacheInspectorOptions): CacheInspectorController {
+}: Readonly<UseCacheInspectorOptions>): CacheInspectorController {
   const [data, setData] =
     useState<CacheEntryListResponse | null>(null);
-  const [search, setSearchState] = useState("");
-  const [sort, setSortState] =
+  const [search, setSearch] = useState("");
+  const [sort, setSort] =
     useState<CacheEntrySort>("newest");
   const [offset, setOffset] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
@@ -66,8 +66,7 @@ export function useCacheInspector({
   const [pendingDelete, setPendingDelete] =
     useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [mutation, setMutation] =
-    useState<"clear" | string | null>(null);
+  const [mutation, setMutation] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -115,14 +114,14 @@ export function useCacheInspector({
     setReloadKey((current) => current + 1);
   }
 
-  function setSearch(nextSearch: string): void {
-    setSearchState(nextSearch);
+  function updateSearch(nextSearch: string): void {
+    setSearch(nextSearch);
     setOffset(0);
     setPendingDelete(null);
   }
 
-  function setSort(nextSort: CacheEntrySort): void {
-    setSortState(nextSort);
+  function updateSort(nextSort: CacheEntrySort): void {
+    setSort(nextSort);
     setOffset(0);
     setPendingDelete(null);
   }
@@ -216,8 +215,8 @@ export function useCacheInspector({
     requestClear,
     requestDelete,
     search,
-    setSearch,
-    setSort,
+    setSearch: updateSearch,
+    setSort: updateSort,
     sort,
     visibleEnd,
     visibleStart,

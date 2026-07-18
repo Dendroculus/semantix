@@ -9,7 +9,7 @@ interface MetricProps {
   value: string;
 }
 
-function Metric({ label, value }: MetricProps): JSX.Element {
+function Metric({ label, value }: Readonly<MetricProps>): JSX.Element {
   return (
     <div className="border-t border-(--hairline) pt-3">
       <dt className="ui-label text-(--text-faint)">{label}</dt>
@@ -24,7 +24,7 @@ function latency(value: number | null): string {
 
 export function BenchmarkSummary({
   result,
-}: BenchmarkSummaryProps): JSX.Element {
+}: Readonly<BenchmarkSummaryProps>): JSX.Element {
   const { metrics } = result;
 
   return (

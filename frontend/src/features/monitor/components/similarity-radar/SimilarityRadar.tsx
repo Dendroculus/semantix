@@ -23,7 +23,7 @@ export function SimilarityRadar({
   threshold,
   onThresholdChange,
   onThresholdApply,
-}: SimilarityRadarProps): JSX.Element {
+}: Readonly<SimilarityRadarProps>): JSX.Element {
   const [selectedPointId, setSelectedPointId] =
     useState<string | null>(null);
   const points = useMemo(

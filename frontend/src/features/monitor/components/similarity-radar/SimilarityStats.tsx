@@ -8,7 +8,7 @@ export function SimilarityStats({
   projectedHits,
   projectedMisses,
   scoredCount,
-}: SimilarityStatsProps): JSX.Element {
+}: Readonly<SimilarityStatsProps>): JSX.Element {
   return (
     <div className="grid grid-cols-3 border-y border-(--hairline)">
       <div className="border-r border-(--hairline) p-3 ">

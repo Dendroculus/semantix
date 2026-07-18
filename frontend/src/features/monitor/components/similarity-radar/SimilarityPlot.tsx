@@ -31,7 +31,7 @@ export function SimilarityPlot({
   points,
   previewThreshold,
   totalTraces,
-}: SimilarityPlotProps): JSX.Element {
+}: Readonly<SimilarityPlotProps>): JSX.Element {
   const activePoint =
     points.find((point) => point.id === activePointId) ?? null;
 
@@ -40,7 +40,6 @@ export function SimilarityPlot({
       <svg
         aria-label={`${points.length} of ${totalTraces} recent traces plotted on a zero-to-one similarity scale`}
         className="block min-w-[520px] w-full"
-        role="group"
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
       >
         <PlotBackdrop
@@ -59,15 +58,7 @@ export function SimilarityPlot({
           return (
             <g
               key={point.id}
-              aria-label={pointLabel(point)}
               data-active={isActive ? "true" : "false"}
-              role="button"
-              tabIndex={0}
-              onBlur={() => onActivePointChange(null)}
-              onClick={() => onActivePointChange(point.id)}
-              onFocus={() => onActivePointChange(point.id)}
-              onMouseEnter={() => onActivePointChange(point.id)}
-              onMouseLeave={() => onActivePointChange(null)}
             >
               {isActive && (
                 <circle
@@ -92,6 +83,23 @@ export function SimilarityPlot({
                 stroke={isActive ? "var(--text)" : "var(--ink)"}
                 strokeWidth={isActive ? "3" : "2"}
               />
+              <foreignObject
+                height="24"
+                width="24"
+                x={point.x - 12}
+                y={point.y - 12}
+              >
+                <button
+                  aria-label={pointLabel(point)}
+                  className="size-6 cursor-pointer bg-transparent p-0"
+                  type="button"
+                  onBlur={() => onActivePointChange(null)}
+                  onClick={() => onActivePointChange(point.id)}
+                  onFocus={() => onActivePointChange(point.id)}
+                  onMouseEnter={() => onActivePointChange(point.id)}
+                  onMouseLeave={() => onActivePointChange(null)}
+                />
+              </foreignObject>
             </g>
           );
         })}

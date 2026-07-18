@@ -28,6 +28,7 @@ const traces: QueryTrace[] = [
     latencyMs: 10,
     recordedAt: new Date("2026-07-17T10:00:00Z"),
     actualCacheHit: true,
+    providerCalled: false,
   },
   {
     id: "scored-miss",
@@ -36,6 +37,7 @@ const traces: QueryTrace[] = [
     latencyMs: 20,
     recordedAt: new Date("2026-07-17T10:01:00Z"),
     actualCacheHit: false,
+    providerCalled: true,
   },
   {
     id: "unscored-miss",
@@ -44,6 +46,7 @@ const traces: QueryTrace[] = [
     latencyMs: 30,
     recordedAt: new Date("2026-07-17T10:02:00Z"),
     actualCacheHit: false,
+    providerCalled: false,
   },
 ];
 
@@ -214,6 +217,7 @@ describe("dashboard correctness", () => {
     const point = screen.getByRole("button", {
       name: /Prompt: Close match\./,
     });
+    const pointGroup = point.closest("g");
 
     fireEvent.mouseEnter(point);
 
@@ -222,11 +226,11 @@ describe("dashboard correctness", () => {
     expect(hoverTooltip.textContent).toContain("Score 0.950");
     expect(hoverTooltip.textContent).toContain("Preview HIT");
     expect(hoverTooltip.textContent).toContain("Actual HIT");
-    expect(point.getAttribute("data-active")).toBe("true");
+    expect(pointGroup?.getAttribute("data-active")).toBe("true");
     expect(
-      point.querySelector('[data-testid="similarity-point"]')?.getAttribute(
-        "r",
-      ),
+      pointGroup
+        ?.querySelector('[data-testid="similarity-point"]')
+        ?.getAttribute("r"),
     ).toBe("8");
 
     fireEvent.mouseLeave(point);
@@ -234,14 +238,14 @@ describe("dashboard correctness", () => {
 
     fireEvent.focus(point);
     expect(screen.getByRole("tooltip")).toBeTruthy();
-    expect(point.getAttribute("data-active")).toBe("true");
+    expect(pointGroup?.getAttribute("data-active")).toBe("true");
 
     fireEvent.blur(point);
     expect(screen.queryByRole("tooltip")).toBeNull();
 
     fireEvent.click(point);
     expect(screen.getByRole("tooltip")).toBeTruthy();
-    expect(point.getAttribute("data-active")).toBe("true");
+    expect(pointGroup?.getAttribute("data-active")).toBe("true");
   });
 
   it("renders missing similarity as n/a and classifies it as a miss", () => {
@@ -296,7 +300,7 @@ describe("dashboard correctness", () => {
     expect(metricValue("Actual backend hit rate")).toBe("25.0%");
     expect(metricValue("Scored / unscored queries")).toBe("2 / 1");
     expect(metricValue("Mean latency")).toBe("20.0 ms");
-    expect(metricValue("Provider calls (visible)")).toBe("2");
+    expect(metricValue("Provider calls (visible)")).toBe("1");
     expect(metricValue("Cache entries")).toBe("7");
     expect(
       screen.getByText(

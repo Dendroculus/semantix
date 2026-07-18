@@ -9,7 +9,7 @@ interface AppProvidersProps {
 
 export function AppProviders({
   children,
-}: AppProvidersProps): JSX.Element {
+}: Readonly<AppProvidersProps>): JSX.Element {
   return (
     <CacheControlProvider>
       <MonitorProvider>{children}</MonitorProvider>

@@ -43,6 +43,10 @@ function explainDecision(result: QueryResponse): string {
     return `Reused a cached response because similarity ${score} met the ${threshold} threshold.`;
   }
 
+  if (result.generation_skipped && !result.provider_called) {
+    return "Awaited an identical in-flight request instead of making a duplicate provider call.";
+  }
+
   if (score === undefined) {
     return "Generated a fresh response because no cached entry was available to compare.";
   }
@@ -56,16 +60,23 @@ function explainDecision(result: QueryResponse): string {
 
 export function ResponseCard({
   result,
-}: ResponseCardProps): JSX.Element {
+}: Readonly<ResponseCardProps>): JSX.Element {
   const similarity =
     result.similarity_score?.toFixed(3) ?? "n/a";
   const threshold = result.similarity_threshold.toFixed(3);
   const cacheAge = formatCacheAge(result.cache_entry_age_seconds);
   const explanation = explainDecision(result);
 
-  const verdict = result.cache_hit
-    ? "CACHE HIT"
-    : "FRESH RESPONSE";
+  const isCoalesced =
+    !result.cache_hit &&
+    result.generation_skipped &&
+    !result.provider_called;
+  let verdict = "FRESH RESPONSE";
+  if (result.cache_hit) {
+    verdict = "CACHE HIT";
+  } else if (isCoalesced) {
+    verdict = "COALESCED RESPONSE";
+  }
 
   const verdictColor = result.cache_hit
     ? "var(--gold)"

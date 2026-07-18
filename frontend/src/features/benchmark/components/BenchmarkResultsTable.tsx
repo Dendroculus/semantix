@@ -14,7 +14,7 @@ function decision(value: boolean): string {
 
 export function BenchmarkResultsTable({
   results,
-}: BenchmarkResultsTableProps): JSX.Element {
+}: Readonly<BenchmarkResultsTableProps>): JSX.Element {
   return (
     <section aria-labelledby="benchmark-results-heading" className="mt-12">
       <h3

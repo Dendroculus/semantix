@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -17,7 +18,7 @@ interface MonitorProviderProps {
 
 export function MonitorProvider({
   children,
-}: MonitorProviderProps): JSX.Element {
+}: Readonly<MonitorProviderProps>): JSX.Element {
   const { refreshCacheState } = useCacheControl();
   const { state: queryState, submit } = useQuery();
   const [traces, setTraces] = useState<QueryTrace[]>([]);
@@ -38,6 +39,7 @@ export function MonitorProvider({
             latencyMs: result.latency_ms,
             recordedAt: new Date(),
             actualCacheHit: result.cache_hit,
+            providerCalled: result.provider_called,
           },
           ...current,
         ].slice(0, MAX_TRACES),
@@ -47,15 +49,22 @@ export function MonitorProvider({
     [refreshCacheState, submit],
   );
 
+  const clearTraces = useCallback((): void => {
+    setTraces([]);
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      clearTraces,
+      queryState,
+      submitPrompt,
+      traces,
+    }),
+    [clearTraces, queryState, submitPrompt, traces],
+  );
+
   return (
-    <MonitorContext.Provider
-      value={{
-        clearTraces: () => setTraces([]),
-        queryState,
-        submitPrompt,
-        traces,
-      }}
-    >
+    <MonitorContext.Provider value={contextValue}>
       {children}
     </MonitorContext.Provider>
   );

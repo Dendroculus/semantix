@@ -63,9 +63,9 @@ class QueryResponse(StrictModel):
         else:
             if any(value is not None for value in matched_fields):
                 raise ValueError("A cache miss cannot include matched-entry metadata")
-            if self.generation_skipped or not self.provider_called:
+            if self.generation_skipped == self.provider_called:
                 raise ValueError(
-                    "A cache miss must run generation and call the provider"
+                    "A cache miss must either call the provider or await generation"
                 )
 
         return self

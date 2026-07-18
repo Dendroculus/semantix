@@ -26,7 +26,7 @@ export function LineChart({
   series,
   title,
   valueLabel,
-}: LineChartProps): JSX.Element {
+}: Readonly<LineChartProps>): JSX.Element {
   const points = series.flatMap((item) => item.points);
   const xValues = points.map((point) => point.x);
   const yValues = points.map((point) => point.y);
@@ -44,11 +44,13 @@ export function LineChart({
     <figure className="border-t border-(--hairline) pt-4">
       <figcaption className="ui-label text-(--text-muted)">{title}</figcaption>
       <svg
-        aria-label={`${title}. Thresholds ${minX.toFixed(2)} through ${maxX.toFixed(2)}.`}
+        aria-labelledby={`${title.replaceAll(" ", "-")}-chart-title`}
         className="mt-3 h-auto w-full"
-        role="img"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       >
+        <title id={`${title.replaceAll(" ", "-")}-chart-title`}>
+          {title}. Thresholds {minX.toFixed(2)} through {maxX.toFixed(2)}.
+        </title>
         {[0, 0.5, 1].map((fraction) => {
           const value = minY + (maxY - minY) * fraction;
           const position = y(value);

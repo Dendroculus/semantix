@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 
+const SESSION_STARTED_AT = Date.now();
+
 export function SessionUptime(): JSX.Element {
-  const [startedAt] = useState(() => Date.now());
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setElapsed(Date.now() - startedAt);
+      setElapsed(Date.now() - SESSION_STARTED_AT);
     }, 1_000);
 
     return () => window.clearInterval(timer);
-  }, [startedAt]);
+  }, []);
 
   const totalSeconds = Math.floor(elapsed / 1_000);
   const hours = Math.floor(totalSeconds / 3_600);

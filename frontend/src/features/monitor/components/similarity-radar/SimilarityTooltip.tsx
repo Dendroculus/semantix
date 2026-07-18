@@ -36,7 +36,7 @@ function tooltipPosition(point: PlotPoint): {
 
 export function SimilarityTooltip({
   point,
-}: SimilarityTooltipProps): JSX.Element {
+}: Readonly<SimilarityTooltipProps>): JSX.Element {
   const position = tooltipPosition(point);
   const previewColor = point.isProjectedHit
     ? "var(--gold)"

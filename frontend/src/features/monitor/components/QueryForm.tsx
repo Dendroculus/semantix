@@ -11,7 +11,10 @@ const EXAMPLE_PROMPTS = [
   "How does cosine similarity work?",
 ];
 
-export function QueryForm({ isLoading, onSubmit }: QueryFormProps): JSX.Element {
+export function QueryForm({
+  isLoading,
+  onSubmit,
+}: Readonly<QueryFormProps>): JSX.Element {
   const [prompt, setPrompt] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
 

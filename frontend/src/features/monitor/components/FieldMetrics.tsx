@@ -20,7 +20,12 @@ const TONE_COLOR = {
   coral: "var(--coral)",
 };
 
-function MetricRow({ detail, label, value, tone }: MetricRowProps): JSX.Element {
+function MetricRow({
+  detail,
+  label,
+  value,
+  tone,
+}: Readonly<MetricRowProps>): JSX.Element {
   return (
     <div className="flex items-start justify-between gap-6 border-b border-(--hairline) py-4">
       <div>
@@ -43,7 +48,7 @@ export function FieldMetrics({
   cacheStats,
   threshold,
   traces,
-}: FieldMetricsProps): JSX.Element {
+}: Readonly<FieldMetricsProps>): JSX.Element {
   const scoredTraces = traces.filter((trace) => trace.similarity !== null);
   const unscoredCount = traces.length - scoredTraces.length;
   const projectedHits = scoredTraces.filter(
@@ -55,7 +60,7 @@ export function FieldMetrics({
     traces.length === 0
       ? null
       : traces.reduce((total, trace) => total + trace.latencyMs, 0) / traces.length;
-  const providerCalls = traces.filter((trace) => !trace.actualCacheHit).length;
+  const providerCalls = traces.filter((trace) => trace.providerCalled).length;
   const backendRequestCount =
     cacheStats === null ? 0 : cacheStats.hits + cacheStats.misses;
   const backendHitRate =

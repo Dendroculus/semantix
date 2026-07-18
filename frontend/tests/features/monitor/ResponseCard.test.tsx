@@ -140,4 +140,26 @@ describe("ResponseCard math rendering", () => {
     expect(detailValue("Provider")).toBe("Called");
     expect(detailValue("Request latency")).toBe("12.0 ms");
   });
+
+  it("explains a coalesced miss without claiming a provider call", () => {
+    render(
+      <ResponseCard
+        result={{
+          ...missResult,
+          response: "Shared in-flight response",
+          generation_skipped: true,
+          provider_called: false,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("COALESCED RESPONSE")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Awaited an identical in-flight request instead of making a duplicate provider call.",
+      ),
+    ).toBeTruthy();
+    expect(detailValue("Generation")).toBe("Skipped");
+    expect(detailValue("Provider")).toBe("Not called");
+  });
 });

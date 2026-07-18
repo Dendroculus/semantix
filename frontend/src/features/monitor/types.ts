@@ -31,4 +31,5 @@ export interface QueryTrace {
   latencyMs: number;
   recordedAt: Date;
   actualCacheHit: boolean;
+  providerCalled: boolean;
 }

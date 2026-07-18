@@ -38,7 +38,7 @@ function buildBins(results: BenchmarkQueryResult[]): Bin[] {
 
 export function SimilarityDistribution({
   results,
-}: SimilarityDistributionProps): JSX.Element {
+}: Readonly<SimilarityDistributionProps>): JSX.Element {
   const bins = buildBins(results);
   const maxCount = Math.max(1, ...bins.map((bin) => bin.count));
   const unscored = results.filter(
@@ -50,11 +50,10 @@ export function SimilarityDistribution({
       <figcaption className="ui-label text-(--text-muted)">
         Similarity-score distribution
       </figcaption>
-      <div
-        aria-label={`Similarity-score distribution with ${unscored} unscored queries`}
-        className="mt-5 flex h-32 items-end gap-1"
-        role="img"
-      >
+      <p className="sr-only">
+        Similarity-score distribution with {unscored} unscored queries
+      </p>
+      <div className="mt-5 flex h-32 items-end gap-1">
         {bins.map((bin) => (
           <div
             className="group relative flex h-full min-w-0 flex-1 items-end"

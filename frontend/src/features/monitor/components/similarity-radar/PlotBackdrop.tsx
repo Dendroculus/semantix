@@ -16,7 +16,7 @@ interface PlotBackdropProps {
 export function PlotBackdrop({
   appliedThreshold,
   previewThreshold,
-}: PlotBackdropProps): JSX.Element {
+}: Readonly<PlotBackdropProps>): JSX.Element {
   const appliedThresholdX = scoreToX(appliedThreshold);
   const previewThresholdX = scoreToX(previewThreshold);
   const hasPendingThreshold =

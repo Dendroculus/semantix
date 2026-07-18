@@ -7,7 +7,7 @@ interface BenchmarkExportsProps {
 
 export function BenchmarkExports({
   result,
-}: BenchmarkExportsProps): JSX.Element {
+}: Readonly<BenchmarkExportsProps>): JSX.Element {
   return (
     <div className="flex flex-wrap gap-3">
       <button

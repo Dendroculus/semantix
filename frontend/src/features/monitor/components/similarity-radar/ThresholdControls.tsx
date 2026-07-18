@@ -12,7 +12,7 @@ export function ThresholdControls({
   onThresholdApply,
   onThresholdChange,
   threshold,
-}: ThresholdControlsProps): JSX.Element {
+}: Readonly<ThresholdControlsProps>): JSX.Element {
   const hasPendingThreshold =
     Math.abs(threshold - appliedThreshold) >= 0.001;
 

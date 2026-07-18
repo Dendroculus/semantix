@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -19,7 +20,7 @@ interface CacheControlProviderProps {
 
 export function CacheControlProvider({
   children,
-}: CacheControlProviderProps): JSX.Element {
+}: Readonly<CacheControlProviderProps>): JSX.Element {
   const [appliedThreshold, setAppliedThreshold] = useState(0.92);
   const [previewThreshold, setPreviewThreshold] = useState(0.92);
   const [cacheStats, setCacheStats] =
@@ -52,36 +53,55 @@ export function CacheControlProvider({
     void refreshCacheState(true);
   }, [refreshCacheState]);
 
-  async function commitThreshold(value: number): Promise<void> {
-    setIsApplyingThreshold(true);
-    const result = await updateCacheThreshold(value);
-    setIsApplyingThreshold(false);
+  const clearControlError = useCallback((): void => {
+    setControlError(null);
+  }, []);
 
-    if (result.ok) {
-      setAppliedThreshold(result.data.threshold);
-      setPreviewThreshold(result.data.threshold);
-      setControlError(null);
-      return;
-    }
+  const commitThreshold = useCallback(
+    async (value: number): Promise<void> => {
+      setIsApplyingThreshold(true);
+      const result = await updateCacheThreshold(value);
+      setIsApplyingThreshold(false);
 
-    setControlError("THRESHOLD UPDATE FAILED; THE SERVER VALUE WAS RESTORED");
-    await refreshCacheState(true);
-  }
+      if (result.ok) {
+        setAppliedThreshold(result.data.threshold);
+        setPreviewThreshold(result.data.threshold);
+        setControlError(null);
+        return;
+      }
+
+      setControlError("THRESHOLD UPDATE FAILED; THE SERVER VALUE WAS RESTORED");
+      await refreshCacheState(true);
+    },
+    [refreshCacheState],
+  );
+
+  const contextValue = useMemo(
+    () => ({
+      appliedThreshold,
+      cacheStats,
+      clearControlError,
+      commitThreshold,
+      controlError,
+      isApplyingThreshold,
+      previewThreshold,
+      refreshCacheState,
+      setPreviewThreshold,
+    }),
+    [
+      appliedThreshold,
+      cacheStats,
+      clearControlError,
+      commitThreshold,
+      controlError,
+      isApplyingThreshold,
+      previewThreshold,
+      refreshCacheState,
+    ],
+  );
 
   return (
-    <CacheControlContext.Provider
-      value={{
-        appliedThreshold,
-        cacheStats,
-        clearControlError: () => setControlError(null),
-        commitThreshold,
-        controlError,
-        isApplyingThreshold,
-        previewThreshold,
-        refreshCacheState,
-        setPreviewThreshold,
-      }}
-    >
+    <CacheControlContext.Provider value={contextValue}>
       {children}
     </CacheControlContext.Provider>
   );

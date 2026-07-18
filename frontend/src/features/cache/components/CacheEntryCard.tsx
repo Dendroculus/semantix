@@ -58,7 +58,7 @@ export function CacheEntryCard({
   onCancelDelete,
   onConfirmDelete,
   onRequestDelete,
-}: CacheEntryCardProps): JSX.Element {
+}: Readonly<CacheEntryCardProps>): JSX.Element {
   return (
     <li className="border-t border-(--hairline) py-5">
       <article>
@@ -157,10 +157,9 @@ export function CacheEntryCard({
         </dl>
 
         {isPendingDelete && (
-          <div
+          <fieldset
             aria-label={`Confirm deletion of ${entry.prompt}`}
-            className="mt-4 border-l border-(--coral) pl-4"
-            role="group"
+            className="mt-4 min-w-0 border-0 border-l border-(--coral) p-0 pl-4"
           >
             <p className="text-xs text-(--text-soft)">
               Delete this entry? Cached responses using it will no longer be
@@ -185,7 +184,7 @@ export function CacheEntryCard({
                 Cancel
               </button>
             </div>
-          </div>
+          </fieldset>
         )}
       </article>
     </li>

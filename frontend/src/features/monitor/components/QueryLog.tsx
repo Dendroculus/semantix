@@ -9,7 +9,10 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour12: false });
 }
 
-export function QueryLog({ traces, threshold }: QueryLogProps): JSX.Element {
+export function QueryLog({
+  traces,
+  threshold,
+}: Readonly<QueryLogProps>): JSX.Element {
   return (
     <section className="mt-16 border-t border-(--hairline) pt-8">
       <div className="mb-6 flex items-baseline justify-between gap-6">

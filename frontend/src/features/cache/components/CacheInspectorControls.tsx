@@ -30,7 +30,7 @@ export function CacheInspectorControls({
   onSortChange,
   search,
   sort,
-}: CacheInspectorControlsProps): JSX.Element {
+}: Readonly<CacheInspectorControlsProps>): JSX.Element {
   return (
     <>
       <header className="flex flex-wrap items-end justify-between gap-5">
@@ -67,10 +67,9 @@ export function CacheInspectorControls({
       </header>
 
       {confirmClear && (
-        <div
+        <fieldset
           aria-label="Confirm clear cache"
-          className="mt-5 border-l border-(--coral) pl-4"
-          role="group"
+          className="mt-5 min-w-0 border-0 border-l border-(--coral) p-0 pl-4"
         >
           <p className="text-sm text-(--text-soft)">
             Clear every cache entry and reset backend cache statistics?
@@ -93,7 +92,7 @@ export function CacheInspectorControls({
               Cancel
             </button>
           </div>
-        </div>
+        </fieldset>
       )}
 
       <div className="mt-7 grid gap-5 min-[680px]:grid-cols-[minmax(0,1fr)_220px]">

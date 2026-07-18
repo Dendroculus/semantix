@@ -16,7 +16,7 @@ const INLINE_MATH = /\\\(([\s\S]*?)\\\)/g;
  */
 export function unwrapOuterMarkdownFence(text: string): string {
   const trimmed = text.trim();
-  const openFence = trimmed.match(/^```(?:markdown|md)[ \t]*\r?\n/i);
+  const openFence = /^```(?:markdown|md)[ \t]*\r?\n/i.exec(trimmed);
   if (!openFence) return text;
 
   let inner = trimmed.slice(openFence[0].length);

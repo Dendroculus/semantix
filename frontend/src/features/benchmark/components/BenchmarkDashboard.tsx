@@ -41,9 +41,12 @@ export function BenchmarkDashboard(): JSX.Element {
       <BenchmarkRunWarning controller={controller} />
 
       {isRunning && (
-        <p className="font-data mt-6 text-xs text-(--gold)" role="status">
+        <output
+          className="font-data mt-6 block text-xs text-(--gold)"
+          aria-live="polite"
+        >
           RUNNING CONTROLLED QUERY SEQUENCE / DO NOT REFRESH
-        </p>
+        </output>
       )}
       {error !== null && (
         <p className="font-data mt-6 text-xs text-(--coral)" role="alert">

@@ -7,7 +7,7 @@ interface CacheInspectorResultsProps {
 
 export function CacheInspectorResults({
   inspector,
-}: CacheInspectorResultsProps): JSX.Element {
+}: Readonly<CacheInspectorResultsProps>): JSX.Element {
   const {
     actionError,
     cancelDelete,

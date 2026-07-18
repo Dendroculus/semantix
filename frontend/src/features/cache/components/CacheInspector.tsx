@@ -15,7 +15,7 @@ interface CacheInspectorProps {
 export function CacheInspector({
   refreshKey,
   onMutation,
-}: CacheInspectorProps): JSX.Element {
+}: Readonly<CacheInspectorProps>): JSX.Element {
   const inspector = useCacheInspector({
     onMutation,
     refreshKey,
