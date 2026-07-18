@@ -1,7 +1,9 @@
 import json
 from collections.abc import Callable, Sequence
+from http import HTTPStatus
 from typing import cast
 from urllib.parse import quote
+
 import httpx
 import numpy as np
 from tenacity import (
@@ -10,6 +12,7 @@ from tenacity import (
     stop_after_attempt,
     wait_random_exponential,
 )
+
 from app.core.exceptions import (
     InvalidProviderResponseError,
     ProviderAuthenticationError,
@@ -18,14 +21,24 @@ from app.core.exceptions import (
 )
 from app.core.schemas import EMBEDDING_DIMENSIONS
 
+RETRY_ATTEMPTS = 3
+RETRY_MULTIPLIER_SECONDS = 0.5
+RETRY_MAX_WAIT_SECONDS = 4.0
+PROVIDER_ERROR_DETAIL_MAX_LENGTH = 300
+
 RetryFactory = Callable[[], AsyncRetrying]
 
 
 def default_retry_factory() -> AsyncRetrying:
     return AsyncRetrying(
-        retry=retry_if_exception_type(ProviderRetryableError),
-        stop=stop_after_attempt(3),
-        wait=wait_random_exponential(multiplier=0.5, max=4),
+        retry=retry_if_exception_type(
+            ProviderRetryableError
+        ),
+        stop=stop_after_attempt(RETRY_ATTEMPTS),
+        wait=wait_random_exponential(
+            multiplier=RETRY_MULTIPLIER_SECONDS,
+            max=RETRY_MAX_WAIT_SECONDS,
+        ),
         reraise=True,
     )
 
@@ -35,29 +48,44 @@ def _vector(value: object) -> list[float] | None:
         not isinstance(value, list)
         or len(value) != EMBEDDING_DIMENSIONS
         or not all(
-            isinstance(v, (int, float)) and not isinstance(v, bool) for v in value
+            isinstance(component, (int, float))
+            and not isinstance(component, bool)
+            for component in value
         )
     ):
         return None
-    return [float(cast(int | float, v)) for v in value]
+
+    return [
+        float(cast(int | float, component))
+        for component in value
+    ]
 
 
 def _rows(value: object) -> list[list[float]] | None:
     direct = _vector(value)
+
     if direct is not None:
         return [direct]
+
     if not isinstance(value, list) or not value:
         return None
+
     if len(value) == 1:
         nested = _rows(value[0])
+
         if nested is not None:
             return nested
-    result = []
+
+    result: list[list[float]] = []
+
     for item in value:
         row = _vector(item)
+
         if row is None:
             return None
+
         result.append(row)
+
     return result or None
 
 
@@ -66,25 +94,36 @@ class HuggingFaceService:
         self,
         client: httpx.AsyncClient,
         api_key: str,
-        base_url: str,
+        inference_base_url: str,
+        chat_base_url: str,
         embedding_model: str,
         generation_model: str,
         max_new_tokens: int,
         retry_factory: RetryFactory = default_retry_factory,
-        chat_base_url: str = "https://router.huggingface.co/v1",
     ) -> None:
         self._client = client
         self._api_key = api_key
-        self._base_url = base_url.rstrip("/")
+        self._inference_base_url = (
+            inference_base_url.rstrip("/")
+        )
         self._chat_base_url = chat_base_url.rstrip("/")
         self._embedding_model = embedding_model
         self._generation_model = generation_model
         self._max_new_tokens = max_new_tokens
         self._retry_factory = retry_factory
 
-    async def create_embedding(self, text: str) -> Sequence[float]:
-        model_path = quote(self._embedding_model, safe="/")
-        endpoint = f"{self._base_url}/{model_path}/pipeline/feature-extraction"
+    async def create_embedding(
+        self,
+        text: str,
+    ) -> Sequence[float]:
+        model_path = quote(
+            self._embedding_model,
+            safe="/",
+        )
+        endpoint = (
+            f"{self._inference_base_url}/{model_path}"
+            "/pipeline/feature-extraction"
+        )
 
         payload = await self._post(
             endpoint,
@@ -93,7 +132,6 @@ class HuggingFaceService:
                 "normalize": True,
             },
         )
-
         rows = _rows(payload)
 
         if rows is None:
@@ -106,15 +144,23 @@ class HuggingFaceService:
             axis=0,
         )
 
-        if vector.shape != (EMBEDDING_DIMENSIONS,) or not np.isfinite(vector).all():
+        if (
+            vector.shape != (EMBEDDING_DIMENSIONS,)
+            or not np.isfinite(vector).all()
+        ):
             raise InvalidProviderResponseError(
                 "Invalid embedding vector",
             )
 
-        return [float(component) for component in vector]
+        return [
+            float(component)
+            for component in vector
+        ]
 
     async def generate(self, prompt: str) -> str:
-        endpoint = f"{self._chat_base_url}/chat/completions"
+        endpoint = (
+            f"{self._chat_base_url}/chat/completions"
+        )
 
         payload = await self._post(
             endpoint,
@@ -159,7 +205,10 @@ class HuggingFaceService:
 
         content = message.get("content")
 
-        if not isinstance(content, str) or not content.strip():
+        if (
+            not isinstance(content, str)
+            or not content.strip()
+        ):
             raise InvalidProviderResponseError(
                 "Chat response contained no text",
             )
@@ -188,7 +237,9 @@ class HuggingFaceService:
             response = await self._client.post(
                 endpoint,
                 headers={
-                    "Authorization": f"Bearer {self._api_key}",
+                    "Authorization": (
+                        f"Bearer {self._api_key}"
+                    ),
                     "Content-Type": "application/json",
                 },
                 json=body,
@@ -198,26 +249,44 @@ class HuggingFaceService:
                 "Network failure",
             ) from exc
 
-        if response.status_code == 429 or response.status_code >= 500:
+        if (
+            response.status_code
+            == HTTPStatus.TOO_MANY_REQUESTS
+            or response.status_code
+            >= HTTPStatus.INTERNAL_SERVER_ERROR
+        ):
             raise ProviderRetryableError(
-                f"Retryable status {response.status_code}",
+                f"Retryable status "
+                f"{response.status_code}",
             )
 
-        if response.status_code in {401, 403}:
+        if response.status_code in {
+            HTTPStatus.UNAUTHORIZED,
+            HTTPStatus.FORBIDDEN,
+        }:
             raise ProviderAuthenticationError(
                 "Credentials rejected",
             )
 
-        if response.status_code >= 400:
-            detail = response.text.strip().replace("\n", " ")[:300]
+        if response.status_code >= HTTPStatus.BAD_REQUEST:
+            detail = (
+                response.text.strip()
+                .replace("\n", " ")[
+                    :PROVIDER_ERROR_DETAIL_MAX_LENGTH
+                ]
+            )
 
             raise ProviderRequestError(
-                f"Provider status {response.status_code}: "
+                f"Provider status "
+                f"{response.status_code}: "
                 f"{detail or 'No response detail'}",
             )
 
         try:
-            return cast(object, json.loads(response.text))
+            return cast(
+                object,
+                json.loads(response.text),
+            )
         except json.JSONDecodeError as exc:
             raise InvalidProviderResponseError(
                 "Malformed JSON",
