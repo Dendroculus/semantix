@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
+
+from app.api.schemas import HealthResponse
 from app.core.config import get_settings
-from app.core.schemas import HealthResponse
 from app.middleware.rate_limit import limiter
 
 router = APIRouter(tags=["health"])

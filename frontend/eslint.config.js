@@ -1,3 +1,6 @@
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import js from '@eslint/js';
 import globals from 'globals';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
@@ -8,6 +11,8 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import sonarjs from 'eslint-plugin-sonarjs';
 import { defineConfig, globalIgnores } from 'eslint/config';
+
+const configDirectory = dirname(fileURLToPath(import.meta.url));
 
 const testGlobals = {
   afterAll: 'readonly',
@@ -22,7 +27,12 @@ const testGlobals = {
 };
 
 export default defineConfig([
-  globalIgnores(['.vite-cache', 'coverage', 'dist', 'node_modules']),
+  globalIgnores([
+    '.vite-cache',
+    'coverage',
+    'dist',
+    'node_modules',
+  ]),
 
   /*
    * JavaScript configuration files:
@@ -34,6 +44,7 @@ export default defineConfig([
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
+
       globals: {
         ...globals.browser,
         ...globals.node,
@@ -47,6 +58,8 @@ export default defineConfig([
 
   /*
    * Base TypeScript configuration.
+   *
+   * projectService enables rules that require TypeScript type information.
    */
   {
     files: ['**/*.{ts,tsx}'],
@@ -60,6 +73,9 @@ export default defineConfig([
         ecmaFeatures: {
           jsx: true,
         },
+
+        projectService: true,
+        tsconfigRootDir: configDirectory,
       },
 
       globals: {
@@ -78,6 +94,9 @@ export default defineConfig([
       ...typescriptEslint.configs.recommended.rules,
       ...sonarjs.configs.recommended.rules,
 
+      /*
+       * Prevent imports that climb through two or more parent folders.
+       */
       'no-restricted-imports': [
         'error',
         {
@@ -90,8 +109,9 @@ export default defineConfig([
           ],
         },
       ],
+
       /*
-       * TypeScript handles these more accurately than ESLint.
+       * TypeScript handles these more accurately than base ESLint.
        */
       'no-undef': 'off',
       'no-unused-vars': 'off',
@@ -108,11 +128,33 @@ export default defineConfig([
       ],
 
       /*
+       * Detect redundant union members.
+       *
+       * Example:
+       *   type Action = 'clear' | string;
+       *
+       * "clear" is redundant because string already includes it.
+       */
+      '@typescript-eslint/no-redundant-type-constituents': 'warn',
+
+      /*
        * SonarJS code-quality limits.
        */
       'sonarjs/cognitive-complexity': ['warn', 15],
       'sonarjs/no-identical-expressions': 'warn',
       'sonarjs/no-nested-conditional': 'warn',
+
+      /*
+       * GitRoll/Sonar-compatible TypeScript findings.
+       */
+      'sonarjs/prefer-read-only-props': 'warn',
+      'sonarjs/no-selector-parameter': 'warn',
+      'sonarjs/prefer-regexp-exec': 'warn',
+
+      /*
+       * GitRoll marks this one as High severity.
+       */
+      'sonarjs/void-use': 'error',
     },
   },
 
@@ -149,15 +191,44 @@ export default defineConfig([
       'react/react-in-jsx-scope': 'off',
 
       /*
-       * Initial data-loading effects call async request functions whose state
-       * updates happen only after the first awaited network response.
+       * TypeScript interfaces and types replace runtime PropTypes.
+       */
+      'react/prop-types': 'off',
+
+      /*
+       * Initial data-loading effects may call asynchronous request
+       * functions whose state updates happen after awaiting a response.
        */
       'react-hooks/set-state-in-effect': 'off',
 
       /*
-       * TypeScript interfaces/types replace runtime PropTypes.
+       * GitRoll: ambiguous spacing between JSX elements and text.
        */
-      'react/prop-types': 'off',
+      'react/jsx-child-element-spacing': 'warn',
+
+      /*
+       * GitRoll: Context provider values should not be newly constructed
+       * during every render.
+       *
+       * Prefer useMemo/useCallback or a stable value.
+       */
+      'react/jsx-no-constructed-context-values': 'warn',
+
+      /*
+       * GitRoll: destructure useState into a value and setter pair.
+       */
+      'react/hook-use-state': 'warn',
+
+      /*
+       * Prefer native semantic elements over recreating them with ARIA.
+       *
+       * Examples:
+       *   role="button"      -> <button>
+       *   role="status"      -> <output>
+       *   role="img"         -> <img>
+       *   role="progressbar" -> <progress>
+       */
+      'jsx-a11y/prefer-tag-over-role': 'warn',
 
       /*
        * Keep accessibility findings visible without blocking builds.
@@ -171,7 +242,11 @@ export default defineConfig([
    * Vitest test globals.
    */
   {
-    files: ['tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    files: [
+      'tests/**/*.{ts,tsx}',
+      '**/*.test.{ts,tsx}',
+      '**/*.spec.{ts,tsx}',
+    ],
 
     languageOptions: {
       globals: testGlobals,

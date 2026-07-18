@@ -15,10 +15,7 @@ from app.cache.schemas import (
     CacheStatsResponse,
 )
 from app.core.exceptions import CacheStorageError
-from app.core.schemas import (
-    EMBEDDING_DIMENSIONS,
-    MAX_RESPONSE_PREVIEW_LENGTH,
-)
+from app.core.limits import MAX_RESPONSE_PREVIEW_LENGTH
 
 
 @dataclass(slots=True)
@@ -33,10 +30,22 @@ class _StoredItem:
 class InMemoryCacheBackend:
     """Single-process cosine vector store with TTL and LRU invalidation."""
 
-    def __init__(self, max_size: int, ttl_seconds: float | None) -> None:
-        if max_size < 1 or (ttl_seconds is not None and ttl_seconds <= 0):
+    def __init__(
+        self,
+        max_size: int,
+        ttl_seconds: float | None,
+        *,
+        dimensions: int,
+    ) -> None:
+        if (
+            max_size < 1
+            or dimensions < 1
+            or (ttl_seconds is not None and ttl_seconds <= 0)
+        ):
             raise ValueError("Invalid cache policy")
-        self._max_size, self._ttl_seconds = max_size, ttl_seconds
+        self._max_size = max_size
+        self._ttl_seconds = ttl_seconds
+        self._dimensions = dimensions
         self._items: OrderedDict[str, _StoredItem] = OrderedDict()
         self._hits = self._misses = 0
         self._lock = asyncio.Lock()
@@ -120,7 +129,7 @@ class InMemoryCacheBackend:
 
     async def find_nearest(self, embedding: Sequence[float]) -> CacheCandidate | None:
         query: NDArray[np.float64] = np.asarray(embedding, dtype=np.float64)
-        if query.shape != (EMBEDDING_DIMENSIONS,) or not np.isfinite(query).all():
+        if query.shape != (self._dimensions,) or not np.isfinite(query).all():
             raise CacheStorageError("Query embedding is invalid")
         async with self._lock:
             self._purge()
@@ -144,6 +153,12 @@ class InMemoryCacheBackend:
             )
 
     async def put(self, entry: CacheEntry) -> None:
+        embedding: NDArray[np.float64] = np.asarray(
+            entry.embedding,
+            dtype=np.float64,
+        )
+        if embedding.shape != (self._dimensions,) or not np.isfinite(embedding).all():
+            raise CacheStorageError("Stored embedding is invalid")
         async with self._lock:
             self._purge()
             stored_at = datetime.now(UTC)

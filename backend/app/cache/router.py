@@ -15,7 +15,7 @@ from app.cache.schemas import (
 )
 from app.cache.service import SemanticCache
 from app.core.config import get_settings
-from app.core.schemas import MAX_PROMPT_LENGTH
+from app.core.limits import MAX_PROMPT_LENGTH
 from app.middleware.rate_limit import limiter
 
 router = APIRouter(prefix="/api/v1/cache", tags=["cache"])

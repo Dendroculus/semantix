@@ -18,7 +18,7 @@ from app.benchmark.schemas import (
     BenchmarkRunRequest,
     BenchmarkRunResponse,
 )
-from app.cache.memory import InMemoryCacheBackend
+from app.cache.backends.memory import InMemoryCacheBackend
 from app.cache.service import SemanticCache
 from app.providers.protocols import EmbeddingGenerator, GenerationProvider
 
@@ -45,11 +45,16 @@ class BenchmarkService:
         max_cache_size: int,
         cache_ttl_seconds: int | None,
         initial_threshold: float,
+        embedding_dimensions: int,
     ) -> None:
         self._provider = provider
         self._cache = SemanticCache(
             embedding_service,
-            InMemoryCacheBackend(max_cache_size, cache_ttl_seconds),
+            InMemoryCacheBackend(
+                max_cache_size,
+                cache_ttl_seconds,
+                dimensions=embedding_dimensions,
+            ),
             initial_threshold,
         )
         self._run_lock = asyncio.Lock()

@@ -25,14 +25,16 @@ CORS_ALLOWED_HEADERS = ("Content-Type",)
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
-    api_key = resolved_settings.hf_api_key.get_secret_value()
 
-    configure_logging(resolved_settings.log_level, (api_key,))
+    configure_logging(
+        resolved_settings.log_level,
+        resolved_settings.configured_secrets(),
+    )
 
     application = FastAPI(
         title=API_TITLE,
         version=API_VERSION,
-        lifespan=create_lifespan(resolved_settings, api_key),
+        lifespan=create_lifespan(resolved_settings),
     )
 
     _configure_middleware(application, resolved_settings)

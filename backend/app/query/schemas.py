@@ -3,7 +3,8 @@ from datetime import datetime
 
 from pydantic import Field, field_validator, model_validator
 
-from app.core.schemas import MAX_PROMPT_LENGTH, MAX_RESPONSE_LENGTH, StrictModel
+from app.api.schemas import StrictModel
+from app.core.limits import MAX_PROMPT_LENGTH, MAX_RESPONSE_LENGTH
 
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
 _REPEATED_WHITESPACE = re.compile(r"[ \t]+")

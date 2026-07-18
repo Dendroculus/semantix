@@ -10,9 +10,9 @@ import { prepareMarkdown } from "@/shared/lib/markdown";
 type MarkdownDensity = "comfortable" | "compact";
 
 interface MarkdownContentProps {
-  className?: string;
-  density?: MarkdownDensity;
-  markdown: string;
+  readonly className?: string;
+  readonly density?: MarkdownDensity;
+  readonly markdown: string;
 }
 
 interface MarkdownStyles {
@@ -134,18 +134,21 @@ function createMarkdownComponents(
         {children}
       </Heading>
     ),
-    table: ({ ...props }) => (
+    table: ({ children, ...props }) => (
       <div className={styles.tableWrapper}>
         <table
           className="font-data w-full border-collapse text-xs"
           {...props}
-        />
+        >
+          {children}
+        </table>
       </div>
     ),
     th: ({ ...props }) => (
       <th
-        className="border-b border-[var(--hairline)] px-2 py-1.5 text-left text-[var(--text-faint)]"
         {...props}
+        className="border-b border-[var(--hairline)] px-2 py-1.5 text-left text-[var(--text-faint)]"
+        scope="col"
       />
     ),
     td: ({ ...props }) => (

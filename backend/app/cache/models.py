@@ -1,23 +1,29 @@
 import math
 from datetime import datetime
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
-from app.core.schemas import (
-    EMBEDDING_DIMENSIONS,
+from app.core.limits import (
     MAX_PROMPT_LENGTH,
     MAX_RESPONSE_LENGTH,
-    StrictModel,
 )
 
 
-class CacheEntry(StrictModel):
+class CacheModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class CacheEntry(CacheModel):
     cache_key: str = Field(pattern=r"^[a-f0-9]{64}$")
     prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
     response: str = Field(min_length=1, max_length=MAX_RESPONSE_LENGTH)
-    embedding: list[float] = Field(
-        min_length=EMBEDDING_DIMENSIONS, max_length=EMBEDDING_DIMENSIONS
-    )
+    embedding: list[float] = Field(min_length=1)
     created_at: datetime
 
     @field_validator("embedding")
@@ -35,12 +41,12 @@ class CacheEntry(StrictModel):
         return value
 
 
-class CacheCandidate(StrictModel):
+class CacheCandidate(CacheModel):
     entry: CacheEntry
     similarity_score: float = Field(ge=-1, le=1)
 
 
-class CacheLookupResult(StrictModel):
+class CacheLookupResult(CacheModel):
     cache_hit: bool
     response: str | None = Field(default=None, max_length=MAX_RESPONSE_LENGTH)
     similarity_score: float | None = Field(default=None, ge=-1, le=1)
@@ -50,9 +56,14 @@ class CacheLookupResult(StrictModel):
     )
     matched_cache_key: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     cache_entry_created_at: datetime | None = None
-    embedding: list[float] = Field(
-        min_length=EMBEDDING_DIMENSIONS, max_length=EMBEDDING_DIMENSIONS
-    )
+    embedding: list[float] = Field(min_length=1)
+
+    @field_validator("embedding")
+    @classmethod
+    def validate_embedding(cls, value: list[float]) -> list[float]:
+        if not all(math.isfinite(component) for component in value):
+            raise ValueError("Embedding components must be finite")
+        return value
 
     @model_validator(mode="after")
     def validate_lookup(self) -> "CacheLookupResult":

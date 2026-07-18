@@ -4,7 +4,6 @@ from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
-from app.core.schemas import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +73,10 @@ class InvalidProviderResponseError(AppError):
 def _response(status: int, error: str, detail: str | None) -> JSONResponse:
     return JSONResponse(
         status_code=status,
-        content=ErrorResponse(error=error, detail=detail).model_dump(),
+        content={
+            "error": error,
+            "detail": detail,
+        },
     )
 
 

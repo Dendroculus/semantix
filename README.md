@@ -23,7 +23,7 @@
 
 ## 🚀 Why Semantix
 
-Semantix is a full-stack reference project for reducing repeated AI inference calls. It embeds each incoming query, compares it with cached vectors, and returns an existing response when the semantic similarity is high enough. Cache misses are sent to a Hugging Face chat model and stored for later reuse.
+Semantix is a full-stack reference project for reducing repeated AI inference calls. It embeds each incoming query, compares it with cached vectors, and returns an existing response when the semantic similarity is high enough. Cache misses are sent to the configured generation provider and stored for later reuse. Hugging Face remains the default, while embedding and generation can be selected independently.
 
 The project is intentionally designed as a **single-instance, local-first Docker application** that collaborators can run without manually matching Python and Node.js versions.
 
@@ -42,7 +42,7 @@ Install:
 
 - [Git](https://git-scm.com/)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) on Windows or macOS, or Docker Engine with Compose on Linux
-- A Hugging Face account with an inference-enabled access token
+- An account and API key for the provider or providers you select
 
 > Docker installs the runtime dependencies inside isolated images. A local Python virtual environment and local `node_modules` are not required for the Docker-only workflow.
 
@@ -67,9 +67,12 @@ macOS or Linux:
 cp backend/.env.example backend/.env
 ```
 
-Open `backend/.env` and configure the Hugging Face token and a chat model currently available to your account:
+Open `backend/.env` and configure the default Hugging Face providers:
 
 ```env
+EMBEDDING_PROVIDER=huggingface
+GENERATION_PROVIDER=huggingface
+
 HF_API_KEY=hf_your_inference_token
 
 HF_INFERENCE_BASE_URL=https://router.huggingface.co/hf-inference/models
@@ -77,8 +80,9 @@ HF_CHAT_BASE_URL=https://router.huggingface.co/v1
 
 HF_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 HF_GENERATION_MODEL=Qwen/Qwen3-4B-Instruct-2507:nscale
+HF_EMBEDDING_DIMENSIONS=384
 
-HF_TIMEOUT_SECONDS=30
+PROVIDER_TIMEOUT_SECONDS=30
 GENERATION_MAX_NEW_TOKENS=512
 
 SIMILARITY_THRESHOLD=0.92
@@ -242,7 +246,7 @@ and refreshes both inspector data and aggregate statistics afterward.
 3. The embedding is normalized for cosine-similarity comparison.
 4. `CacheBackend` removes expired entries and searches for the nearest cached vector.
 5. If the best score meets `SIMILARITY_THRESHOLD`, the cached response is returned.
-6. Otherwise, `HuggingFaceService` requests a new chat completion.
+6. Otherwise, the selected `GenerationProvider` requests a new completion.
 7. The query vector and generated response are stored in the in-memory cache.
 8. TTL expiry and LRU eviction keep cache growth bounded.
 
@@ -259,7 +263,7 @@ Semantic cache lookup
   └── Cache miss
           │
           ▼
-    Hugging Face chat
+    Generation provider
           │
           ▼
     Store response in cache
@@ -272,8 +276,9 @@ Semantic cache lookup
 
 - **Embedding boundary** — `EmbeddingService` validates provider output and produces normalized NumPy vectors.
 - **Cache boundary** — `CacheBackend` owns similarity lookup, TTL expiry, LRU eviction, inspector metadata, statistics, and invalidation.
-- **Generation boundary** — `HuggingFaceService` owns external HTTP calls, authentication, timeouts, retries, and provider error handling.
-- **Application orchestration** — `CacheService` coordinates embedding, lookup, generation, and insertion without coupling API routes to implementation details.
+- **Provider ports** — application code depends only on `EmbeddingProvider` and `GenerationProvider`; provider selection is composed at startup.
+- **Provider adapters** — Hugging Face, OpenAI, Anthropic, and Gemini own their authentication, endpoints, payloads, parsing, retries, and provider-specific errors.
+- **Application orchestration** — `QueryService` coordinates semantic lookup, generation, insertion, timing, and decision evidence while the route only translates HTTP.
 - **Typed API contract** — Pydantic schemas and TypeScript API types keep frontend/backend payloads explicit.
 - **Single-instance storage** — cache entries live in process memory and are reset when the backend container restarts.
 
@@ -286,18 +291,20 @@ semantix/
 ├── docker-compose.yml
 ├── backend/
 │   ├── app/
-│   │   ├── api/                        # Thin HTTP routes and dependencies
-│   │   ├── benchmark/                  # Datasets, metrics, schemas, and runner
-│   │   ├── cache/                      # Keys, models, storage, and cache service
-│   │   ├── providers/                  # Embedding and Hugging Face integrations
-│   │   ├── query/                      # Query request/response contract
-│   │   ├── core/                       # Settings, errors, logging, shared schemas
+│   │   ├── api/                        # Shared HTTP composition and schemas
+│   │   ├── benchmark/                  # Route, datasets, metrics, schemas, runner
+│   │   ├── cache/                      # Route, models, service, storage backends
+│   │   ├── embedding/                  # Embedding validation service
+│   │   ├── providers/                  # Ports, adapters, transport, composition
+│   │   ├── query/                      # Route, schemas, query orchestration
+│   │   ├── core/                       # Settings, errors, limits, logging
 │   │   ├── middleware/
 │   │   └── main.py
 │   └── tests/
 │       ├── benchmark/
 │       ├── cache/
-│       ├── providers/
+│       ├── embedding/
+│       ├── providers/                  # Adapter tests mirror adapter ownership
 │       └── query/
 └── frontend/
     ├── src/
@@ -317,8 +324,9 @@ semantix/
 Frontend features own their pages, route registries, API adapters, state,
 components, and types. `app/router/routes.ts` only composes those registries,
 and every page is lazy-loaded behind the shared route loader. Backend domains
-likewise own their models, schemas, protocols, and services; API route modules
-translate HTTP requests without absorbing domain behavior.
+likewise own their routers, models, schemas, protocols, and services. The
+shared API package only composes feature routers and cross-feature
+dependencies.
 
 ## 🏗️ Technology Stack
 
@@ -326,8 +334,8 @@ translate HTTP requests without absorbing domain behavior.
 |---|---|---|
 | Frontend | React 18, TypeScript, Vite 6 | Query UI, response state, cache statistics, API calls |
 | Backend | FastAPI, Pydantic, HTTPX | Validation, orchestration, errors, rate limiting |
-| Embeddings | Hugging Face Inference | Converts queries into semantic vectors |
-| Generation | Hugging Face chat completion router | Generates responses on cache misses |
+| Embeddings | Hugging Face, OpenAI, or Gemini | Converts queries into semantic vectors |
+| Generation | Hugging Face, OpenAI, Anthropic, or Gemini | Generates responses on cache misses |
 | Cache | NumPy in-memory vector store | Cosine similarity, TTL expiry, LRU eviction |
 | Testing | Vitest, Testing Library, Pytest | Frontend hooks, backend services, API routes |
 | Quality | ESLint, TypeScript, Ruff, mypy | Linting, formatting, and static analysis |
@@ -421,12 +429,28 @@ All application errors use a stable JSON structure containing `error` and `detai
 
 | Variable | Required | Description |
 |---|---:|---|
-| `HF_API_KEY` | Yes | Hugging Face inference token |
-| `HF_INFERENCE_BASE_URL` | Yes | Feature-extraction endpoint prefix |
-| `HF_CHAT_BASE_URL` | Yes | OpenAI-compatible chat endpoint prefix |
-| `HF_EMBEDDING_MODEL` | Yes | Model used to generate query vectors |
-| `HF_GENERATION_MODEL` | Yes | Chat model and optional provider suffix |
-| `HF_TIMEOUT_SECONDS` | No | External request timeout |
+| `EMBEDDING_PROVIDER` | No | `huggingface` (default), `openai`, or `gemini` |
+| `GENERATION_PROVIDER` | No | `huggingface` (default), `openai`, `anthropic`, or `gemini` |
+| `HF_API_KEY` | When Hugging Face is selected | Hugging Face inference token |
+| `HF_INFERENCE_BASE_URL` | For Hugging Face embeddings | Feature-extraction endpoint prefix |
+| `HF_CHAT_BASE_URL` | For Hugging Face generation | OpenAI-compatible chat endpoint prefix |
+| `HF_EMBEDDING_MODEL` | For Hugging Face embeddings | Model used to generate query vectors |
+| `HF_GENERATION_MODEL` | For Hugging Face generation | Chat model and optional provider suffix |
+| `HF_EMBEDDING_DIMENSIONS` | For Hugging Face embeddings | Exact vector size returned by the model |
+| `OPENAI_API_KEY` | When OpenAI is selected | OpenAI API key |
+| `OPENAI_BASE_URL` | When OpenAI is selected | OpenAI API root |
+| `OPENAI_EMBEDDING_MODEL` | For OpenAI embeddings | Embedding model name |
+| `OPENAI_GENERATION_MODEL` | For OpenAI generation | Chat-completion model name |
+| `OPENAI_EMBEDDING_DIMENSIONS` | For OpenAI embeddings | Requested and validated vector size |
+| `ANTHROPIC_API_KEY` | For Anthropic generation | Anthropic API key |
+| `ANTHROPIC_BASE_URL` | For Anthropic generation | Anthropic API root |
+| `ANTHROPIC_GENERATION_MODEL` | For Anthropic generation | Claude model name |
+| `GEMINI_API_KEY` | When Gemini is selected | Gemini API key |
+| `GEMINI_BASE_URL` | When Gemini is selected | Gemini API root |
+| `GEMINI_EMBEDDING_MODEL` | For Gemini embeddings | Embedding model name |
+| `GEMINI_GENERATION_MODEL` | For Gemini generation | Generation model name |
+| `GEMINI_EMBEDDING_DIMENSIONS` | For Gemini embeddings | Requested and validated vector size |
+| `PROVIDER_TIMEOUT_SECONDS` | No | External request timeout |
 | `GENERATION_MAX_NEW_TOKENS` | No | Maximum generated response length |
 | `SIMILARITY_THRESHOLD` | No | Minimum cosine similarity required for a hit |
 | `MAX_CACHE_SIZE` | No | Maximum number of in-memory entries |
@@ -434,6 +458,51 @@ All application errors use a stable JSON structure containing `error` and `detai
 | `ALLOWED_ORIGINS` | No | Browser origins allowed by CORS |
 | `RATE_LIMIT` | No | Per-client request limit |
 | `LOG_LEVEL` | No | Application log level |
+
+Only the credentials and model settings used by the selected capabilities are
+required. The selectors are independent, so this is valid:
+
+```env
+EMBEDDING_PROVIDER=openai
+GENERATION_PROVIDER=anthropic
+
+OPENAI_API_KEY=...
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1536
+
+ANTHROPIC_API_KEY=...
+ANTHROPIC_GENERATION_MODEL=...
+```
+
+| Provider | Embeddings | Generation |
+|---|:---:|:---:|
+| Hugging Face | Yes | Yes |
+| OpenAI | Yes | Yes |
+| Anthropic | No | Yes |
+| Gemini | Yes | Yes |
+
+Selecting Anthropic for embeddings fails during settings validation. All
+configured provider base URLs must be absolute HTTPS URLs, and selected
+embedding dimensions must be greater than zero.
+
+Existing Hugging Face setups remain the default and do not need to add provider
+selectors. `HF_EMBEDDING_DIMENSIONS` defaults to `384` for the existing
+`all-MiniLM-L6-v2` model. `HF_TIMEOUT_SECONDS` has been renamed to
+`PROVIDER_TIMEOUT_SECONDS`; update that variable if you previously overrode the
+30-second default.
+
+Changing an embedding provider, model, or dimension makes existing vectors
+incompatible. The current cache is in memory and resets with the backend. A
+future persistent vector store must isolate entries by embedding provider,
+model, and dimensions instead of comparing incompatible vectors.
+
+To make one real provider call after configuring `backend/.env`:
+
+```powershell
+cd backend
+python scripts/smoke_provider.py embedding "Explain semantic caching"
+python scripts/smoke_provider.py generation "Explain semantic caching"
+```
 
 ### Frontend
 
@@ -542,7 +611,7 @@ npm test
 npm run build
 ```
 
-Normal tests should mock provider calls so test runs do not consume Hugging Face inference credits.
+Normal tests use `httpx.MockTransport`; test runs must not consume external provider credits.
 
 ## 🧯 Troubleshooting
 
@@ -588,7 +657,7 @@ docker compose up -d
 
 ## 🛡️ Reliability and Security
 
-- Hugging Face secrets are loaded only by the backend.
+- Provider secrets are loaded only by the backend.
 - Frontend `VITE_*` values contain public configuration only.
 - `.env` files, virtual environments, dependencies, caches, and build output are excluded from Docker build contexts.
 - External provider calls use explicit timeouts and retry handling.
@@ -627,7 +696,7 @@ Licensed under the MIT License. See [LICENSE](./LICENSE).
 
 ## 🙏 Acknowledgements
 
-- [Hugging Face](https://huggingface.co/) for hosted embedding and chat inference
+- [Hugging Face](https://huggingface.co/), [OpenAI](https://openai.com/), [Anthropic](https://www.anthropic.com/), and [Google Gemini](https://ai.google.dev/) for hosted AI inference
 - [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
 - [React](https://react.dev/) and [Vite](https://vite.dev/) for the frontend toolchain
 - [Docker](https://www.docker.com/) for reproducible local environments

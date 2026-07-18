@@ -1,15 +1,21 @@
 import numpy as np
 from numpy.typing import NDArray
+
 from app.core.exceptions import EmbeddingError
-from app.core.schemas import EMBEDDING_DIMENSIONS
 from app.providers.protocols import EmbeddingProvider
 
 
 class EmbeddingService:
     def __init__(
-        self, provider: EmbeddingProvider, dimensions: int = EMBEDDING_DIMENSIONS
+        self,
+        provider: EmbeddingProvider,
+        *,
+        dimensions: int,
     ) -> None:
-        self._provider, self._dimensions = provider, dimensions
+        if dimensions < 1:
+            raise ValueError("Embedding dimensions must be greater than zero")
+        self._provider = provider
+        self._dimensions = dimensions
 
     async def embed(self, text: str) -> list[float]:
         vector: NDArray[np.float64] = np.asarray(

@@ -11,6 +11,11 @@ from app.cache.schemas import (
 
 
 class CacheBackend(Protocol):
+    """Cache port for vectors produced by one model and dimension count.
+
+    Persistent implementations must partition incompatible embedding spaces.
+    """
+
     async def find_nearest(
         self, embedding: Sequence[float]
     ) -> CacheCandidate | None: ...

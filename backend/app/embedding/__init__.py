@@ -1,0 +1,1 @@
+"""Embedding application service."""

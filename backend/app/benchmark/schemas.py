@@ -3,7 +3,8 @@ from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
-from app.core.schemas import MAX_PROMPT_LENGTH, StrictModel
+from app.api.schemas import StrictModel
+from app.core.limits import MAX_PROMPT_LENGTH
 
 BenchmarkDatasetId = Literal["quick", "extended"]
 BenchmarkCategory = Literal[

@@ -3,14 +3,14 @@ from collections.abc import Sequence
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
-from app.main import create_app
+from app.factory import create_app
 from app.benchmark.service import BenchmarkService
-from app.core.schemas import EMBEDDING_DIMENSIONS
+from tests.support import TEST_EMBEDDING_DIMENSIONS
 
 
 class SameEmbeddings:
     async def embed(self, text: str) -> Sequence[float]:
-        return [1.0] + [0.0] * (EMBEDDING_DIMENSIONS - 1)
+        return [1.0] + [0.0] * (TEST_EMBEDDING_DIMENSIONS - 1)
 
 
 class Provider:
@@ -29,6 +29,7 @@ def benchmark_service(provider: Provider) -> BenchmarkService:
         max_cache_size=100,
         cache_ttl_seconds=60,
         initial_threshold=0.92,
+        embedding_dimensions=TEST_EMBEDDING_DIMENSIONS,
     )
 
 

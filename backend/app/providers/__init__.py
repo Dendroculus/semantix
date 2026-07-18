@@ -1,5 +1,1 @@
-"""External model provider integrations.
-
-Owns embedding validation, Hugging Face transport behavior, and the protocols
-used by cache and benchmark services.
-"""
+"""AI provider ports, adapters, transport helpers, and composition."""

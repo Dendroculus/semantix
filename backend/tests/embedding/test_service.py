@@ -1,8 +1,9 @@
 from collections.abc import Sequence
 import pytest
+
 from app.core.exceptions import EmbeddingError
-from app.core.schemas import EMBEDDING_DIMENSIONS
-from app.providers.embedding import EmbeddingService
+from app.embedding.service import EmbeddingService
+from tests.support import TEST_EMBEDDING_DIMENSIONS
 
 
 class Provider:
@@ -16,7 +17,8 @@ class Provider:
 @pytest.mark.asyncio
 async def test_normalizes_embedding() -> None:
     result = await EmbeddingService(
-        Provider([2.0] + [0.0] * (EMBEDDING_DIMENSIONS - 1))
+        Provider([2.0] + [0.0] * (TEST_EMBEDDING_DIMENSIONS - 1)),
+        dimensions=TEST_EMBEDDING_DIMENSIONS,
     ).embed("hello")
     assert result[0] == pytest.approx(1.0)
 
@@ -24,10 +26,16 @@ async def test_normalizes_embedding() -> None:
 @pytest.mark.asyncio
 async def test_rejects_wrong_dimensions() -> None:
     with pytest.raises(EmbeddingError):
-        await EmbeddingService(Provider([1.0])).embed("hello")
+        await EmbeddingService(
+            Provider([1.0]),
+            dimensions=TEST_EMBEDDING_DIMENSIONS,
+        ).embed("hello")
 
 
 @pytest.mark.asyncio
 async def test_rejects_zero_vector() -> None:
     with pytest.raises(EmbeddingError):
-        await EmbeddingService(Provider([0.0] * EMBEDDING_DIMENSIONS)).embed("hello")
+        await EmbeddingService(
+            Provider([0.0] * TEST_EMBEDDING_DIMENSIONS),
+            dimensions=TEST_EMBEDDING_DIMENSIONS,
+        ).embed("hello")

@@ -3,10 +3,10 @@ from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
-from app.core.schemas import (
+from app.api.schemas import StrictModel
+from app.core.limits import (
     MAX_PROMPT_LENGTH,
     MAX_RESPONSE_PREVIEW_LENGTH,
-    StrictModel,
 )
 
 CacheEntrySort = Literal["newest", "oldest", "most_hit", "nearest_expiry"]

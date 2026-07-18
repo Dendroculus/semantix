@@ -210,7 +210,9 @@ describe("CacheInspector", () => {
       expect(onMutation).toHaveBeenCalledWith("delete");
     });
     expect(await screen.findByText("The cache is empty.")).toBeTruthy();
-    expect(listCacheEntries.mock.calls.length).toBeGreaterThan(1);
+    expect(
+      vi.mocked(listCacheEntries).mock.calls.length,
+    ).toBeGreaterThan(1);
   });
 
   it("confirms clear-all and refreshes after the mutation", async () => {
@@ -243,6 +245,8 @@ describe("CacheInspector", () => {
       expect(onMutation).toHaveBeenCalledWith("clear");
     });
     expect(await screen.findByText("The cache is empty.")).toBeTruthy();
-    expect(listCacheEntries.mock.calls.length).toBeGreaterThan(1);
+    expect(
+      vi.mocked(listCacheEntries).mock.calls.length,
+    ).toBeGreaterThan(1);
   });
 });

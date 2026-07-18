@@ -1,5 +1,5 @@
 """Semantic cache domain.
 
-Owns cache keys, internal models, storage protocols, in-memory persistence,
-public cache schemas, and semantic lookup orchestration.
+Owns cache routes, keys, models, storage ports and backends, public schemas,
+and semantic lookup behavior.
 """

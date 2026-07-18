@@ -66,6 +66,28 @@ describe("ResponseCard math rendering", () => {
     );
   });
 
+  it("renders markdown tables with scoped column headers", () => {
+    const { container } = render(
+      <ResponseCard
+        result={{
+          ...missResult,
+          response: [
+            "| Provider | Capability |",
+            "| --- | --- |",
+            "| Anthropic | Generation |",
+          ].join("\n"),
+        }}
+      />,
+    );
+
+    const headers = container.querySelectorAll(
+      "table thead th[scope='col']",
+    );
+    expect(headers).toHaveLength(2);
+    expect(headers[0]?.textContent).toBe("Provider");
+    expect(headers[1]?.textContent).toBe("Capability");
+  });
+
   it("renders every explainability field for a cache hit", () => {
     render(
       <ResponseCard
