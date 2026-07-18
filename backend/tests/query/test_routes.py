@@ -4,10 +4,12 @@ from typing import get_args, get_type_hints
 from fastapi.testclient import TestClient
 
 from app.cache.service import SemanticCache
+from app.cache.namespaces import DEFAULT_CACHE_NAMESPACE
 from app.core.config import Settings
 from app.core.exceptions import ProviderRequestError
 from app.factory import create_app
 from app.query.router import query
+from app.query.schemas import QueryRequest
 from app.query.service import QueryService
 from tests.support import memory_backend, unit_vector
 
@@ -68,6 +70,34 @@ def test_empty_prompt(settings: Settings) -> None:
         )
 
     assert response.status_code == 422
+
+
+def test_query_request_cache_policy_defaults_and_overrides() -> None:
+    default_request = QueryRequest(prompt="one")
+    assert default_request.namespace == DEFAULT_CACHE_NAMESPACE
+    assert default_request.cache_policy.namespace == DEFAULT_CACHE_NAMESPACE
+    assert default_request.cache_policy.read_enabled
+    assert default_request.cache_policy.write_enabled
+
+    disabled = QueryRequest(
+        prompt="one",
+        namespace="tenant-alpha",
+        cache_enabled=False,
+    )
+    assert disabled.cache_policy.namespace == "tenant-alpha"
+    assert not disabled.cache_policy.read_enabled
+    assert not disabled.cache_policy.write_enabled
+
+    private = QueryRequest(prompt="one", private=True)
+    assert not private.cache_policy.read_enabled
+    assert not private.cache_policy.write_enabled
+
+    read_bypass = QueryRequest(
+        prompt="one",
+        cache_read_enabled=False,
+    )
+    assert not read_bypass.cache_policy.read_enabled
+    assert read_bypass.cache_policy.write_enabled
 
 
 def test_query_route_depends_on_query_service() -> None:

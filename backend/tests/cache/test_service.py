@@ -84,3 +84,18 @@ async def test_updated_threshold_changes_lookup_rule() -> None:
     hit = await cache.lookup("near")
     assert hit.cache_hit
     assert hit.similarity_threshold == pytest.approx(0.75)
+
+
+@pytest.mark.asyncio
+async def test_blank_response_is_not_stored() -> None:
+    cache = SemanticCache(
+        Embeddings(),
+        memory_backend(),
+        0.92,
+    )
+    miss = await cache.lookup("one")
+
+    stored = await cache.store("one", " \n\t", miss.embedding)
+
+    assert stored is False
+    assert (await cache.stats()).size == 0

@@ -34,6 +34,7 @@ export interface CacheInspectorController {
   isMutating: boolean;
   loadError: string | null;
   mutation: string | null;
+  namespace: string;
   nextPage: () => void;
   pendingDelete: string | null;
   previousPage: () => void;
@@ -42,6 +43,7 @@ export interface CacheInspectorController {
   requestDelete: (cacheKey: string) => void;
   search: string;
   setSearch: (search: string) => void;
+  setNamespace: (namespace: string) => void;
   setSort: (sort: CacheEntrySort) => void;
   sort: CacheEntrySort;
   visibleEnd: number;
@@ -55,6 +57,7 @@ export function useCacheInspector({
   const [data, setData] =
     useState<CacheEntryListResponse | null>(null);
   const [search, setSearch] = useState("");
+  const [namespace, setNamespace] = useState("");
   const [sort, setSort] =
     useState<CacheEntrySort>("newest");
   const [offset, setOffset] = useState(0);
@@ -79,6 +82,7 @@ export function useCacheInspector({
         {
           offset,
           limit: PAGE_SIZE,
+          namespace,
           search,
           sort,
         },
@@ -103,7 +107,7 @@ export function useCacheInspector({
 
     void load();
     return () => controller.abort();
-  }, [offset, refreshKey, reloadKey, search, sort]);
+  }, [namespace, offset, refreshKey, reloadKey, search, sort]);
 
   function refreshFromStart(): void {
     setOffset(0);
@@ -117,6 +121,13 @@ export function useCacheInspector({
   function updateSearch(nextSearch: string): void {
     setSearch(nextSearch);
     setOffset(0);
+    setPendingDelete(null);
+  }
+
+  function updateNamespace(nextNamespace: string): void {
+    setNamespace(nextNamespace);
+    setOffset(0);
+    setConfirmClear(false);
     setPendingDelete(null);
   }
 
@@ -169,7 +180,10 @@ export function useCacheInspector({
     setMutation("clear");
     setActionError(null);
 
-    const result = await clearCache();
+    const selectedNamespace = namespace.trim();
+    const result = await clearCache(
+      selectedNamespace === "" ? undefined : selectedNamespace,
+    );
     setMutation(null);
 
     if (!result.ok) {
@@ -207,6 +221,7 @@ export function useCacheInspector({
     isMutating: mutation !== null,
     loadError,
     mutation,
+    namespace,
     nextPage: () => setOffset((current) => current + PAGE_SIZE),
     pendingDelete,
     previousPage: () =>
@@ -216,6 +231,7 @@ export function useCacheInspector({
     requestDelete,
     search,
     setSearch: updateSearch,
+    setNamespace: updateNamespace,
     setSort: updateSort,
     sort,
     visibleEnd,

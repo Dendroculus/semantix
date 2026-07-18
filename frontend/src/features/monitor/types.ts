@@ -2,6 +2,11 @@ import type { ApiError } from "@/shared/api/types";
 
 export interface QueryRequest {
   prompt: string;
+  namespace?: string;
+  cache_enabled?: boolean;
+  cache_read_enabled?: boolean;
+  cache_write_enabled?: boolean;
+  private?: boolean;
 }
 
 export interface QueryResponse {

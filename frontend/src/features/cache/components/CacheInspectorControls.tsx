@@ -1,4 +1,8 @@
 import type { CacheEntrySort } from "../types";
+import {
+  CACHE_NAMESPACE_PATTERN_SOURCE,
+  MAX_CACHE_NAMESPACE_LENGTH,
+} from "../namespace";
 
 interface CacheInspectorControlsProps {
   canClear: boolean;
@@ -6,10 +10,12 @@ interface CacheInspectorControlsProps {
   isClearing: boolean;
   isLoading: boolean;
   isMutating: boolean;
+  namespace: string;
   onCancelClear: () => void;
   onConfirmClear: () => void;
   onRefresh: () => void;
   onRequestClear: () => void;
+  onNamespaceChange: (namespace: string) => void;
   onSearchChange: (search: string) => void;
   onSortChange: (sort: CacheEntrySort) => void;
   search: string;
@@ -22,15 +28,20 @@ export function CacheInspectorControls({
   isClearing,
   isLoading,
   isMutating,
+  namespace,
   onCancelClear,
   onConfirmClear,
   onRefresh,
   onRequestClear,
+  onNamespaceChange,
   onSearchChange,
   onSortChange,
   search,
   sort,
 }: Readonly<CacheInspectorControlsProps>): JSX.Element {
+  const selectedNamespace = namespace.trim();
+  const isNamespaceSelected = selectedNamespace !== "";
+
   return (
     <>
       <header className="flex flex-wrap items-end justify-between gap-5">
@@ -61,7 +72,7 @@ export function CacheInspectorControls({
             type="button"
             onClick={onRequestClear}
           >
-            Clear all entries
+            {isNamespaceSelected ? "Clear namespace" : "Clear all entries"}
           </button>
         </div>
       </header>
@@ -72,7 +83,9 @@ export function CacheInspectorControls({
           className="mt-5 min-w-0 border-0 border-l border-(--coral) p-0 pl-4"
         >
           <p className="text-sm text-(--text-soft)">
-            Clear every cache entry and reset backend cache statistics?
+            {isNamespaceSelected
+              ? `Clear every entry and reset statistics for ${selectedNamespace}?`
+              : "Clear every cache entry and reset all backend cache statistics?"}
           </p>
           <div className="mt-3 flex gap-5">
             <button
@@ -95,7 +108,7 @@ export function CacheInspectorControls({
         </fieldset>
       )}
 
-      <div className="mt-7 grid gap-5 min-[680px]:grid-cols-[minmax(0,1fr)_220px]">
+      <div className="mt-7 grid gap-5 min-[900px]:grid-cols-[minmax(0,1fr)_minmax(180px,0.6fr)_220px]">
         <div>
           <label
             className="ui-label text-(--text-muted)"
@@ -110,6 +123,25 @@ export function CacheInspectorControls({
             type="search"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </div>
+
+        <div>
+          <label
+            className="ui-label text-(--text-muted)"
+            htmlFor="cache-namespace"
+          >
+            Namespace
+          </label>
+          <input
+            className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2.5 text-xs text-(--text) outline-none focus:border-(--teal)"
+            id="cache-namespace"
+            maxLength={MAX_CACHE_NAMESPACE_LENGTH}
+            pattern={CACHE_NAMESPACE_PATTERN_SOURCE}
+            placeholder="All namespaces"
+            type="text"
+            value={namespace}
+            onChange={(event) => onNamespaceChange(event.target.value)}
           />
         </div>
 

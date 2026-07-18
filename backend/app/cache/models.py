@@ -13,6 +13,7 @@ from app.core.limits import (
     MAX_PROMPT_LENGTH,
     MAX_RESPONSE_LENGTH,
 )
+from app.cache.namespaces import CacheNamespace
 
 
 class CacheModel(BaseModel):
@@ -21,6 +22,7 @@ class CacheModel(BaseModel):
 
 class CacheEntry(CacheModel):
     cache_key: str = Field(pattern=r"^[a-f0-9]{64}$")
+    namespace: CacheNamespace
     prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
     response: str = Field(min_length=1, max_length=MAX_RESPONSE_LENGTH)
     embedding: list[float] = Field(min_length=1)

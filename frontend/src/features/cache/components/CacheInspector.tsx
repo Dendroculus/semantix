@@ -32,12 +32,14 @@ export function CacheInspector({
         isClearing={inspector.isClearing}
         isLoading={inspector.isLoading}
         isMutating={inspector.isMutating}
+        namespace={inspector.namespace}
         search={inspector.search}
         sort={inspector.sort}
         onCancelClear={inspector.cancelClear}
         onConfirmClear={() => void inspector.confirmClearCache()}
         onRefresh={inspector.refresh}
         onRequestClear={inspector.requestClear}
+        onNamespaceChange={inspector.setNamespace}
         onSearchChange={inspector.setSearch}
         onSortChange={inspector.setSort}
       />

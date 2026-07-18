@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query, Request
 
 from app.api.deps import get_semantic_cache
+from app.cache.namespaces import CacheNamespace
 from app.cache.schemas import (
     CacheEntryListResponse,
     CacheEntryMetadata,
@@ -21,6 +22,7 @@ from app.middleware.rate_limit import limiter
 router = APIRouter(prefix="/api/v1/cache", tags=["cache"])
 SemanticCacheDependency = Annotated[SemanticCache, Depends(get_semantic_cache)]
 CacheKeyPath = Annotated[str, Path(pattern=r"^[a-f0-9]{64}$")]
+CacheNamespaceQuery = Annotated[CacheNamespace | None, Query()]
 
 
 @router.get("/stats", response_model=CacheStatsResponse)
@@ -28,8 +30,9 @@ CacheKeyPath = Annotated[str, Path(pattern=r"^[a-f0-9]{64}$")]
 async def cache_stats(
     request: Request,
     cache: SemanticCacheDependency,
+    namespace: CacheNamespaceQuery = None,
 ) -> CacheStatsResponse:
-    return await cache.stats()
+    return await cache.stats(namespace)
 
 
 @router.get("/entries", response_model=CacheEntryListResponse)
@@ -39,12 +42,14 @@ async def list_cache_entries(
     cache: SemanticCacheDependency,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    namespace: CacheNamespaceQuery = None,
     search: Annotated[str | None, Query(max_length=MAX_PROMPT_LENGTH)] = None,
     sort: Annotated[CacheEntrySort, Query()] = "newest",
 ) -> CacheEntryListResponse:
     return await cache.list_entries(
         offset=offset,
         limit=limit,
+        namespace=namespace,
         search=search,
         sort=sort,
     )
@@ -76,8 +81,9 @@ async def delete_cache_entry(
 async def clear_cache(
     request: Request,
     cache: SemanticCacheDependency,
+    namespace: CacheNamespaceQuery = None,
 ) -> ClearCacheResponse:
-    await cache.clear()
+    await cache.clear(namespace)
     return ClearCacheResponse(cleared=True)
 
 

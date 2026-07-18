@@ -3,11 +3,15 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from time import perf_counter
 
-from app.cache.keys import prompt_cache_key
 from app.cache.models import CacheLookupResult
 from app.cache.service import SemanticCache
+from app.core.exceptions import InvalidProviderResponseError
 from app.providers.protocols import GenerationProvider
 from app.query.coalescing import RequestCoalescer
+from app.query.policies import (
+    DEFAULT_QUERY_CACHE_POLICY,
+    QueryCachePolicy,
+)
 from app.query.schemas import QueryResponse
 
 logger = logging.getLogger(__name__)
@@ -15,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class _QueryResolution:
-    lookup: CacheLookupResult
+    lookup: CacheLookupResult | None
     response: str
 
 
@@ -29,15 +33,21 @@ class QueryService:
         self._generation_provider = generation_provider
         self._coalescer: RequestCoalescer[_QueryResolution] = RequestCoalescer()
 
-    async def execute(self, prompt: str) -> QueryResponse:
+    async def execute(
+        self,
+        prompt: str,
+        *,
+        policy: QueryCachePolicy = DEFAULT_QUERY_CACHE_POLICY,
+    ) -> QueryResponse:
         started_at = perf_counter()
         coalesced = await self._coalescer.run(
-            prompt_cache_key(prompt),
-            lambda: self._resolve(prompt),
+            policy.coalescing_key(prompt),
+            lambda: self._resolve(prompt, policy),
         )
         resolution = coalesced.value
         lookup = resolution.lookup
-        provider_called = not lookup.cache_hit and coalesced.is_leader
+        cache_hit = lookup is not None and lookup.cache_hit
+        provider_called = not cache_hit and coalesced.is_leader
 
         latency_ms = (perf_counter() - started_at) * 1_000
         logger.info(
@@ -45,40 +55,63 @@ class QueryService:
                 "Query completed cache_hit=%s provider_called=%s "
                 "coalesced=%s latency_ms=%.2f"
             ),
-            lookup.cache_hit,
+            cache_hit,
             provider_called,
             not coalesced.is_leader,
             latency_ms,
         )
         return QueryResponse(
             response=resolution.response,
-            cache_hit=lookup.cache_hit,
-            similarity_score=lookup.similarity_score,
-            similarity_threshold=lookup.similarity_threshold,
-            matched_prompt=lookup.matched_prompt,
-            matched_cache_key=lookup.matched_cache_key,
-            cache_entry_created_at=lookup.cache_entry_created_at,
+            cache_hit=cache_hit,
+            similarity_score=(None if lookup is None else lookup.similarity_score),
+            similarity_threshold=(
+                self._cache.similarity_threshold
+                if lookup is None
+                else lookup.similarity_threshold
+            ),
+            matched_prompt=None if lookup is None else lookup.matched_prompt,
+            matched_cache_key=(None if lookup is None else lookup.matched_cache_key),
+            cache_entry_created_at=(
+                None if lookup is None else lookup.cache_entry_created_at
+            ),
             cache_entry_age_seconds=self._entry_age_seconds(
-                lookup.cache_entry_created_at
+                None if lookup is None else lookup.cache_entry_created_at
             ),
             generation_skipped=not provider_called,
             provider_called=provider_called,
             latency_ms=latency_ms,
         )
 
-    async def _resolve(self, prompt: str) -> _QueryResolution:
-        lookup = await self._cache.lookup(prompt)
-        if lookup.cache_hit:
+    async def _resolve(
+        self,
+        prompt: str,
+        policy: QueryCachePolicy,
+    ) -> _QueryResolution:
+        lookup = None
+        if policy.read_enabled:
+            lookup = await self._cache.lookup(
+                prompt,
+                namespace=policy.namespace,
+            )
+
+        if lookup is not None and lookup.cache_hit:
             if lookup.response is None:
                 raise RuntimeError("Validated cache hit had no response")
             return _QueryResolution(lookup=lookup, response=lookup.response)
 
         response = await self._generation_provider.generate(prompt)
-        await self._cache.store(
-            prompt,
-            response,
-            lookup.embedding,
-        )
+        if not response.strip():
+            raise InvalidProviderResponseError(
+                "Generation provider returned an empty response"
+            )
+
+        if policy.write_enabled:
+            await self._cache.store(
+                prompt,
+                response,
+                None if lookup is None else lookup.embedding,
+                namespace=policy.namespace,
+            )
         return _QueryResolution(lookup=lookup, response=response)
 
     @staticmethod

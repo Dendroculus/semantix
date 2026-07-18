@@ -52,6 +52,7 @@ const queryResponse: QueryResponse = {
 
 const cacheEntry: CacheEntryMetadata = {
   cache_key: "a".repeat(64),
+  namespace: "default",
   prompt: "Explain semantic caching",
   response_preview: "A cached explanation.",
   created_at: "2026-07-17T09:00:00Z",

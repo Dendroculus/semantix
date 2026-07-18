@@ -17,6 +17,7 @@ export type CacheEntrySort =
 
 export interface CacheEntryMetadata {
   cache_key: string;
+  namespace: string;
   prompt: string;
   response_preview: string;
   created_at: string;
@@ -39,6 +40,7 @@ export interface CacheEntryListResponse {
 export interface CacheEntryListParams {
   offset: number;
   limit: number;
+  namespace: string;
   search: string;
   sort: CacheEntrySort;
 }

@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import Field, field_validator, model_validator
 
 from app.api.schemas import StrictModel
+from app.cache.namespaces import CacheNamespace
 from app.core.limits import (
     MAX_PROMPT_LENGTH,
     MAX_RESPONSE_PREVIEW_LENGTH,
@@ -30,6 +31,7 @@ class DeleteCacheEntryResponse(StrictModel):
 
 class CacheEntryMetadata(StrictModel):
     cache_key: str = Field(pattern=r"^[a-f0-9]{64}$")
+    namespace: CacheNamespace
     prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
     response_preview: str = Field(min_length=1, max_length=MAX_RESPONSE_PREVIEW_LENGTH)
     created_at: datetime

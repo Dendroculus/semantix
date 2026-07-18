@@ -64,6 +64,7 @@ def test_cache_inspector_routes(settings: Settings) -> None:
         assert listing["total"] == 1
         assert listing["has_more"] is False
         assert listing["items"][0]["prompt"] == "source prompt"
+        assert listing["items"][0]["namespace"] == "default"
         assert listing["items"][0]["hit_count"] == 1
         assert listing["items"][0]["last_accessed_at"] is not None
         assert "embedding" not in listing["items"][0]
@@ -94,6 +95,100 @@ def test_cache_inspector_routes(settings: Settings) -> None:
             client.get(
                 "/api/v1/cache/entries",
                 params={"sort": "unsupported"},
+            ).status_code
+            == 422
+        )
+
+
+def test_namespace_stats_filter_and_clear(settings: Settings) -> None:
+    app = create_app(settings)
+    cache = SemanticCache(
+        RouteEmbeddings(),
+        memory_backend(),
+        0.92,
+    )
+
+    with TestClient(app) as client:
+        app.state.semantic_cache = cache
+        app.state.query_service = QueryService(cache, Provider())
+
+        alpha_miss = client.post(
+            "/api/v1/query",
+            json={
+                "prompt": "shared prompt",
+                "namespace": "tenant-alpha",
+            },
+        )
+        beta_miss = client.post(
+            "/api/v1/query",
+            json={
+                "prompt": "shared prompt",
+                "namespace": "tenant-beta",
+            },
+        )
+        alpha_hit = client.post(
+            "/api/v1/query",
+            json={
+                "prompt": "similar prompt",
+                "namespace": "tenant-alpha",
+            },
+        )
+
+        assert alpha_miss.json()["cache_hit"] is False
+        assert beta_miss.json()["cache_hit"] is False
+        assert alpha_hit.json()["cache_hit"] is True
+        assert client.get("/api/v1/cache/stats").json() == {
+            "size": 2,
+            "hits": 1,
+            "misses": 2,
+            "hit_rate": 1 / 3,
+        }
+        assert client.get(
+            "/api/v1/cache/stats",
+            params={"namespace": "tenant-alpha"},
+        ).json() == {
+            "size": 1,
+            "hits": 1,
+            "misses": 1,
+            "hit_rate": 0.5,
+        }
+
+        alpha_entries = client.get(
+            "/api/v1/cache/entries",
+            params={"namespace": "tenant-alpha"},
+        ).json()
+        assert alpha_entries["total"] == 1
+        assert alpha_entries["items"][0]["namespace"] == "tenant-alpha"
+
+        assert client.delete(
+            "/api/v1/cache",
+            params={"namespace": "tenant-alpha"},
+        ).json() == {"cleared": True}
+        assert (
+            client.get(
+                "/api/v1/cache/entries",
+                params={"namespace": "tenant-alpha"},
+            ).json()["total"]
+            == 0
+        )
+        assert client.get("/api/v1/cache/stats").json() == {
+            "size": 1,
+            "hits": 0,
+            "misses": 1,
+            "hit_rate": 0.0,
+        }
+
+        assert (
+            client.get(
+                "/api/v1/cache/entries",
+                params={"namespace": "not valid"},
+            ).status_code
+            == 422
+        )
+        assert (
+            client.post(
+                "/api/v1/query",
+                json={"prompt": "one", "namespace": "not valid"},
             ).status_code
             == 422
         )

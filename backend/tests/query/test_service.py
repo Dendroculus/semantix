@@ -5,6 +5,12 @@ import pytest
 
 from app.cache.keys import prompt_cache_key
 from app.cache.service import SemanticCache
+from app.core.exceptions import (
+    InvalidProviderResponseError,
+    ProviderRequestError,
+)
+from app.providers.protocols import GenerationProvider
+from app.query.policies import QueryCachePolicy
 from app.query.service import QueryService
 from tests.support import memory_backend, unit_vector
 
@@ -50,7 +56,20 @@ class ControlledProvider:
         return f"answer:{prompt}"
 
 
-def query_service(provider: Provider | ControlledProvider) -> QueryService:
+class SequenceProvider:
+    def __init__(self, outcomes: list[str | Exception]) -> None:
+        self._outcomes = outcomes
+        self.call_count = 0
+
+    async def generate(self, prompt: str) -> str:
+        outcome = self._outcomes[self.call_count]
+        self.call_count += 1
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+def query_service(provider: GenerationProvider) -> QueryService:
     return QueryService(
         SemanticCache(
             Embeddings(),
@@ -148,3 +167,134 @@ async def test_different_prompts_do_not_share_in_flight_generation() -> None:
         "answer:second prompt",
     }
     assert all(response.provider_called for response in responses)
+
+
+@pytest.mark.asyncio
+async def test_same_prompt_is_isolated_by_namespace() -> None:
+    provider = ControlledProvider(expected_calls=2)
+    service = query_service(provider)
+    requests = [
+        asyncio.create_task(
+            service.execute(
+                "shared prompt",
+                policy=QueryCachePolicy(namespace=namespace),
+            )
+        )
+        for namespace in ("tenant-alpha", "tenant-beta")
+    ]
+
+    await asyncio.wait_for(provider.started.wait(), timeout=1)
+    provider.release.set()
+    responses = await asyncio.gather(*requests)
+
+    assert provider.call_count == 2
+    assert all(not response.cache_hit for response in responses)
+
+    alpha_hit = await service.execute(
+        "shared prompt",
+        policy=QueryCachePolicy(namespace="tenant-alpha"),
+    )
+    assert alpha_hit.cache_hit
+    assert alpha_hit.matched_cache_key == prompt_cache_key(
+        "shared prompt",
+        namespace="tenant-alpha",
+    )
+    assert provider.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_empty_provider_response_is_not_cached() -> None:
+    provider = SequenceProvider(["", "valid response"])
+    service = query_service(provider)
+
+    with pytest.raises(InvalidProviderResponseError):
+        await service.execute("empty response")
+
+    retry = await service.execute("empty response")
+    assert retry.response == "valid response"
+    assert retry.provider_called is True
+    assert provider.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_provider_error_is_not_cached() -> None:
+    provider = SequenceProvider(
+        [
+            ProviderRequestError("provider failed"),
+            "valid response",
+        ]
+    )
+    service = query_service(provider)
+
+    with pytest.raises(ProviderRequestError):
+        await service.execute("provider error")
+
+    retry = await service.execute("provider error")
+    assert retry.response == "valid response"
+    assert retry.provider_called is True
+    assert provider.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_private_prompt_bypasses_cache_reads_and_writes() -> None:
+    provider = SequenceProvider(["cached response", "private response"])
+    service = query_service(provider)
+    await service.execute("sensitive prompt")
+
+    private = await service.execute(
+        "sensitive prompt",
+        policy=QueryCachePolicy(
+            read_enabled=False,
+            write_enabled=False,
+        ),
+    )
+    cached = await service.execute("sensitive prompt")
+
+    assert private.response == "private response"
+    assert private.cache_hit is False
+    assert cached.response == "cached response"
+    assert cached.cache_hit is True
+    assert provider.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_read_bypass_refreshes_cache_when_writes_remain_enabled() -> None:
+    provider = SequenceProvider(["original response", "refreshed response"])
+    service = query_service(provider)
+    await service.execute("refresh prompt")
+
+    refreshed = await service.execute(
+        "refresh prompt",
+        policy=QueryCachePolicy(read_enabled=False),
+    )
+    cached = await service.execute("refresh prompt")
+
+    assert refreshed.response == "refreshed response"
+    assert refreshed.cache_hit is False
+    assert cached.response == "refreshed response"
+    assert cached.cache_hit is True
+    assert provider.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_write_bypass_does_not_create_cache_entry() -> None:
+    provider = SequenceProvider(["not stored", "stored response"])
+    service = query_service(provider)
+
+    bypassed = await service.execute(
+        "write bypass",
+        policy=QueryCachePolicy(write_enabled=False),
+    )
+    stored = await service.execute("write bypass")
+    cached = await service.execute(
+        "write bypass",
+        policy=QueryCachePolicy(write_enabled=False),
+    )
+
+    assert bypassed.response == "not stored"
+    assert bypassed.cache_hit is False
+    assert stored.response == "stored response"
+    assert stored.cache_hit is False
+    assert cached.response == "stored response"
+    assert cached.cache_hit is True
+    assert provider.call_count == 2

@@ -81,6 +81,9 @@ export function CacheEntryCard({
               >
                 {shortCacheKey(entry.cache_key)}
               </code>
+              <span className="font-data text-[10px] text-(--text-muted)">
+                namespace / {entry.namespace}
+              </span>
             </div>
 
             <h3 className="mt-2 wrap-break-word text-base text-(--text)">

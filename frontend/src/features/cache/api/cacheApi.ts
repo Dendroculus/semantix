@@ -9,6 +9,7 @@ import type {
 } from "../types";
 import type { ApiResult } from "@/shared/api/types";
 import { request, withSignal } from "@/shared/api/httpClient";
+import { isCacheNamespace } from "../namespace";
 import {
   isFiniteNumber,
   isIsoDate,
@@ -42,6 +43,8 @@ function decodeCacheEntry(value: unknown): CacheEntryMetadata {
     !isRecord(value) ||
     typeof value.cache_key !== "string" ||
     !/^[a-f0-9]{64}$/.test(value.cache_key) ||
+    typeof value.namespace !== "string" ||
+    !isCacheNamespace(value.namespace) ||
     typeof value.prompt !== "string" ||
     value.prompt.length === 0 ||
     typeof value.response_preview !== "string" ||
@@ -75,6 +78,7 @@ function decodeCacheEntry(value: unknown): CacheEntryMetadata {
 
   return {
     cache_key: value.cache_key,
+    namespace: value.namespace,
     prompt: value.prompt,
     response_preview: value.response_preview,
     created_at: value.created_at,
@@ -183,7 +187,11 @@ export function listCacheEntries(
     limit: String(params.limit),
     sort: params.sort,
   });
+  const namespace = params.namespace.trim();
   const search = params.search.trim();
+  if (namespace !== "") {
+    query.set("namespace", namespace);
+  }
   if (search !== "") {
     query.set("search", search);
   }
@@ -216,11 +224,17 @@ export function deleteCacheEntry(
   );
 }
 
-export function clearCache(): Promise<
+export function clearCache(namespace?: string): Promise<
   ApiResult<ClearCacheResponse>
 > {
+  const query = new URLSearchParams();
+  if (namespace !== undefined) {
+    query.set("namespace", namespace);
+  }
+  const suffix = query.size === 0 ? "" : `?${query.toString()}`;
+
   return request(
-    "/api/v1/cache",
+    `/api/v1/cache${suffix}`,
     decodeClearCache,
     { method: "DELETE" },
   );

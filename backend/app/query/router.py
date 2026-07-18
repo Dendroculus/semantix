@@ -22,4 +22,7 @@ async def query(
     payload: QueryRequest,
     service: QueryServiceDependency,
 ) -> QueryResponse:
-    return await service.execute(payload.prompt)
+    return await service.execute(
+        payload.prompt,
+        policy=payload.cache_policy,
+    )

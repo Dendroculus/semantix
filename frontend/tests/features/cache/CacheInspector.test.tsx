@@ -22,6 +22,7 @@ vi.mock("../../../src/features/cache/api/cacheApi");
 
 const alphaEntry: CacheEntryMetadata = {
   cache_key: "a".repeat(64),
+  namespace: "tenant-alpha",
   prompt: "Explain semantic caching",
   response_preview: "Semantic caching reuses related responses.",
   created_at: "2026-07-17T10:00:00Z",
@@ -35,6 +36,7 @@ const alphaEntry: CacheEntryMetadata = {
 
 const betaEntry: CacheEntryMetadata = {
   cache_key: "b".repeat(64),
+  namespace: "tenant-beta",
   prompt: "How does cosine similarity work?",
   response_preview: "Cosine similarity compares vector direction.",
   created_at: "2026-07-17T09:00:00Z",
@@ -137,6 +139,7 @@ describe("CacheInspector", () => {
         {
           offset: 0,
           limit: 10,
+          namespace: "",
           search: "semantic",
           sort: "newest",
         },
@@ -145,6 +148,48 @@ describe("CacheInspector", () => {
     });
     expect(await screen.findByText(alphaEntry.prompt)).toBeTruthy();
     expect(screen.queryByText(betaEntry.prompt)).toBeNull();
+  });
+
+  it("filters and clears one namespace", async () => {
+    let items = [alphaEntry, betaEntry];
+    vi.mocked(listCacheEntries).mockImplementation(async (params) => {
+      const filtered = params.namespace === ""
+        ? items
+        : items.filter((entry) => entry.namespace === params.namespace);
+      return successfulPage(filtered, params);
+    });
+    vi.mocked(clearCache).mockImplementation(async (namespace) => {
+      items = items.filter((entry) => entry.namespace !== namespace);
+      return { ok: true, data: { cleared: true } };
+    });
+
+    render(<CacheInspector refreshKey={0} onMutation={vi.fn()} />);
+    await screen.findByText(alphaEntry.prompt);
+
+    fireEvent.change(screen.getByLabelText("Namespace"), {
+      target: { value: "tenant-alpha" },
+    });
+
+    await waitFor(() => {
+      expect(listCacheEntries).toHaveBeenCalledWith(
+        expect.objectContaining({ namespace: "tenant-alpha" }),
+        expect.any(AbortSignal),
+      );
+    });
+    expect(await screen.findByText(alphaEntry.prompt)).toBeTruthy();
+    expect(screen.queryByText(betaEntry.prompt)).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear namespace" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm clear cache" }),
+    );
+
+    await waitFor(() => {
+      expect(clearCache).toHaveBeenCalledWith("tenant-alpha");
+    });
+    expect(await screen.findByText("The cache is empty.")).toBeTruthy();
   });
 
   it("requests every supported sort mode", async () => {

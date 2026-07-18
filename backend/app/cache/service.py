@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 from app.cache.keys import prompt_cache_key
 from app.cache.models import CacheEntry, CacheLookupResult
+from app.cache.namespaces import DEFAULT_CACHE_NAMESPACE
 from app.cache.protocols import CacheBackend
 from app.cache.schemas import (
     CacheEntryListResponse,
@@ -39,12 +40,20 @@ class SemanticCache:
         self._similarity_threshold = threshold
         return self._similarity_threshold
 
-    async def lookup(self, prompt: str) -> CacheLookupResult:
+    async def lookup(
+        self,
+        prompt: str,
+        *,
+        namespace: str = DEFAULT_CACHE_NAMESPACE,
+    ) -> CacheLookupResult:
         similarity_threshold = self._similarity_threshold
         embedding = [
             float(value) for value in await self._embedding_service.embed(prompt)
         ]
-        candidate = await self._backend.find_nearest(embedding)
+        candidate = await self._backend.find_nearest(
+            embedding,
+            namespace=namespace,
+        )
 
         if (
             candidate is not None
@@ -62,7 +71,7 @@ class SemanticCache:
                 embedding=embedding,
             )
 
-        await self._backend.record_miss()
+        await self._backend.record_miss(namespace)
         return CacheLookupResult(
             cache_hit=False,
             response=None,
@@ -80,32 +89,46 @@ class SemanticCache:
         self,
         prompt: str,
         response: str,
-        embedding: Sequence[float],
-    ) -> None:
+        embedding: Sequence[float] | None = None,
+        *,
+        namespace: str = DEFAULT_CACHE_NAMESPACE,
+    ) -> bool:
+        if not response.strip():
+            return False
+
+        resolved_embedding = (
+            await self._embedding_service.embed(prompt)
+            if embedding is None
+            else embedding
+        )
         await self._backend.put(
             CacheEntry(
-                cache_key=prompt_cache_key(prompt),
+                cache_key=prompt_cache_key(prompt, namespace=namespace),
+                namespace=namespace,
                 prompt=prompt,
                 response=response,
-                embedding=[float(value) for value in embedding],
+                embedding=[float(value) for value in resolved_embedding],
                 created_at=datetime.now(UTC),
             )
         )
+        return True
 
-    async def clear(self) -> None:
-        await self._backend.clear()
+    async def clear(self, namespace: str | None = None) -> None:
+        await self._backend.clear(namespace)
 
     async def list_entries(
         self,
         *,
         offset: int,
         limit: int,
+        namespace: str | None,
         search: str | None,
         sort: CacheEntrySort,
     ) -> CacheEntryListResponse:
         return await self._backend.list_entries(
             offset=offset,
             limit=limit,
+            namespace=namespace,
             search=search,
             sort=sort,
         )
@@ -120,5 +143,8 @@ class SemanticCache:
         if not await self._backend.delete_entry(cache_key):
             raise CacheEntryNotFoundError
 
-    async def stats(self) -> CacheStatsResponse:
-        return await self._backend.stats()
+    async def stats(
+        self,
+        namespace: str | None = None,
+    ) -> CacheStatsResponse:
+        return await self._backend.stats(namespace)

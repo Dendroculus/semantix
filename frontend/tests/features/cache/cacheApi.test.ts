@@ -2,6 +2,7 @@ import type { MockedFunction } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  clearCache,
   deleteCacheEntry,
   listCacheEntries,
 } from "@/features/cache/api/cacheApi";
@@ -25,6 +26,7 @@ describe("cache inspector API client", () => {
           items: [
             {
               cache_key: "a".repeat(64),
+              namespace: "tenant-alpha",
               prompt: "Explain semantic caching",
               response_preview: "A safe response preview",
               created_at: "2026-07-17T10:00:00Z",
@@ -48,6 +50,7 @@ describe("cache inspector API client", () => {
     const result = await listCacheEntries({
       offset: 0,
       limit: 10,
+      namespace: "tenant-alpha",
       search: "semantic cache",
       sort: "most_hit",
     });
@@ -58,7 +61,7 @@ describe("cache inspector API client", () => {
     }
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining(
-        "/api/v1/cache/entries?offset=0&limit=10&sort=most_hit&search=semantic+cache",
+        "/api/v1/cache/entries?offset=0&limit=10&sort=most_hit&namespace=tenant-alpha&search=semantic+cache",
       ),
       expect.objectContaining({ method: "GET" }),
     );
@@ -81,6 +84,23 @@ describe("cache inspector API client", () => {
     });
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining(`/api/v1/cache/entries/${cacheKey}`),
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("targets one namespace when clearing cache entries", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ cleared: true }), { status: 200 }),
+    );
+
+    const result = await clearCache("tenant-alpha");
+
+    expect(result).toEqual({
+      ok: true,
+      data: { cleared: true },
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/cache?namespace=tenant-alpha"),
       expect.objectContaining({ method: "DELETE" }),
     );
   });

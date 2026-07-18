@@ -287,13 +287,26 @@ A persistent vector database can later implement the cache interface without rew
 
 ### Request coalescing
 
-`QueryService` indexes active query resolutions by the deterministic SHA-256
-prompt cache key. The first caller performs the semantic lookup and any needed
-generation; simultaneous callers with the identical prompt await that task.
+`QueryService` indexes active query resolutions by a deterministic key covering
+the namespace, prompt, and effective read/write policy. The first caller
+performs the semantic lookup and any needed generation; simultaneous callers
+with the same identity await that task.
 The registry lock is held only while reading, registering, or removing the
 in-flight task, never during embedding, cache access, or provider I/O.
 Completion and failure both remove the task, so later requests can use the
 cache or retry normally.
+
+### Namespace isolation and cache policies
+
+Every cache entry and cache key belongs to one validated namespace. Requests
+that omit it use the safe `default` namespace, and vector lookup never compares
+entries from another namespace. Namespace values are 1–64 characters and may
+contain letters, numbers, `.`, `_`, `:`, and `-`.
+
+Query callers may disable all caching, bypass only reads, or bypass only
+writes. Private prompts bypass both reads and writes. Empty provider responses
+and provider failures are never stored. Semantix does not attempt automatic
+secret detection; callers must explicitly mark private prompts.
 
 ## 🏗️ Project Structure
 
@@ -357,20 +370,37 @@ dependencies.
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `POST` | `/api/v1/query` | Submit a query and receive a cached or generated response |
-| `GET` | `/api/v1/cache/stats` | Read current cache statistics |
+| `GET` | `/api/v1/cache/stats` | Read global or per-namespace cache statistics |
 | `GET` | `/api/v1/cache/threshold` | Read the active similarity threshold |
 | `PUT` | `/api/v1/cache/threshold` | Update the active similarity threshold |
-| `GET` | `/api/v1/cache/entries` | Search, sort, and paginate safe cache-entry metadata |
+| `GET` | `/api/v1/cache/entries` | Filter, search, sort, and paginate safe cache-entry metadata |
 | `GET` | `/api/v1/cache/entries/{cache_key}` | Read one cache entry's safe metadata |
 | `DELETE` | `/api/v1/cache/entries/{cache_key}` | Delete one cache entry |
-| `DELETE` | `/api/v1/cache` | Clear all in-memory cache entries |
+| `DELETE` | `/api/v1/cache` | Clear all entries or one namespace |
 | `GET` | `/api/v1/benchmarks/datasets` | List controlled datasets and expected classifications |
 | `POST` | `/api/v1/benchmarks/run` | Run an isolated benchmark with metrics and per-query evidence |
 | `GET` | `/health` | Check whether the backend is healthy |
 | `GET` | `/docs` | Open interactive FastAPI documentation |
 
-Successful `POST /api/v1/query` responses use this additive explainability
-contract:
+`POST /api/v1/query` accepts:
+
+```json
+{
+  "prompt": "Explain semantic caching",
+  "namespace": "default",
+  "cache_enabled": true,
+  "cache_read_enabled": true,
+  "cache_write_enabled": true,
+  "private": false
+}
+```
+
+Only `prompt` is required. `cache_enabled=false` overrides both granular flags;
+`private=true` also disables reads and writes. Disabling reads while leaving
+writes enabled refreshes the entry from the provider. Disabling writes still
+allows an existing cached response to be read.
+
+Successful responses use this additive explainability contract:
 
 ```json
 {
@@ -398,14 +428,19 @@ included in this response.
 
 `GET /api/v1/cache/entries` accepts:
 
+- `namespace`: optional exact namespace filter; omitted means all namespaces
 - `search`: optional case-insensitive prompt fragment
 - `sort`: `newest`, `oldest`, `most_hit`, or `nearest_expiry`
 - `offset`: zero-based result offset
 - `limit`: page size from 1 through 100
 
 Its response contains `items`, `total`, `offset`, `limit`, and `has_more`.
-Inspector items intentionally contain only a truncated `response_preview`;
-neither full responses nor embeddings are returned. An expired or unknown key
+Each inspector item identifies its `namespace` and intentionally contains only
+a truncated `response_preview`; neither full responses nor embeddings are
+returned. `GET /api/v1/cache/stats?namespace=...` reports counters for one
+namespace, while the endpoint without the parameter reports global totals.
+Likewise, `DELETE /api/v1/cache?namespace=...` clears one namespace; omitting
+the parameter clears all entries and counters. An expired or unknown key
 returns the stable `cache_entry_not_found` error.
 
 ### Controlled benchmark
