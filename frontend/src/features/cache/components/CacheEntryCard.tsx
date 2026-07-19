@@ -60,7 +60,7 @@ export function CacheEntryCard({
   onRequestDelete,
 }: Readonly<CacheEntryCardProps>): JSX.Element {
   return (
-    <li className="border-t border-(--hairline) py-5">
+    <li className="border-t border-(--hairline) py-5 transition-colors hover:bg-[rgba(234,230,221,0.025)]">
       <article>
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
@@ -94,7 +94,7 @@ export function CacheEntryCard({
           {!isPendingDelete && (
             <button
               aria-label={`Delete ${entry.prompt}`}
-              className="ui-label border-b border-(--coral) pb-1 text-(--coral) focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-(--coral) disabled:opacity-50"
+              className="ui-label min-h-9 border-b border-(--coral) px-1 py-2 text-(--coral) transition-colors hover:text-(--text) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
               disabled={isDeleting}
               type="button"
               onClick={onRequestDelete}
@@ -171,7 +171,7 @@ export function CacheEntryCard({
             <div className="mt-3 flex flex-wrap gap-4">
               <button
                 aria-label={`Confirm delete ${entry.prompt}`}
-                className="ui-label text-(--coral) disabled:opacity-50"
+                className="ui-label min-h-9 text-(--coral) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
                 disabled={isDeleting}
                 type="button"
                 onClick={onConfirmDelete}
@@ -179,7 +179,7 @@ export function CacheEntryCard({
                 {isDeleting ? "Deleting" : "Confirm delete"}
               </button>
               <button
-                className="ui-label text-(--teal) disabled:opacity-50"
+                className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
                 disabled={isDeleting}
                 type="button"
                 onClick={onCancelDelete}

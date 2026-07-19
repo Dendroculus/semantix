@@ -68,7 +68,7 @@ export function SimilarityTooltip({
           <span
             className={
               point.actualCacheHit
-                ? "text-(--gold)"
+                ? "text-(--teal)"
                 : "text-(--coral)"
             }
           >

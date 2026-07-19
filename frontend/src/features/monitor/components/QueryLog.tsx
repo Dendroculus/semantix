@@ -23,9 +23,15 @@ export function QueryLog({
       </div>
 
       {traces.length === 0 ? (
-        <p className="font-data border-y border-(--hairline) py-5 text-[11px]/5  text-(--text-muted)">
-          NO QUERY TRACES YET / THE FIRST PROBE WILL LAND AT ITS NEAREST CACHE NEIGHBOR
-        </p>
+        <div className="border-y border-(--hairline) py-6">
+          <p className="font-display text-xl italic text-(--text-soft)">
+            No query traces yet
+          </p>
+          <p className="font-data mt-2 max-w-2xl text-[10px]/5 text-(--text-muted)">
+            The first probe seeds the visible history. Later prompts show their
+            nearest-cache score and projected decision here.
+          </p>
+        </div>
       ) : (
         <div>
           <div className="ui-label hidden grid-cols-[90px_72px_minmax(180px,1fr)_72px_90px] gap-4 border-b border-(--hairline) pb-3 text-(--text-faint) min-[760px]:grid">
@@ -43,11 +49,24 @@ export function QueryLog({
             return (
               <div
                 key={trace.id}
-                className="font-data grid gap-2 border-b border-[rgba(234,230,221,0.05)] py-4 text-[11px] min-[760px]:grid-cols-[90px_72px_minmax(180px,1fr)_72px_90px] min-[760px]:gap-4 min-[760px]:py-3"
+                className="font-data grid gap-2 border-b border-l-2 border-[rgba(234,230,221,0.05)] py-4 pr-2 pl-3 text-[11px] transition-colors hover:bg-[rgba(234,230,221,0.025)] min-[760px]:grid-cols-[90px_72px_minmax(180px,1fr)_72px_90px] min-[760px]:gap-4 min-[760px]:border-l-0 min-[760px]:px-0 min-[760px]:py-3"
+                style={{
+                  borderLeftColor: isProjectedHit
+                    ? "var(--gold)"
+                    : "var(--coral)",
+                }}
               >
                 <div className="flex justify-between gap-4 min-[760px]:contents">
-                  <time className="text-(--text-faint)">{formatTime(trace.recordedAt)}</time>
+                  <time className="text-(--text-faint)">
+                    <span className="ui-label mr-2 min-[760px]:hidden">
+                      Time
+                    </span>
+                    {formatTime(trace.recordedAt)}
+                  </time>
                   <span className="text-(--teal)">
+                    <span className="ui-label mr-2 text-(--text-faint) min-[760px]:hidden">
+                      Score
+                    </span>
                     {trace.similarity === null ? "n/a" : trace.similarity.toFixed(3)}
                   </span>
                 </div>
@@ -58,9 +77,15 @@ export function QueryLog({
 
                 <div className="flex justify-between gap-4 min-[760px]:contents">
                   <span style={{ color: isProjectedHit ? "var(--gold)" : "var(--coral)" }}>
+                    <span className="ui-label mr-2 text-(--text-faint) min-[760px]:hidden">
+                      Projection
+                    </span>
                     {isProjectedHit ? "HIT" : "MISS"}
                   </span>
                   <span className="text-(--text-muted) min-[760px]:text-right">
+                    <span className="ui-label mr-2 text-(--text-faint) min-[760px]:hidden">
+                      Latency
+                    </span>
                     {trace.latencyMs.toFixed(1)} ms
                   </span>
                 </div>

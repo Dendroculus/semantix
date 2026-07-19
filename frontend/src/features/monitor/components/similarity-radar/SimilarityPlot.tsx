@@ -36,10 +36,13 @@ export function SimilarityPlot({
     points.find((point) => point.id === activePointId) ?? null;
 
   return (
-    <div className="mt-3 overflow-x-auto">
+    <section
+      aria-label="Scrollable similarity threshold plot"
+      className="scrollbar-thin mt-3 overflow-x-auto pb-1"
+    >
       <svg
         aria-label={`${points.length} of ${totalTraces} recent traces plotted on a zero-to-one similarity scale`}
-        className="block min-w-[520px] w-full"
+        className="block w-full min-w-[500px]"
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
       >
         <PlotBackdrop
@@ -108,6 +111,6 @@ export function SimilarityPlot({
           <SimilarityTooltip point={activePoint} />
         )}
       </svg>
-    </div>
+    </section>
   );
 }

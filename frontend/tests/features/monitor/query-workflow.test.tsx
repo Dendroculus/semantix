@@ -128,6 +128,24 @@ describe("dashboard correctness", () => {
     expect(container.querySelectorAll('[data-testid="similarity-point"]')).toHaveLength(0);
   });
 
+  it("reserves response space while a query is running", async () => {
+    vi.mocked(useQuery).mockReturnValue({
+      state: { status: "loading" },
+      submit: vi.fn().mockResolvedValue(null),
+      reset: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByLabelText("Loading query response"),
+    ).toBeTruthy();
+  });
+
   it("preserves an API null similarity when adding an application trace", async () => {
     vi.mocked(useQuery).mockReturnValue({
       state: { status: "idle" },

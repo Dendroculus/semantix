@@ -93,6 +93,16 @@ describe("CacheInspector", () => {
     ).toBeTruthy();
   });
 
+  it("renders a contextual loading skeleton before entries resolve", () => {
+    vi.mocked(listCacheEntries).mockReturnValue(
+      new Promise(() => undefined),
+    );
+
+    render(<CacheInspector refreshKey={0} onMutation={vi.fn()} />);
+
+    expect(screen.getByLabelText("Loading cache entries")).toBeTruthy();
+  });
+
   it("renders markdown and math in response previews", async () => {
     const formattedEntry = {
       ...alphaEntry,

@@ -205,9 +205,9 @@ describe("BenchmarkDashboard", () => {
     render(<BenchmarkDashboard />);
     await reviewAndConfirm();
 
-    expect(screen.getByText(/RUNNING CONTROLLED QUERY SEQUENCE/).textContent).toContain(
-      "RUNNING CONTROLLED QUERY SEQUENCE",
-    );
+    expect(
+      screen.getByLabelText("Loading benchmark results"),
+    ).toBeTruthy();
     act(() => {
       resolveRun?.({
         ok: false,

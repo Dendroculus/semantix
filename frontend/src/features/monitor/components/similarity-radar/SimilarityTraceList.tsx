@@ -30,7 +30,9 @@ export function SimilarityTraceList({
           <button
             key={point.id}
             aria-label={`Inspect ${point.prompt}`}
-            className="font-data grid w-full grid-cols-[minmax(0,1fr)_58px_52px] gap-3 border-b border-[rgba(234,230,221,0.05)] py-2.5 text-left text-[10px] outline-none transition-colors focus-visible:bg-[rgba(91,156,148,0.08)]"
+            className={`font-data grid min-h-10 w-full grid-cols-[minmax(0,1fr)_58px_52px] gap-3 border-b border-[rgba(234,230,221,0.05)] py-2.5 text-left text-[10px] outline-none transition-colors hover:bg-[rgba(234,230,221,0.025)] focus-visible:bg-[rgba(91,156,148,0.08)] ${
+              isActive ? "bg-[rgba(91,156,148,0.08)]" : ""
+            }`}
             data-active={isActive ? "true" : "false"}
             type="button"
             onBlur={() => onActivePointChange(null)}

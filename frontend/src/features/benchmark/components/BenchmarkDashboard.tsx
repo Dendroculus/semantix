@@ -3,12 +3,20 @@ import { BenchmarkCharts } from "./BenchmarkCharts";
 import { BenchmarkControls } from "./BenchmarkControls";
 import { BenchmarkExports } from "./BenchmarkExports";
 import { BenchmarkResultsTable } from "./BenchmarkResultsTable";
+import { BenchmarkResultsSkeleton } from "./BenchmarkResultsSkeleton";
 import { BenchmarkRunWarning } from "./BenchmarkRunWarning";
 import { BenchmarkSummary } from "./BenchmarkSummary";
 
 export function BenchmarkDashboard(): JSX.Element {
   const controller = useBenchmark();
-  const { error, isRunning, result, selectedDataset } = controller;
+  const {
+    datasetsLoading,
+    error,
+    isRunning,
+    result,
+    selectedDataset,
+    showWarning,
+  } = controller;
 
   return (
     <section
@@ -40,19 +48,34 @@ export function BenchmarkDashboard(): JSX.Element {
       )}
       <BenchmarkRunWarning controller={controller} />
 
-      {isRunning && (
-        <output
-          className="font-data mt-6 block text-xs text-(--gold)"
-          aria-live="polite"
-        >
-          RUNNING CONTROLLED QUERY SEQUENCE / DO NOT REFRESH
-        </output>
-      )}
+      {isRunning && <BenchmarkResultsSkeleton />}
       {error !== null && (
-        <p className="font-data mt-6 text-xs text-(--coral)" role="alert">
-          BENCHMARK FAILED / {error}
-        </p>
+        <div
+          className="mt-6 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3"
+          role="alert"
+        >
+          <p className="ui-label text-(--coral)">Benchmark failed</p>
+          <p className="font-data mt-1 text-[11px]/5 text-(--text-soft)">
+            {error}
+          </p>
+        </div>
       )}
+
+      {!datasetsLoading &&
+        result === null &&
+        !isRunning &&
+        !showWarning &&
+        error === null && (
+          <section className="mt-8 border-y border-(--hairline) py-6">
+            <p className="font-display text-xl italic text-(--text-soft)">
+              No measured run yet
+            </p>
+            <p className="mt-2 max-w-2xl text-sm/6 text-(--text-muted)">
+              Review the selected dataset and threshold to see the expected
+              provider work before starting a controlled run.
+            </p>
+          </section>
+        )}
 
       {result !== null && (
         <>

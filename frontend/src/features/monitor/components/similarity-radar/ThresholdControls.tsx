@@ -56,7 +56,7 @@ export function ThresholdControls({
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button
-          className="ui-label border border-(--gold) px-3 py-2 text-(--gold) disabled:cursor-not-allowed disabled:opacity-40"
+          className="ui-label min-h-10 border border-(--gold) px-3 py-2 text-(--gold) transition-colors hover:bg-(--gold) hover:text-(--ink) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
           disabled={
             !hasPendingThreshold || isApplyingThreshold
           }
@@ -66,7 +66,7 @@ export function ThresholdControls({
           {isApplyingThreshold ? "Applying" : "Apply to cache"}
         </button>
         <button
-          className="ui-label border-b border-(--teal) px-1 py-2 text-(--teal) disabled:cursor-not-allowed disabled:opacity-40"
+          className="ui-label min-h-10 border-b border-(--teal) px-1 py-2 text-(--teal) transition-colors hover:text-(--text) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
           disabled={
             !hasPendingThreshold || isApplyingThreshold
           }

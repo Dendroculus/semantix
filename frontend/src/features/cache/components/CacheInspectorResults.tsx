@@ -30,9 +30,41 @@ export function CacheInspectorResults({
 
   return (
     <>
+      {data === null && isLoading && (
+        <output
+          aria-label="Loading cache entries"
+          aria-live="polite"
+          className="mt-7 block animate-pulse border-y border-(--hairline)"
+        >
+          <span className="sr-only">Loading cached response metadata.</span>
+          {[0, 1].map((item) => (
+            <span
+              className="block border-b border-[rgba(234,230,221,0.05)] px-1 py-5 last:border-b-0"
+              key={item}
+            >
+              <span className="flex items-center justify-between gap-6">
+                <span className="h-3 w-44 bg-[rgba(91,156,148,0.12)]" />
+                <span className="h-3 w-14 bg-[rgba(194,96,74,0.1)]" />
+              </span>
+              <span className="mt-4 block h-4 w-3/5 bg-[rgba(234,230,221,0.08)]" />
+              <span className="mt-3 block h-3 w-full bg-[rgba(234,230,221,0.05)]" />
+              <span className="mt-2 block h-3 w-4/5 bg-[rgba(234,230,221,0.05)]" />
+              <span className="mt-5 grid grid-cols-2 gap-4 min-[720px]:grid-cols-3">
+                {[0, 1, 2].map((metric) => (
+                  <span
+                    className="h-8 bg-[rgba(234,230,221,0.04)]"
+                    key={metric}
+                  />
+                ))}
+              </span>
+            </span>
+          ))}
+        </output>
+      )}
+
       {actionError !== null && (
         <p
-          className="font-data mt-5 text-[11px] text-(--coral)"
+          className="font-data mt-5 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3 text-[11px]/5 text-(--coral)"
           role="alert"
         >
           {actionError}
@@ -41,14 +73,14 @@ export function CacheInspectorResults({
 
       {loadError !== null && (
         <div
-          className="mt-6 border-l border-(--coral) pl-4"
+          className="mt-6 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3"
           role="alert"
         >
           <p className="text-sm text-(--text-soft)">
             {loadError}
           </p>
           <button
-            className="ui-label mt-3 text-(--teal)"
+            className="ui-label mt-3 min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px"
             type="button"
             onClick={refresh}
           >
@@ -105,7 +137,7 @@ export function CacheInspectorResults({
           </span>
           <div className="flex gap-5">
             <button
-              className="ui-label text-(--teal) disabled:text-(--text-faint)"
+              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:text-(--text-faint)"
               disabled={!hasPrevious || isLoading}
               type="button"
               onClick={previousPage}
@@ -113,7 +145,7 @@ export function CacheInspectorResults({
               Previous
             </button>
             <button
-              className="ui-label text-(--teal) disabled:text-(--text-faint)"
+              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:text-(--text-faint)"
               disabled={!hasNext || isLoading}
               type="button"
               onClick={nextPage}

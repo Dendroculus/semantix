@@ -6,14 +6,30 @@ interface BenchmarkSummaryProps {
 
 interface MetricProps {
   label: string;
+  tone?: "gold" | "teal" | "coral";
   value: string;
 }
 
-function Metric({ label, value }: Readonly<MetricProps>): JSX.Element {
+const TONE_CLASS: Record<NonNullable<MetricProps["tone"]>, string> = {
+  gold: "text-(--gold)",
+  teal: "text-(--teal)",
+  coral: "text-(--coral)",
+};
+
+function Metric({
+  label,
+  tone,
+  value,
+}: Readonly<MetricProps>): JSX.Element {
+  const valueClass =
+    tone === undefined ? "text-(--text)" : TONE_CLASS[tone];
+
   return (
     <div className="border-t border-(--hairline) pt-3">
       <dt className="ui-label text-(--text-faint)">{label}</dt>
-      <dd className="font-data mt-2 text-lg text-(--text)">{value}</dd>
+      <dd className={`font-data mt-2 text-lg tabular-nums ${valueClass}`}>
+        {value}
+      </dd>
     </div>
   );
 }
@@ -47,10 +63,19 @@ export function BenchmarkSummary({
 
       <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4">
         <Metric label="Total queries" value={String(metrics.total_queries)} />
-        <Metric label="Cache hit rate" value={`${(metrics.hit_rate * 100).toFixed(1)}%`} />
-        <Metric label="Provider calls" value={String(metrics.provider_calls)} />
+        <Metric
+          label="Cache hit rate"
+          tone="gold"
+          value={`${(metrics.hit_rate * 100).toFixed(1)}%`}
+        />
+        <Metric
+          label="Provider calls"
+          tone="coral"
+          value={String(metrics.provider_calls)}
+        />
         <Metric
           label="Calls avoided"
+          tone="teal"
           value={String(metrics.provider_calls_avoided)}
         />
         <Metric label="Average latency" value={latency(metrics.average_latency_ms)} />
@@ -65,6 +90,7 @@ export function BenchmarkSummary({
         <Metric label="F1 score" value={metrics.f1_score.toFixed(3)} />
         <Metric
           label="False + / false −"
+          tone="coral"
           value={`${metrics.false_positive_hits} / ${metrics.false_negative_misses}`}
         />
         <Metric
@@ -73,6 +99,7 @@ export function BenchmarkSummary({
         />
         <Metric
           label="Est. provider cost saved"
+          tone="teal"
           value={`$${metrics.estimated_provider_cost_saved_usd.toFixed(4)}`}
         />
       </dl>

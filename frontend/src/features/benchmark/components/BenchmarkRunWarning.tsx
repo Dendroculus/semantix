@@ -37,14 +37,14 @@ export function BenchmarkRunWarning({
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
         <button
-          className="ui-label bg-(--coral) px-4 py-3 text-(--ink)"
+          className="ui-label min-h-11 bg-(--coral) px-4 py-3 text-(--ink) transition-opacity hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--coral) active:translate-y-px"
           type="button"
           onClick={() => void controller.confirmRun()}
         >
           Run benchmark now
         </button>
         <button
-          className="ui-label border border-(--hairline) px-4 py-3 text-(--text-soft)"
+          className="ui-label min-h-11 border border-(--hairline) px-4 py-3 text-(--text-soft) transition-colors hover:border-(--text-muted) hover:text-(--text) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px"
           type="button"
           onClick={controller.cancelRun}
         >

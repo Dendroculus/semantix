@@ -78,23 +78,30 @@ export function ResponseCard({
     verdict = "COALESCED RESPONSE";
   }
 
-  const verdictColor = result.cache_hit
-    ? "var(--gold)"
-    : "var(--coral)";
+  let verdictColor = "var(--coral)";
+  if (result.cache_hit) {
+    verdictColor = "var(--teal)";
+  } else if (isCoalesced) {
+    verdictColor = "var(--gold)";
+  }
 
   return (
     <article
       aria-live="polite"
-      className="border-y border-(--hairline) bg-(--surface) px-4 py-5 sm:px-6"
+      className="border-y border-l-2 border-(--hairline) bg-(--surface) px-4 py-5 sm:px-6"
+      style={{ borderLeftColor: verdictColor }}
     >
-      <header className="mb-5 flex flex-wrap items-baseline justify-between gap-3 border-b border-(--hairline) pb-4">
+      <header className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-(--hairline) pb-4">
         <h2 className="font-display text-xl italic">
           Latest response
         </h2>
 
         <span
-          className="font-data text-[10px]"
-          style={{ color: verdictColor }}
+          className="ui-label border px-2 py-1"
+          style={{
+            borderColor: verdictColor,
+            color: verdictColor,
+          }}
         >
           {verdict}
         </span>
@@ -123,7 +130,7 @@ export function ResponseCard({
               Similarity
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-(--teal)">
+            <dd className="font-data mt-1 text-xs tabular-nums text-(--teal)">
               {similarity}
             </dd>
           </div>
@@ -133,7 +140,7 @@ export function ResponseCard({
               Threshold used
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-(--text-soft)">
+            <dd className="font-data mt-1 text-xs tabular-nums text-(--text-soft)">
               {threshold}
             </dd>
           </div>
@@ -143,7 +150,7 @@ export function ResponseCard({
               Generation
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-(--text-soft)">
+            <dd className="font-data mt-1 text-xs tabular-nums text-(--text-soft)">
               {result.generation_skipped ? "Skipped" : "Ran"}
             </dd>
           </div>
@@ -153,7 +160,7 @@ export function ResponseCard({
               Provider
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-(--text-soft)">
+            <dd className="font-data mt-1 text-xs tabular-nums text-(--text-soft)">
               {result.provider_called ? "Called" : "Not called"}
             </dd>
           </div>
@@ -173,7 +180,7 @@ export function ResponseCard({
               Cache entry age
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-(--text-soft)">
+            <dd className="font-data mt-1 text-xs tabular-nums text-(--text-soft)">
               {result.cache_entry_created_at === null ? (
                 cacheAge
               ) : (
@@ -192,7 +199,7 @@ export function ResponseCard({
               Request latency
             </dt>
 
-            <dd className="font-data mt-1 text-xs text-(--text-soft)">
+            <dd className="font-data mt-1 text-xs tabular-nums text-(--text-soft)">
               {result.latency_ms.toFixed(1)} ms
             </dd>
           </div>

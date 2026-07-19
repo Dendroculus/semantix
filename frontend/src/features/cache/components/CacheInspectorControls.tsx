@@ -41,6 +41,8 @@ export function CacheInspectorControls({
 }: Readonly<CacheInspectorControlsProps>): JSX.Element {
   const selectedNamespace = namespace.trim();
   const isNamespaceSelected = selectedNamespace !== "";
+  const controlClass =
+    "font-data mt-2 min-h-10 w-full border border-(--hairline) bg-(--surface) px-3 py-2.5 text-xs text-(--text) outline-none transition-colors hover:border-(--text-faint) focus-visible:border-(--teal) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal)";
 
   return (
     <>
@@ -57,9 +59,9 @@ export function CacheInspectorControls({
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-5">
+        <div className="flex flex-wrap gap-3">
           <button
-            className="ui-label border-b border-(--teal) pb-1 text-(--teal) disabled:opacity-50"
+            className="ui-label min-h-10 border border-(--hairline) px-3 py-2 text-(--teal) transition-colors hover:border-(--teal) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
             disabled={isLoading || isMutating}
             type="button"
             onClick={onRefresh}
@@ -67,7 +69,7 @@ export function CacheInspectorControls({
             {isLoading ? "Refreshing" : "Refresh"}
           </button>
           <button
-            className="ui-label border-b border-(--coral) pb-1 text-(--coral) disabled:opacity-50"
+            className="ui-label min-h-10 border border-(--hairline) px-3 py-2 text-(--coral) transition-colors hover:border-(--coral) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
             disabled={isMutating || !canClear}
             type="button"
             onClick={onRequestClear}
@@ -89,7 +91,7 @@ export function CacheInspectorControls({
           </p>
           <div className="mt-3 flex gap-5">
             <button
-              className="ui-label text-(--coral) disabled:opacity-50"
+              className="ui-label min-h-9 text-(--coral) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
               disabled={isClearing}
               type="button"
               onClick={onConfirmClear}
@@ -97,7 +99,7 @@ export function CacheInspectorControls({
               {isClearing ? "Clearing" : "Confirm clear cache"}
             </button>
             <button
-              className="ui-label text-(--teal) disabled:opacity-50"
+              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
               disabled={isClearing}
               type="button"
               onClick={onCancelClear}
@@ -117,7 +119,7 @@ export function CacheInspectorControls({
             Search cached prompts
           </label>
           <input
-            className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2.5 text-xs text-(--text) outline-none focus:border-(--teal)"
+            className={controlClass}
             id="cache-search"
             placeholder="Filter by original prompt"
             type="search"
@@ -134,7 +136,7 @@ export function CacheInspectorControls({
             Namespace
           </label>
           <input
-            className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2.5 text-xs text-(--text) outline-none focus:border-(--teal)"
+            className={controlClass}
             id="cache-namespace"
             maxLength={MAX_CACHE_NAMESPACE_LENGTH}
             pattern={CACHE_NAMESPACE_PATTERN_SOURCE}
@@ -153,7 +155,7 @@ export function CacheInspectorControls({
             Sort cache entries
           </label>
           <select
-            className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2.5 text-xs text-(--text) outline-none focus:border-(--teal)"
+            className={controlClass}
             id="cache-sort"
             value={sort}
             onChange={(event) =>

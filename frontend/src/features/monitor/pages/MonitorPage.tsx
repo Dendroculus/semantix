@@ -2,6 +2,7 @@ import { FieldMetrics } from "../components/FieldMetrics";
 import { QueryForm } from "../components/QueryForm";
 import { QueryLog } from "../components/QueryLog";
 import { ResponseCard } from "../components/ResponseCard";
+import { ResponseSkeleton } from "../components/ResponseSkeleton";
 import { SimilarityRadar } from "../components/similarity-radar/SimilarityRadar";
 import { useCacheControl } from "@/features/cache/hooks/useCacheControl";
 import { useMonitor } from "../hooks/useMonitor";
@@ -25,14 +26,22 @@ export function MonitorPage(): JSX.Element {
           onSubmit={submitPrompt}
         />
 
+        {queryState.status === "loading" && (
+          <div className="mt-8">
+            <ResponseSkeleton />
+          </div>
+        )}
+
         {queryState.status === "error" && (
-          <p
-            className="font-data mt-4 text-[11px] text-(--coral)"
+          <div
+            className="mt-6 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3"
             role="alert"
           >
-            QUERY FAILED /{" "}
-            {queryState.error.detail ?? "THE PROVIDER RETURNED NO DETAIL"}
-          </p>
+            <p className="ui-label text-(--coral)">Query failed</p>
+            <p className="font-data mt-1 text-[11px]/5 text-(--text-soft)">
+              {queryState.error.detail ?? "The provider returned no detail."}
+            </p>
+          </div>
         )}
 
         {queryState.status === "success" && (

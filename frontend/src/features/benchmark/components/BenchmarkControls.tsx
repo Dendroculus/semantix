@@ -23,6 +23,8 @@ export function BenchmarkControls({
   controller,
 }: Readonly<BenchmarkControlsProps>): JSX.Element {
   const { datasets, datasetsLoading, form, isRunning } = controller;
+  const controlClass =
+    "font-data mt-2 min-h-10 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs text-(--text) outline-none transition-colors hover:border-(--text-faint) focus-visible:border-(--gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div className="grid gap-5 border-y border-(--hairline) py-6 md:grid-cols-3">
@@ -30,7 +32,7 @@ export function BenchmarkControls({
         <span className="ui-label text-(--text-muted)">Dataset</span>
         <select
           aria-label="Benchmark dataset"
-          className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs"
+          className={controlClass}
           disabled={datasetsLoading || isRunning}
           value={form.datasetId}
           onChange={(event) =>
@@ -77,7 +79,7 @@ export function BenchmarkControls({
         <span className="ui-label text-(--text-muted)">Repetitions</span>
         <input
           aria-label="Benchmark repetitions"
-          className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs"
+          className={controlClass}
           disabled={isRunning}
           max="5"
           min="1"
@@ -97,7 +99,7 @@ export function BenchmarkControls({
         </span>
         <input
           aria-label="Estimated cost per provider request"
-          className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs"
+          className={controlClass}
           disabled={isRunning}
           min="0"
           step="0.001"
@@ -120,7 +122,7 @@ export function BenchmarkControls({
         </span>
         <input
           aria-label="Estimated cost per 1K tokens"
-          className="font-data mt-2 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs"
+          className={controlClass}
           disabled={isRunning}
           min="0"
           step="0.001"
@@ -141,6 +143,7 @@ export function BenchmarkControls({
         <label className="font-data flex items-center gap-2 text-xs text-(--text-soft)">
           <input
             checked={form.resetCacheBeforeRun}
+            className="size-4 accent-(--gold)"
             disabled={isRunning}
             type="checkbox"
             onChange={(event) =>
@@ -152,7 +155,7 @@ export function BenchmarkControls({
           <span>Reset isolated benchmark cache first</span>
         </label>
         <button
-          className="ui-label border border-(--gold) px-4 py-3 text-(--gold) disabled:cursor-not-allowed disabled:opacity-40"
+          className="ui-label min-h-11 border border-(--gold) bg-(--gold) px-4 py-3 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
           disabled={datasetsLoading || isRunning || datasets.length === 0}
           type="button"
           onClick={controller.reviewRun}

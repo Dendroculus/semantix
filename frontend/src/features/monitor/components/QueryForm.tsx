@@ -52,7 +52,10 @@ export function QueryForm({
         <p className="ui-label text-(--text-faint)">Max 2,000 chars</p>
       </div>
 
-      <form onSubmit={(event) => void handleSubmit(event)}>
+      <form
+        aria-busy={isLoading}
+        onSubmit={(event) => void handleSubmit(event)}
+      >
         <label className="ui-label mb-2 block text-(--text-muted)" htmlFor="prompt">
           Query text
         </label>
@@ -60,7 +63,7 @@ export function QueryForm({
         <textarea
           id="prompt"
           aria-describedby={validationError === null ? "prompt-note" : "prompt-error"}
-          className="scrollbar-thin block min-h-36 w-full resize-y border border-(--hairline) bg-(--surface) p-4  text-sm/6  text-(--text) outline-none transition-colors placeholder:text-(--text-faint) focus:border-(--gold) disabled:cursor-not-allowed disabled:opacity-55"
+          className="scrollbar-thin block min-h-36 w-full resize-y border border-(--hairline) bg-(--surface) p-4 text-sm/6 text-(--text) outline-none transition-colors placeholder:text-(--text-faint) hover:border-(--text-faint) focus-visible:border-(--gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) disabled:cursor-not-allowed disabled:opacity-55"
           disabled={isLoading}
           maxLength={2_000}
           name="prompt"
@@ -74,12 +77,18 @@ export function QueryForm({
         />
 
         <div className="font-data mt-2 flex items-start justify-between gap-4 text-[10px] text-(--text-faint)">
-          <p id="prompt-note">Focused wording makes the neighborhood easier to inspect.</p>
+          <p id="prompt-note">
+            Focused wording makes the neighborhood easier to inspect.
+          </p>
           <span className="shrink-0 tabular-nums">{prompt.length} / 2000</span>
         </div>
 
         {validationError !== null && (
-          <p className="font-data mt-3 text-[11px] text-(--coral)" id="prompt-error" role="alert">
+          <p
+            className="font-data mt-3 border-l-2 border-(--coral) pl-3 text-[11px]/5 text-(--coral)"
+            id="prompt-error"
+            role="alert"
+          >
             {validationError}
           </p>
         )}
@@ -91,7 +100,7 @@ export function QueryForm({
               {EXAMPLE_PROMPTS.map((example) => (
                 <button
                   key={example}
-                  className="text-left text-xs text-(--teal) underline decoration-[rgba(91,156,148,0.35)] underline-offset-4 transition-colors hover:text-(--text) focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-(--teal) disabled:opacity-50"
+                  className="min-h-8 text-left text-xs text-(--teal) underline decoration-[rgba(91,156,148,0.35)] underline-offset-4 transition-colors hover:text-(--text) focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-3 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
                   disabled={isLoading}
                   type="button"
                   onClick={() => setPrompt(example)}
@@ -103,11 +112,11 @@ export function QueryForm({
           </div>
 
           <button
-            className="ui-label w-full border border-(--gold) bg-(--gold) px-5 py-3 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto"
+            className="ui-label min-h-11 w-full border border-(--gold) bg-(--gold) px-5 py-3 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto"
             disabled={isLoading}
             type="submit"
           >
-            {isLoading ? "Embedding + lookup" : "Run query"}
+            {isLoading ? "Embedding + lookup\u2026" : "Run query"}
           </button>
         </div>
       </form>
