@@ -1,7 +1,7 @@
 # Load testing and runtime observability
 
-Phase 9 adds an isolated k6 workload and a process-local JSON metrics endpoint.
-Run load tests only against a local or otherwise disposable Semantix instance.
+Semantix includes isolated k6 workloads and a process-local JSON metrics
+endpoint. Run load tests only against a local or otherwise disposable instance.
 
 ## Safe test configuration
 

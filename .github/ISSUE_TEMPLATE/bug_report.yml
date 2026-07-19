@@ -1,0 +1,141 @@
+name: Bug report
+description: Report reproducible incorrect behavior in Semantix
+title: "fix: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug.
+
+        Do not include API keys, tokens, passwords, private prompts, complete
+        responses, or personal data. Security vulnerabilities must be reported
+        privately through `SECURITY.md`, not through this form.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and pull requests.
+          required: true
+        - label: I reproduced this on the latest `main` branch or latest release.
+          required: true
+        - label: This is not a private security vulnerability.
+          required: true
+        - label: I removed credentials and private data from all evidence.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Frontend
+        - Query workflow
+        - Cache inspector or cache policy
+        - Benchmarking
+        - Runtime observability
+        - Provider adapter
+        - pgvector or migration
+        - Docker or configuration
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem
+      description: Describe what is wrong and why it matters.
+      placeholder: Semantix returns...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest reliable sequence of steps.
+      placeholder: |
+        1. Configure...
+        2. Run...
+        3. Submit...
+        4. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit or version
+      placeholder: Commit SHA, branch, or release tag
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cache
+    attributes:
+      label: Cache backend
+      options:
+        - Memory
+        - pgvector
+        - Not applicable
+        - Unknown
+    validations:
+      required: true
+
+  - type: input
+    id: providers
+    attributes:
+      label: Providers
+      description: Include provider types and model names when relevant. Never include keys.
+      placeholder: "Embeddings: huggingface; Generation: ollama"
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        OS:
+        Docker Desktop / Docker Engine:
+        Python:
+        Node.js:
+        Browser:
+        Relevant Docker profiles:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or screenshots
+      description: Remove secrets, private prompts, complete responses, and personal data.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+    validations:
+      required: false

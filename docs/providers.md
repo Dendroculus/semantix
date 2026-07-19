@@ -92,7 +92,16 @@ model downloads and inference hardware requirements. Choose Ollama when local
 inference is specifically required and the machine has sufficient disk,
 memory, and compute capacity.
 
-For a backend running directly on the host:
+Install and start Ollama separately from Semantix, then pull the exact models
+you plan to configure:
+
+```bash
+ollama pull embeddinggemma
+ollama pull gemma3:4b
+ollama list
+```
+
+For a Semantix backend running directly on the host:
 
 ```env
 EMBEDDING_PROVIDER=ollama
@@ -104,31 +113,28 @@ OLLAMA_GENERATION_MODEL=gemma3:4b
 OLLAMA_EMBEDDING_DIMENSIONS=768
 ```
 
-The repository includes an optional Ollama Compose profile. Start the service
-and pull models explicitly:
-
-```bash
-docker compose --profile ollama up -d ollama
-docker compose --profile ollama exec ollama ollama pull embeddinggemma
-docker compose --profile ollama exec ollama ollama pull gemma3:4b
-```
-
-Configure container-to-container access with:
+For the Dockerized Semantix backend on Docker Desktop, configure access to the
+host Ollama service with:
 
 ```env
-OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_BASE_URL=http://host.docker.internal:11434
 ```
 
-Start the application with Ollama and the memory cache:
+Ollama may need `OLLAMA_HOST=0.0.0.0:11434` so the container can reach it.
+Do not expose that unauthenticated API to an untrusted network. On Linux,
+ensure `host.docker.internal` resolves to the host gateway or use an explicitly
+secured reachable host address.
+
+Start Semantix with the normal memory-cache command:
 
 ```bash
-docker compose --profile ollama up --build -d
+docker compose up --build -d
 ```
 
-Activate both optional profiles for Ollama with pgvector:
+Or activate pgvector independently:
 
 ```bash
-docker compose --profile pgvector --profile ollama up --build -d
+docker compose --profile pgvector up --build -d
 ```
 
 Semantix never pulls models during application startup. Model names and tags
@@ -140,23 +146,18 @@ Semantix calls the native Ollama API:
 - `POST /api/embed` for embeddings;
 - `POST /api/generate` with streaming disabled for generation.
 
-The profile remains opt-in, so normal Hugging Face, hosted-provider, and mock
-workflows do not download Ollama. Ollama models persist in
-`semantix_ollama_data` and may consume several gigabytes.
-
-To stop using Ollama, restore the provider selectors in `backend/.env`, start
-the stack without the `ollama` profile, and remove only the Ollama resources:
+Ollama models may consume several gigabytes. To stop using Ollama, restore the
+provider selectors in `backend/.env`, recreate the backend, then delete models
+through Ollama:
 
 ```bash
-docker compose --profile ollama stop ollama
-docker compose --profile ollama rm -f ollama
-docker volume rm semantix_ollama_data
-docker image rm ollama/ollama:latest
+ollama rm embeddinggemma
+ollama rm gemma3:4b
 ```
 
-Volume removal permanently deletes downloaded Ollama models but leaves
-`semantix_pgvector_data` intact. Do not use `docker compose down --volumes`
-when the PostgreSQL cache must be preserved.
+Removing models is permanent. Uninstall the host Ollama application separately
+when it is no longer needed. These actions do not modify the Semantix pgvector
+volume.
 
 ## Mock providers
 
@@ -218,7 +219,7 @@ to be running with the configured models already available.
 | Symptom | Check |
 |---|---|
 | Connection refused | Confirm `ollama serve` is running and port `11434` is reachable |
-| Docker cannot reach Ollama | With the Compose profile, use `http://ollama:11434`; for a host installation, check `host.docker.internal` and `OLLAMA_HOST` |
+| Docker cannot reach Ollama | Check `http://host.docker.internal:11434`, `OLLAMA_HOST`, and host-gateway resolution |
 | Model not found | Run `ollama list` and configure the exact installed tag, or pull the configured model |
 | Embedding dimension error | Set `OLLAMA_EMBEDDING_DIMENSIONS` to the exact model output size |
 | Request times out | Increase `PROVIDER_TIMEOUT_SECONDS` within its validated limit or use a smaller model |

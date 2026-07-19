@@ -1,0 +1,96 @@
+name: Feature request
+description: Propose a focused improvement to Semantix
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please explain the problem first, then propose the feature. Semantix
+        prioritizes observable behavior, explicit configuration, reproducible
+        evaluation, and replaceable provider/cache boundaries.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and pull requests.
+          required: true
+        - label: This request fits Semantix's semantic-cache laboratory scope.
+          required: true
+        - label: I considered whether documentation or configuration already solves the problem.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Monitor
+        - Cache Inspector
+        - Benchmark Lab
+        - Observability
+        - Provider support
+        - Cache backend
+        - API
+        - Docker or developer experience
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What limitation or user need should be addressed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the smallest useful solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other solutions or workarounds did you consider?
+    validations:
+      required: false
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence or evaluation plan
+      description: |
+        For cache, threshold, or performance features, explain how correctness
+        and impact could be measured.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Expected impact
+      options:
+        - label: Changes a public API contract
+        - label: Adds or changes environment variables
+        - label: Requires a database migration
+        - label: Changes embedding-space compatibility
+        - label: May create provider traffic or cost
+        - label: Changes Docker or deployment behavior
+        - label: Requires frontend changes
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+    validations:
+      required: false

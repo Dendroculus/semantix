@@ -1,196 +1,263 @@
-<div align="center">
-
-<p>
+<p align="center">
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white" alt="React 18">
   <img src="https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white" alt="Vite 6">
   <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" alt="Python 3.11">
-  <img src="https://img.shields.io/badge/Hugging%20Face-Inference-FFD21E?logo=huggingface&logoColor=black" alt="Hugging Face">
-  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker Compose">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11 or newer">
+  <img src="https://img.shields.io/badge/Node.js-20-5FA04E?logo=nodedotjs&logoColor=white" alt="Node.js 20">
 </p>
 
-<p>
-  <img src="https://img.shields.io/badge/Cache-Memory%20%7C%20pgvector-7C3AED" alt="Memory or pgvector cache">
+<p align="center">
+  <img src="https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL with pgvector">
+  <img src="https://img.shields.io/badge/Hugging%20Face-Default-FFD21E?logo=huggingface&logoColor=black" alt="Hugging Face default provider">
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker Compose">
   <img src="https://img.shields.io/badge/License-MIT-22C55E?logo=opensourceinitiative&logoColor=white" alt="MIT License">
-  <img src="https://img.shields.io/badge/Deployment-Local%20Docker-2563EB" alt="Local Docker deployment">
 </p>
+
+<div align="center">
 
 # 🧠 Semantix
 
-### A Docker-first semantic cache that reuses AI answers by meaning instead of exact text
+### Observe, measure, and tune semantic caching instead of treating it like a black box
+
+An observable semantic-cache laboratory for evaluating latency, provider-call
+savings, cache quality, eviction policies, and similarity thresholds across
+replaceable model and storage providers.
+
+<sub>Monitor · Cache Inspector · Benchmark Lab · Runtime Observability</sub>
 
 </div>
 
-## 🚀 Why Semantix
+---
 
-Semantix is a full-stack reference project for reducing repeated AI inference calls. It embeds each incoming query, compares it with cached vectors, and returns an existing response when the semantic similarity is high enough. Cache misses are sent to the configured generation provider and stored for later reuse. Hugging Face remains the default, while embedding and generation can be selected independently.
+## 🚀 Why Semantix?
 
-The project is intentionally designed as a **single-instance, local-first Docker application** that collaborators can run without manually matching Python and Node.js versions.
+Semantic caching can reduce repeated AI inference, but an unexplained cache hit
+is risky. A similar-looking prompt may represent a different intent, while a
+harmless paraphrase may be unnecessarily regenerated.
 
-- 🧠 **Semantic matching** — reuses answers for meaningfully similar queries
-- ⚡ **Lower inference usage** — avoids repeated generation calls on cache hits
-- 🧹 **TTL and LRU eviction** — expires old entries and limits memory growth
-- 🔌 **Replaceable service boundaries** — embedding, generation, and cache concerns stay separated
-- 🐳 **Docker-first setup** — starts the frontend and backend with one command
-- 🧪 **Typed and tested** — TypeScript, Vitest, Pytest, Ruff, and mypy are included
+Semantix makes every decision inspectable:
 
-## ⚡ Quick Start with Docker
+- 🔎 **Explainable decisions** — inspect the matched prompt, similarity score,
+  threshold, cache age, and provider-call evidence
+- ⚡ **Measured savings** — compare cache-hit and cache-miss latency
+- 🎛️ **Threshold evaluation** — measure false positives and false negatives
+  instead of guessing a safe threshold
+- 🧱 **Replaceable infrastructure** — independently select embedding,
+  generation, and cache providers
+- 🛡️ **Explicit policies** — namespaces, private requests, read/write controls,
+  TTL, LRU eviction, and embedding-space isolation
+- 🔁 **Request coalescing** — identical in-flight misses share one provider call
+- 📈 **Runtime observability** — inspect aggregate latency, cache activity,
+  provider calls, coalescing, expirations, and evictions
+- 🧪 **Safe experimentation** — use deterministic mock providers without API
+  keys, external calls, or usage charges
+
+Semantix is designed as a local-first laboratory where developers can explore
+the trade-off between **reuse, latency, provider cost, and answer quality**
+before adding semantic caching to a larger application.
+
+## 🔬 See it in action
+
+A typical Semantix flow looks like this:
+
+| Request | Decision | What Semantix shows |
+|---|---|---|
+| `What is semantic caching?` | Cache miss | Provider called, response generated, entry stored |
+| `Explain how semantic caches work.` | Possible semantic hit | Nearest prompt, similarity score, threshold, cache age, generation skipped |
+| `What is database indexing?` | Cache miss | Nearest score may be shown, but generation runs when the threshold is not met |
+
+A cache hit is never returned only because two prompts contain similar words.
+The embedding provider creates a semantic representation, the selected cache
+backend searches within the active namespace and embedding space, and the
+response is reused only when the nearest score meets the configured threshold.
+
+```text
+Prompt
+  │
+  ▼
+Normalize matching text
+  │
+  ▼
+Create embedding
+  │
+  ▼
+Search compatible cache entries
+  │
+  ├── score >= threshold ──► return cached response
+  │
+  └── score < threshold ───► call generation provider ─► store response
+```
+
+## 🎯 Workspaces
+
+| Workspace | What it helps you evaluate |
+|---|---|
+| **Monitor** | Submit prompts, inspect decision evidence, compare latency, and explore similarity traces |
+| **Cache Inspector** | Search live entries, inspect TTL and recency, delete records, and clear namespaces |
+| **Benchmark Lab** | Measure precision, recall, false hits, false misses, provider savings, and threshold trade-offs |
+| **Observability** | Track request volume, provider calls, cache activity, latency, coalescing, expirations, and evictions |
+
+For complete behavior contracts, see
+[API documentation](docs/api.md) and [Cache policies](docs/cache-policies.md).
+
+## 📊 Measured benchmark
+
+A real local Phase 4 run used the eight-query **Quick semantic safety set**,
+Hugging Face providers, typo normalization, an isolated empty cache, and a
+`0.92` threshold:
+
+| Provider calls avoided | Average cache hit | Average cache miss | Precision / Recall / F1 |
+|---:|---:|---:|---:|
+| **4 of 8 (50%)** | **330.3 ms** | **3772.7 ms** | **1.0 / 1.0 / 1.0** |
+
+The run produced **zero false positives and zero false negatives**.
+
+This is one dated local measurement from July 19, 2026—not a universal
+performance guarantee. Provider load, selected models, hardware, network
+conditions, dataset ordering, prompt normalization, and threshold configuration
+all affect results.
+
+For the run ID, complete metrics, dataset composition, and reproduction steps,
+see [Benchmarking](docs/benchmarking.md).
+
+## 💡 Use cases
+
+Semantix can be used to:
+
+- evaluate whether semantic caching is appropriate for an AI application;
+- compare similarity thresholds against controlled expected hit/miss datasets;
+- measure latency and generation-provider calls avoided;
+- inspect false-positive and false-negative cache decisions;
+- compare process-local memory storage with persistent pgvector storage;
+- test hosted model providers against local Ollama models;
+- verify request coalescing under concurrent traffic;
+- demonstrate semantic-cache architecture, policies, and observability.
+
+## 🧠 Architecture highlights
+
+- **Independent provider selection** — embedding and generation providers are
+  composed separately behind typed ports
+- **Feature-owned behavior** — query, cache, benchmark, and provider concerns
+  own their API, application, domain, and infrastructure responsibilities
+- **Compatible vector spaces** — provider, model, and dimensions isolate
+  embeddings that must never be compared
+- **Request coalescing** — concurrent identical misses share one provider call
+- **Replaceable cache backend** — start with memory or persist entries through
+  PostgreSQL and pgvector
+- **Honest telemetry** — metrics contain aggregate behavior without exposing
+  prompts, responses, provider URLs, model names, or secrets
+
+```mermaid
+flowchart LR
+    UI["React workspaces"] --> API["FastAPI feature routes"]
+    API --> Query["Query application service"]
+    Query --> Embedding["Embedding provider"]
+    Query --> Cache["Semantic cache port"]
+    Query --> Generation["Generation provider"]
+    Cache --> Memory["Memory"]
+    Cache --> Pgvector["PostgreSQL + pgvector"]
+    Query --> Metrics["Runtime metrics"]
+```
+
+For the complete runtime sequence, ownership boundaries, and project structure,
+see [Architecture](docs/architecture.md).
+
+## 🏗️ Technology stack
+
+| Layer | Technology | Responsibility |
+|---|---|---|
+| Frontend | React 18, TypeScript, Vite 6, Tailwind CSS | Feature workspaces, evidence, charts, and controls |
+| Backend | FastAPI, Pydantic, HTTPX | Validation, orchestration, errors, and rate limiting |
+| Providers | Hugging Face, OpenAI, Anthropic, Gemini, Ollama, mock | Replaceable embedding and generation |
+| Cache | NumPy memory store or PostgreSQL + pgvector | Similarity lookup, TTL, LRU, namespaces, and persistence |
+| Quality | Pytest, Vitest, Ruff, mypy, ESLint, TypeScript | Regression coverage and strict validation |
+| Runtime | Docker Compose | Reproducible local services and optional profiles |
+| Load testing | k6 | Guarded concurrency and capacity scenarios |
+
+## ⚡ Quick start
 
 ### Prerequisites
 
 Install:
 
 - [Git](https://git-scm.com/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) on Windows or macOS, or Docker Engine with Compose on Linux
-- An account and API key for the provider or providers you select
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker
+  Engine with Compose
 
-> Docker installs the runtime dependencies inside isolated images. A local Python virtual environment and local `node_modules` are not required for the Docker-only workflow.
->
-> Hugging Face is the recommended default for most users because it avoids
-> downloading and running multi-gigabyte models locally. Ollama is optional for
-> users who specifically want local inference and have enough disk, memory, and
-> compute capacity.
-
-### 1. Clone the repository
+Clone the repository and create the backend environment file:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Dendroculus/semantix.git
 cd semantix
+cp backend/.env.example backend/.env
 ```
-
-### 2. Create the backend environment file
 
 Windows PowerShell:
 
 ```powershell
+git clone https://github.com/Dendroculus/semantix.git
+Set-Location semantix
 Copy-Item backend\.env.example backend\.env
 ```
 
-macOS or Linux:
+### Option A — Zero-key local demo
 
-```bash
-cp backend/.env.example backend/.env
-```
+Mock providers require no credentials, external API access, or model downloads.
 
-Open `backend/.env` and configure the default Hugging Face providers:
+Set these values in `backend/.env`:
 
 ```env
-EMBEDDING_PROVIDER=huggingface
-GENERATION_PROVIDER=huggingface
+EMBEDDING_PROVIDER=mock
+GENERATION_PROVIDER=mock
+MOCK_EMBEDDING_DIMENSIONS=384
 
-HF_API_KEY=hf_your_inference_token
-
-HF_INFERENCE_BASE_URL=https://router.huggingface.co/hf-inference/models
-HF_CHAT_BASE_URL=https://router.huggingface.co/v1
-
-HF_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-HF_GENERATION_MODEL=Qwen/Qwen3-4B-Instruct-2507:nscale
-HF_EMBEDDING_DIMENSIONS=384
-
-PROVIDER_TIMEOUT_SECONDS=30
-GENERATION_MAX_NEW_TOKENS=512
-
-PROMPT_TYPO_CORRECTION_ENABLED=false
-PROMPT_TYPO_MAX_EDIT_DISTANCE=2
-
-SIMILARITY_THRESHOLD=0.92
-CACHE_BACKEND=memory
-MAX_CACHE_SIZE=500
-CACHE_TTL_SECONDS=3600
-
-ALLOWED_ORIGINS=["http://localhost:5173","http://localhost:4173"]
-RATE_LIMIT=20/minute
-LOG_LEVEL=INFO
-```
-
-The generation model above was used during local verification. Provider availability can change, so replace it with another supported model when Hugging Face returns `model_not_supported`.
-
-Create a Hugging Face token from **Settings → Access Tokens**. Use a dedicated fine-grained token with inference permission. Never commit the real token.
-
-### 3. Choose the cache backend and start the stack
-
-`--build` rebuilds service images; it does not activate optional Compose
-profiles.
-
-#### Memory cache
-
-Keep this in `backend/.env`:
-
-```env
 CACHE_BACKEND=memory
 ```
 
-Then start the frontend and backend:
+Start Semantix:
 
 ```bash
 docker compose up --build -d
 ```
 
-#### Persistent pgvector cache
+### Option B — Hugging Face providers
 
-Set the Docker-internal PostgreSQL hostname in `backend/.env`:
+Set a valid Hugging Face inference token and keep the configured model values:
 
 ```env
-CACHE_BACKEND=pgvector
-DATABASE_URL=postgresql://semantix:semantix@postgres:5432/semantix
+EMBEDDING_PROVIDER=huggingface
+GENERATION_PROVIDER=huggingface
+HF_API_KEY=your_token_here
+
+CACHE_BACKEND=memory
 ```
 
-Then activate the pgvector profile to build and start PostgreSQL, the backend,
-and the frontend together:
+Then start Semantix:
 
 ```bash
-docker compose --profile pgvector up --build -d
+docker compose up --build -d
 ```
 
-The `--profile pgvector` flag is required because PostgreSQL is intentionally
-optional. Compose waits for PostgreSQL to become healthy before starting the
-backend, and the backend applies database migrations before becoming ready.
+### Option C — Project-scoped Ollama
 
-Use that same command whenever bringing the persistent stack back up. Compose
-profiles are selected per command, so running `docker compose up --build -d`
-without `--profile pgvector` does not start PostgreSQL.
+Ollama can run as an optional Docker Compose service, so no global Windows
+installation is required.
 
-When backend dependencies change, `--build` normally installs them into a new
-backend image:
-
-```bash
-docker compose --profile pgvector up --build -d
-```
-
-If Docker reuses a stale dependency layer during troubleshooting, force a clean
-backend rebuild and then start the same pgvector profile:
-
-```bash
-docker compose build --no-cache backend
-docker compose --profile pgvector up -d
-```
-
-`--no-cache` controls Docker image-layer reuse; it does not activate optional
-Compose profiles. Running `docker compose down` does not delete PostgreSQL data
-unless the `--volumes` flag is also supplied.
-
-#### Optional local Ollama
-
-Ollama is not required for the normal Hugging Face setup. The optional
-`ollama` profile downloads the Ollama image, while each pulled model consumes
-additional persistent disk space. A generation model can require several
-gigabytes and may be slow without GPU acceleration.
-
-Start only Ollama first:
+Start the Ollama service:
 
 ```bash
 docker compose --profile ollama up -d ollama
 ```
 
-Pull one embedding model and one generation model. Model tags must match the
-values in `backend/.env` exactly:
+Pull the embedding and generation models:
 
 ```bash
 docker compose --profile ollama exec ollama ollama pull embeddinggemma
 docker compose --profile ollama exec ollama ollama pull gemma3:4b
+docker compose --profile ollama exec ollama ollama list
 ```
 
-Configure the backend:
+Configure `backend/.env`:
 
 ```env
 EMBEDDING_PROVIDER=ollama
@@ -201,737 +268,236 @@ OLLAMA_EMBEDDING_MODEL=embeddinggemma
 OLLAMA_GENERATION_MODEL=gemma3:4b
 OLLAMA_EMBEDDING_DIMENSIONS=768
 
-PROVIDER_TIMEOUT_SECONDS=120
+CACHE_BACKEND=memory
 ```
 
-Start Ollama with the memory cache:
+Start Semantix with the Ollama profile:
 
 ```bash
 docker compose --profile ollama up --build -d
 ```
 
-Or activate both optional services when using pgvector:
+Downloaded models remain in the `ollama_data` named volume. Semantix never
+downloads models automatically during application startup.
 
-```bash
-docker compose --profile pgvector --profile ollama up --build -d
+### Add persistent pgvector storage
+
+Configure:
+
+```env
+CACHE_BACKEND=pgvector
+DATABASE_URL=postgresql://semantix:semantix@postgres:5432/semantix
 ```
 
-To stop using Ollama, first change both provider selectors in `backend/.env`
-back to `huggingface`, then start the normal stack without the `ollama`
-profile. To permanently recover the Ollama model and image storage:
+Start the pgvector profile:
 
 ```bash
-docker compose --profile ollama stop ollama
-docker compose --profile ollama rm -f ollama
-docker volume rm semantix_ollama_data
-docker image rm ollama/ollama:latest
+docker compose --profile pgvector up --build -d
 ```
 
-Removing `semantix_ollama_data` permanently deletes downloaded Ollama models.
-It does not remove `semantix_pgvector_data`. Avoid `docker compose down
---volumes` when PostgreSQL data must be preserved.
+Use Ollama and pgvector together:
 
-### 4. Verify the containers
+```bash
+docker compose --profile ollama --profile pgvector up --build -d
+```
+
+## 🌐 Local services
+
+| Service | Address |
+|---|---|
+| Frontend | <http://localhost:4173> |
+| Backend | <http://localhost:8000> |
+| FastAPI documentation | <http://localhost:8000/docs> |
+| Health endpoint | <http://localhost:8000/health> |
+| Runtime metrics | <http://localhost:8000/api/v1/metrics> |
+| Ollama API | <http://localhost:11434> when the Ollama profile is active |
+| PostgreSQL | `localhost:5433` when the pgvector profile is active |
+
+Check running services:
 
 ```bash
 docker compose ps
 ```
 
-For the pgvector profile, include the profile when inspecting services:
+Include active profiles when inspecting optional services:
 
 ```bash
-docker compose --profile pgvector ps
+docker compose --profile ollama --profile pgvector ps
 ```
 
-Expected local services:
-
-| Service | URL |
-|---|---|
-| Frontend | http://localhost:4173 |
-| Backend | http://localhost:8000 |
-| PostgreSQL | localhost:5433 (pgvector profile only) |
-| Ollama | http://localhost:11434 (Ollama profile only) |
-| FastAPI documentation | http://localhost:8000/docs |
-| Health endpoint | http://localhost:8000/health |
-
-### 5. View logs or stop the project
+View logs:
 
 ```bash
-# Follow all logs
-docker compose logs -f
-
-# Follow one service
 docker compose logs -f backend
-docker compose logs -f frontend
+docker compose logs -f ollama
+```
 
-# Stop and remove the containers
+Stop the stack without deleting named volumes:
+
+```bash
 docker compose down
 ```
 
-## 🧪 Try the Semantic Cache
+## 🔌 Provider capabilities
 
-Submit a query through the frontend:
+Embedding and generation providers can be selected independently.
 
-```text
-What is semantic caching?
-```
+| Provider | Embeddings | Generation | Credentials required |
+|---|:---:|:---:|:---:|
+| Hugging Face | Yes | Yes | Yes |
+| OpenAI | Yes | Yes | Yes |
+| Anthropic | No | Yes | Yes |
+| Gemini | Yes | Yes | Yes |
+| Ollama | Yes | Yes | No for a local server |
+| Mock | Yes | Yes | No |
 
-Then submit a meaningfully similar query:
-
-```text
-Explain how a semantic cache works.
-```
-
-The first request should normally create a cache entry. The second may reuse it when the similarity score meets the configured threshold.
-
-Cache behavior depends on:
+Examples:
 
 ```env
-SIMILARITY_THRESHOLD=0.92
-MAX_CACHE_SIZE=500
-CACHE_TTL_SECONDS=3600
+# Hugging Face embeddings with Ollama generation
+EMBEDDING_PROVIDER=huggingface
+GENERATION_PROVIDER=ollama
 ```
 
-A higher similarity threshold makes cache matching stricter. A lower threshold increases the chance of reuse but also increases the risk of returning a response for a query that is not similar enough.
-
-Optional English typo normalization can make harmless spelling variants and
-accidental word splits produce more consistent cache embeddings. It is disabled
-by default; see [Optional prompt typo normalization](docs/prompt-typo-normalization.md)
-for its matching behavior, configuration, and limitations.
-
-### Frontend routes and session state
-
-The frontend is a client-routed React application with three focused workspaces:
-
-| Route | Workspace |
-|---|---|
-| `/` | Monitor queries, response evidence, field metrics, similarity projections, and the session query log |
-| `/cache` | Inspect, search, sort, delete, and clear live cache entries |
-| `/benchmarks` | Configure and run the isolated threshold benchmark laboratory |
-
-The shared layout owns cache statistics, the applied/preview threshold state,
-and the current monitor trace session. Those values survive navigation with
-the top navigation, browser Back, and browser Forward because route changes do
-not remount the providers. The trace log is intentionally browser-memory state:
-a full page reload starts a new trace session, while the backend cache entries
-remain available until their TTL expires or the cache/backend is cleared.
-
-Benchmark data is route-local and is only fetched when `/benchmarks` mounts.
-Deleting one cache entry refreshes shared statistics without erasing monitor
-traces. Clearing the entire cache refreshes statistics and clears the local
-trace session so the monitor does not present stale evidence.
-
-Each feature registry lazy-loads its page through the shared route factory.
-The persistent layout and navigation remain mounted while a single reusable
-workspace loader covers route chunk downloads.
-
-The Docker/Vite runtime serves `index.html` for direct client-route requests,
-so refreshing any route above works in the provided deployment. If `dist/` is
-later hosted by a different static server, configure its unknown-path fallback
-or rewrite to `index.html` so BrowserRouter can resolve deep links.
-
-### Dashboard metric definitions
-
-The dashboard starts with an empty local trace and never inserts simulated queries.
-Its current readings use these formulas:
-
-- **Frontend projected hit rate** = scored visible traces at or above the selected
-  threshold divided by all scored visible traces. Traces without a similarity
-  score are excluded from this projection and reported separately.
-- **Actual backend hit rate** = backend hits divided by backend hits plus misses,
-  counted since the selected backend's counters were last cleared.
-- **Mean latency** = total latency of visible successful traces divided by the
-  number of visible successful traces.
-- **Provider calls (visible)** = visible successful traces whose backend
-  `cache_hit` value is `false`.
-- **Cache entries** = the selected backend's current active-space cache size.
-
-The similarity threshold plot is secondary visual evidence. It plots only
-scored traces on a horizontal `0.0` through `1.0` scale; vertical position only
-prevents overlapping points and has no semantic meaning. Hovering, focusing, or
-selecting a point opens an in-chart card with its prompt, exact score, projected
-decision, and actual backend decision. Changing the preview threshold updates
-projected hit/miss colors without moving points or changing backend behavior
-until the new threshold is explicitly applied.
-
-### Query decision evidence
-
-Every successful query response reports the cache decision that was actually
-made. The dashboard shows the similarity score, the threshold used for that
-request, whether generation and the provider call ran, and the total latency.
-A cache hit also identifies the cached prompt and reports the entry's age. On a
-miss, all matched-entry fields are `null`; the nearest similarity may still be
-present when an entry existed but did not qualify.
-
-### Cache inspector
-
-The cache inspector shows the live contents of the selected cache backend
-without exposing embeddings or full cached responses. Each row includes the
-cache key, original prompt, a response preview, creation and expiration times,
-remaining TTL, per-entry hit count, last-access time, and LRU recency rank.
-Expired entries are purged by the cache backend before inspector data is
-returned.
-
-Prompt search and sorting are handled by the backend so they remain correct
-across paginated results. Available sorts are newest, oldest, most-hit, and
-nearest-expiry. Deleting one entry leaves historical aggregate hit/miss counters
-unchanged; clearing the whole cache removes every entry and resets those
-counters. The dashboard asks for confirmation before either destructive action
-and refreshes both inspector data and aggregate statistics afterward.
-
-## 🔄 Runtime Flow
-
-1. The frontend sends a query to the FastAPI backend.
-2. `EmbeddingService` requests and validates the query embedding.
-3. The embedding is normalized for cosine-similarity comparison.
-4. `CacheBackend` removes expired entries and searches for the nearest cached vector.
-5. If the best score meets `SIMILARITY_THRESHOLD`, the cached response is returned.
-6. Otherwise, the selected `GenerationProvider` requests a new completion.
-7. The query vector and generated response are stored in the selected cache backend.
-8. TTL expiry and LRU eviction keep cache growth bounded.
-
-```text
-Query
-  │
-  ▼
-Embedding service
-  │
-  ▼
-Semantic cache lookup
-  ├── Match above threshold ──► Cached response
-  │
-  └── Cache miss
-          │
-          ▼
-    Generation provider
-          │
-          ▼
-    Store response in cache
-          │
-          ▼
-      New response
+```env
+# OpenAI embeddings with Anthropic generation
+EMBEDDING_PROVIDER=openai
+GENERATION_PROVIDER=anthropic
 ```
 
-## 🧠 Architecture Highlights
+```env
+# Fully local and deterministic
+EMBEDDING_PROVIDER=mock
+GENERATION_PROVIDER=mock
+```
 
-- **Embedding boundary** — `EmbeddingService` validates provider output and produces normalized NumPy vectors.
-- **Cache boundary** — `CacheBackend` owns similarity lookup, TTL expiry, LRU eviction, inspector metadata, statistics, and invalidation.
-- **Provider ports** — application code depends only on `EmbeddingProvider` and `GenerationProvider`; provider selection is composed at startup.
-- **Provider adapters** — hosted providers and optional Ollama/mock adapters own their authentication, endpoints, payloads, parsing, retries, and provider-specific errors.
-- **Application orchestration** — `QueryService` coordinates semantic lookup, generation, insertion, timing, and decision evidence while the route only translates HTTP.
-- **Request coalescing** — identical in-flight queries share one lookup, provider call, and cache write instead of creating a provider stampede.
-- **Typed API contract** — Pydantic schemas and TypeScript API types keep frontend/backend payloads explicit.
-- **Replaceable cache adapters** — memory remains the zero-configuration
-  default, while PostgreSQL + pgvector adds persistence through the same port.
-- **Embedding-space isolation** — persistent rows are partitioned by provider,
-  model, and dimensions so incompatible vectors are never compared.
+Only settings required by the selected capabilities are validated. See
+[Providers](docs/providers.md) for configuration, model compatibility, Docker
+networking, security considerations, and smoke tests.
 
-### Request coalescing
+## 📨 Query API example
 
-`QueryService` indexes active query resolutions by a deterministic key covering
-the namespace, prompt, and effective read/write policy. The first caller
-performs the semantic lookup and any needed generation; simultaneous callers
-with the same identity await that task.
-The registry lock is held only while reading, registering, or removing the
-in-flight task, never during embedding, cache access, or provider I/O.
-Completion and failure both remove the task, so later requests can use the
-cache or retry normally.
+Submit a query:
 
-### Namespace isolation and cache policies
+```bash
+curl --request POST \
+  --url http://localhost:8000/api/v1/query \
+  --header "Content-Type: application/json" \
+  --data '{
+    "prompt": "Explain semantic caching",
+    "namespace": "default",
+    "cache_enabled": true,
+    "cache_read_enabled": true,
+    "cache_write_enabled": true,
+    "private": false
+  }'
+```
 
-Every cache entry and cache key belongs to one validated namespace. Requests
-that omit it use the safe `default` namespace, and vector lookup never compares
-entries from another namespace. Namespace values are 1–64 characters and may
-contain letters, numbers, `.`, `_`, `:`, and `-`.
+A response includes the generated or cached answer together with evidence such
+as:
 
-Query callers may disable all caching, bypass only reads, or bypass only
-writes. Private prompts bypass both reads and writes. Empty provider responses
-and provider failures are never stored. Semantix does not attempt automatic
-secret detection; callers must explicitly mark private prompts.
+```json
+{
+  "response": "A semantic cache stores reusable AI responses...",
+  "cache_hit": false,
+  "similarity_score": null,
+  "similarity_threshold": 0.92,
+  "matched_prompt": null,
+  "generation_skipped": false,
+  "provider_called": true,
+  "latency_ms": 1240.6
+}
+```
 
-## 🏗️ Project Structure
+On an eligible hit, Semantix reports the matched prompt, score, cache age, and
+that generation was skipped.
+
+See [API documentation](docs/api.md) for all endpoints and stable response
+contracts.
+
+## 📁 Project structure
 
 ```text
 semantix/
-├── docker-compose.yml
 ├── backend/
 │   ├── app/
-│   │   ├── api/                        # Shared HTTP composition and schemas
-│   │   ├── benchmark/                  # Route, datasets, metrics, schemas, runner
-│   │   ├── cache/                      # Route, models, service, storage backends
-│   │   ├── embedding/                  # Embedding validation service
-│   │   ├── providers/                  # Ports, adapters, transport, composition
-│   │   ├── query/                      # Route, schemas, query orchestration
-│   │   ├── core/                       # Settings, errors, limits, logging
-│   │   ├── middleware/
-│   │   └── main.py
+│   ├── scripts/
 │   └── tests/
-│       ├── benchmark/
-│       ├── cache/
-│       ├── embedding/
-│       ├── providers/                  # Adapter tests mirror adapter ownership
-│       └── query/
-└── frontend/
-    ├── src/
-    │   ├── app/                         # Layout, navigation, providers, router
-    │   ├── features/
-    │   │   ├── monitor/                 # Live query workflow and radar
-    │   │   ├── cache/                   # Cache inspection and controls
-    │   │   └── benchmark/               # Controlled evaluation laboratory
-    │   ├── shared/                      # HTTP, validation, config, markdown
-    │   ├── App.tsx
-    │   └── main.tsx
-    └── tests/
-        ├── app/
-        └── features/                    # Tests mirror feature ownership
+├── frontend/
+│   ├── src/
+│   └── tests/
+├── docs/
+├── load-tests/k6/
+├── docker-compose.yml
+└── README.md
 ```
 
-Frontend features own their pages, route registries, API adapters, state,
-components, and types. `app/router/routes.ts` only composes those registries,
-and every page is lazy-loaded behind the shared route loader. Backend domains
-likewise own their routers, models, schemas, protocols, and services. The
-shared API package only composes feature routers and cross-feature
-dependencies.
-
-## 🏗️ Technology Stack
-
-| Layer | Technology | Responsibility |
-|---|---|---|
-| Frontend | React 18, TypeScript, Vite 6 | Query UI, response state, cache statistics, API calls |
-| Backend | FastAPI, Pydantic, HTTPX | Validation, orchestration, errors, rate limiting |
-| Embeddings | Hugging Face, OpenAI, Gemini, Ollama, or mock | Converts queries into semantic vectors |
-| Generation | Hugging Face, OpenAI, Anthropic, Gemini, Ollama, or mock | Generates responses on cache misses |
-| Cache | NumPy memory store or PostgreSQL + pgvector | Cosine similarity, TTL expiry, LRU eviction, optional persistence |
-| Testing | Vitest, Testing Library, Pytest | Frontend hooks, backend services, API routes |
-| Quality | ESLint, TypeScript, Ruff, mypy | Linting, formatting, and static analysis |
-| Runtime | Docker Compose | Reproducible local frontend/backend environment |
-
-## 🔌 API Endpoints
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `POST` | `/api/v1/query` | Submit a query and receive a cached or generated response |
-| `GET` | `/api/v1/cache/stats` | Read global or per-namespace cache statistics |
-| `GET` | `/api/v1/cache/threshold` | Read the active similarity threshold |
-| `PUT` | `/api/v1/cache/threshold` | Update the active similarity threshold |
-| `GET` | `/api/v1/cache/entries` | Filter, search, sort, and paginate safe cache-entry metadata |
-| `GET` | `/api/v1/cache/entries/{cache_key}` | Read one cache entry's safe metadata |
-| `DELETE` | `/api/v1/cache/entries/{cache_key}` | Delete one cache entry |
-| `DELETE` | `/api/v1/cache` | Clear all entries or one namespace |
-| `GET` | `/api/v1/benchmarks/datasets` | List controlled datasets and expected classifications |
-| `POST` | `/api/v1/benchmarks/run` | Run an isolated benchmark with metrics and per-query evidence |
-| `GET` | `/health` | Check whether the backend is healthy |
-| `GET` | `/docs` | Open interactive FastAPI documentation |
-
-`POST /api/v1/query` accepts:
-
-```json
-{
-  "prompt": "Explain semantic caching",
-  "namespace": "default",
-  "cache_enabled": true,
-  "cache_read_enabled": true,
-  "cache_write_enabled": true,
-  "private": false
-}
-```
-
-Only `prompt` is required. `cache_enabled=false` overrides both granular flags;
-`private=true` also disables reads and writes. Disabling reads while leaving
-writes enabled refreshes the entry from the provider. Disabling writes still
-allows an existing cached response to be read.
-
-Successful responses use this additive explainability contract:
-
-```json
-{
-  "response": "A previously generated answer",
-  "cache_hit": true,
-  "similarity_score": 0.967,
-  "similarity_threshold": 0.92,
-  "matched_prompt": "What is semantic caching?",
-  "matched_cache_key": "29769c1b33db361734e377b6e20368cd58ab3d7d048545073402ad830a0513ab",
-  "cache_entry_created_at": "2026-07-17T10:00:00Z",
-  "cache_entry_age_seconds": 18.4,
-  "generation_skipped": true,
-  "provider_called": false,
-  "latency_ms": 7.2
-}
-```
-
-For a cache miss, `matched_prompt`, `matched_cache_key`,
-`cache_entry_created_at`, and `cache_entry_age_seconds` are all `null`;
-the request that leads generation reports `generation_skipped` as `false` and
-`provider_called` as `true`. A coalesced waiter remains a cache miss but reports
-`generation_skipped` as `true` and `provider_called` as `false`, because it
-awaited the leader's result. Embeddings are internal cache data and are never
-included in this response.
-
-`GET /api/v1/cache/entries` accepts:
-
-- `namespace`: optional exact namespace filter; omitted means all namespaces
-- `search`: optional case-insensitive prompt fragment
-- `sort`: `newest`, `oldest`, `most_hit`, or `nearest_expiry`
-- `offset`: zero-based result offset
-- `limit`: page size from 1 through 100
-
-Its response contains `items`, `total`, `offset`, `limit`, and `has_more`.
-Each inspector item identifies its `namespace` and intentionally contains only
-a truncated `response_preview`; neither full responses nor embeddings are
-returned. `GET /api/v1/cache/stats?namespace=...` reports counters for one
-namespace, while the endpoint without the parameter reports global totals.
-Likewise, `DELETE /api/v1/cache?namespace=...` clears one namespace; omitting
-the parameter clears all entries and counters. An expired or unknown key
-returns the stable `cache_entry_not_found` error.
-
-### Controlled benchmark
-
-The benchmark laboratory uses a cache isolated from the interactive query
-cache. Its built-in `quick` dataset covers exact duplicates, paraphrases,
-unrelated queries, typographical variations, negation, and similar wording
-with different intent. The `extended` dataset adds more boundary cases. Every
-ordered query has an explicit expected `HIT` or `MISS` classification.
-
-Before a run, the frontend shows the query count and expected external
-generation calls and requires explicit confirmation. Inputs include the
-dataset, threshold, repetition count, cache-reset behavior, estimated USD cost
-per provider request, and estimated USD cost per 1,000 tokens. When reset is
-enabled, each dataset repetition starts with an empty isolated cache.
-
-`POST /api/v1/benchmarks/run` also requires
-`"allow_external_provider_calls": true`; omitting that acknowledgement is a
-validation error. Results include hits/misses, provider calls and calls
-avoided, hit rate, average/median/P95 latency, average hit/miss latency, false
-positives/negatives, precision, recall, F1, and per-query evidence.
-
-The dashboard exports the full result as JSON or the per-query evidence as
-CSV. Threshold charts reclassify measured nearest-match scores without making
-extra provider calls. Projected threshold latency uses the run's measured
-average hit and miss latency. Estimated latency savings, provider cost
-savings, and token counts are not billing records; token estimates use a
-simple character-based approximation.
-
-All application errors use a stable JSON structure containing `error` and `detail`.
-
-## ⚙️ Environment Variables
-
-### Backend
-
-| Variable | Required | Description |
-|---|---:|---|
-| `EMBEDDING_PROVIDER` | No | `huggingface` (default), `openai`, `gemini`, `ollama`, or `mock` |
-| `GENERATION_PROVIDER` | No | `huggingface` (default), `openai`, `anthropic`, `gemini`, `ollama`, or `mock` |
-| `HF_API_KEY` | When Hugging Face is selected | Hugging Face inference token |
-| `HF_INFERENCE_BASE_URL` | For Hugging Face embeddings | Feature-extraction endpoint prefix |
-| `HF_CHAT_BASE_URL` | For Hugging Face generation | OpenAI-compatible chat endpoint prefix |
-| `HF_EMBEDDING_MODEL` | For Hugging Face embeddings | Model used to generate query vectors |
-| `HF_GENERATION_MODEL` | For Hugging Face generation | Chat model and optional provider suffix |
-| `HF_EMBEDDING_DIMENSIONS` | For Hugging Face embeddings | Exact vector size returned by the model |
-| `OPENAI_API_KEY` | When OpenAI is selected | OpenAI API key |
-| `OPENAI_BASE_URL` | When OpenAI is selected | OpenAI API root |
-| `OPENAI_EMBEDDING_MODEL` | For OpenAI embeddings | Embedding model name |
-| `OPENAI_GENERATION_MODEL` | For OpenAI generation | Chat-completion model name |
-| `OPENAI_EMBEDDING_DIMENSIONS` | For OpenAI embeddings | Requested and validated vector size |
-| `ANTHROPIC_API_KEY` | For Anthropic generation | Anthropic API key |
-| `ANTHROPIC_BASE_URL` | For Anthropic generation | Anthropic API root |
-| `ANTHROPIC_GENERATION_MODEL` | For Anthropic generation | Claude model name |
-| `GEMINI_API_KEY` | When Gemini is selected | Gemini API key |
-| `GEMINI_BASE_URL` | When Gemini is selected | Gemini API root |
-| `GEMINI_EMBEDDING_MODEL` | For Gemini embeddings | Embedding model name |
-| `GEMINI_GENERATION_MODEL` | For Gemini generation | Generation model name |
-| `GEMINI_EMBEDDING_DIMENSIONS` | For Gemini embeddings | Requested and validated vector size |
-| `OLLAMA_BASE_URL` | When Ollama is selected | Ollama API origin; use `http://ollama:11434` for the Compose service |
-| `OLLAMA_EMBEDDING_MODEL` | For Ollama embeddings | Exact installed embedding model name |
-| `OLLAMA_GENERATION_MODEL` | For Ollama generation | Exact installed generation model name and tag |
-| `OLLAMA_EMBEDDING_DIMENSIONS` | For Ollama embeddings | Exact vector size returned by the model |
-| `MOCK_EMBEDDING_DIMENSIONS` | For mock embeddings | Deterministic mock vector size |
-| `PROVIDER_TIMEOUT_SECONDS` | No | External request timeout |
-| `GENERATION_MAX_NEW_TOKENS` | No | Maximum generated response length |
-| `SIMILARITY_THRESHOLD` | No | Minimum cosine similarity required for a hit |
-| `CACHE_BACKEND` | No | `memory` (default) or `pgvector` |
-| `MAX_CACHE_SIZE` | No | Maximum entries in the active embedding space |
-| `CACHE_TTL_SECONDS` | No | Entry lifetime in seconds |
-| `DATABASE_URL` | For pgvector | PostgreSQL connection URL |
-| `DATABASE_POOL_MIN_SIZE` | No | Minimum pgvector connection-pool size |
-| `DATABASE_POOL_MAX_SIZE` | No | Maximum pgvector connection-pool size |
-| `DATABASE_CONNECT_TIMEOUT_SECONDS` | No | PostgreSQL connect and command timeout |
-| `ALLOWED_ORIGINS` | No | Browser origins allowed by CORS |
-| `RATE_LIMIT` | No | Per-client request limit |
-| `LOG_LEVEL` | No | Application log level |
-
-Only the credentials and model settings used by the selected capabilities are
-required. The selectors are independent, so this is valid:
-
-```env
-EMBEDDING_PROVIDER=openai
-GENERATION_PROVIDER=anthropic
-
-OPENAI_API_KEY=...
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-OPENAI_EMBEDDING_DIMENSIONS=1536
-
-ANTHROPIC_API_KEY=...
-ANTHROPIC_GENERATION_MODEL=...
-```
-
-| Provider | Embeddings | Generation |
-|---|:---:|:---:|
-| Hugging Face | Yes | Yes |
-| OpenAI | Yes | Yes |
-| Anthropic | No | Yes |
-| Gemini | Yes | Yes |
-| Ollama | Yes | Yes |
-| Mock | Yes | Yes |
-
-Selecting Anthropic for embeddings fails during settings validation. Hosted
-provider base URLs remain HTTPS-only; Ollama narrowly allows validated local
-HTTP origins. Selected embedding dimensions must be greater than zero.
-
-See [`docs/providers.md`](docs/providers.md) for provider-specific
-configuration, Ollama Docker networking, mock providers, smoke tests, security
-considerations, and the complete capability matrix.
-
-Existing Hugging Face setups remain the default and do not need to add provider
-selectors. `HF_EMBEDDING_DIMENSIONS` defaults to `384` for the existing
-`all-MiniLM-L6-v2` model. `HF_TIMEOUT_SECONDS` has been renamed to
-`PROVIDER_TIMEOUT_SECONDS`; update that variable if you previously overrode the
-30-second default. Hugging Face is generally the easier starting point because
-it does not require local model downloads or inference hardware; choose Ollama
-when local execution is worth its additional storage and compute requirements.
-
-Changing an embedding provider, model, or dimension makes existing vectors
-incompatible. The memory backend resets with the process. The optional
-pgvector backend partitions rows by provider, model, and dimensions so
-incompatible vectors are never compared. See
-[`docs/pgvector.md`](docs/pgvector.md) for Docker setup, automatic migrations,
-integration tests, and cleanup behavior.
-
-To make one real provider call after configuring `backend/.env`:
-
-```powershell
-cd backend
-python scripts/smoke_provider.py embedding "Explain semantic caching"
-python scripts/smoke_provider.py generation "Explain semantic caching"
-```
-
-### Frontend
-
-For local development, create the frontend environment file:
-
-Windows PowerShell:
-
-```powershell
-Copy-Item frontend\.env.example frontend\.env
-```
-
-macOS or Linux:
-
-```bash
-cp frontend/.env.example frontend/.env
-```
-
-```env
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-> Every `VITE_*` value is embedded into the browser bundle and is publicly visible. Never place API tokens or provider secrets in frontend environment variables.
-
-Docker Compose passes `VITE_API_BASE_URL` as a frontend build argument, so `frontend/.env` is only required for the non-Docker development workflow.
-
-## 💻 Local Development Without Docker
-
-Use this workflow for IDE integration, hot reload, local linting, and tests.
-
-### Backend
-
-The Docker image uses Python 3.11. Using Python 3.11 locally gives the closest environment match.
-
-Windows PowerShell:
-
-```powershell
-cd backend
-
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
-
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-macOS or Linux:
-
-```bash
-cd backend
-
-python3 -m venv .venv
-source .venv/bin/activate
-
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
-
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Frontend
-
-Open another terminal:
-
-```bash
-cd frontend
-npm ci
-npm run dev
-```
-
-The local Vite development server is available at:
-
-```text
-http://localhost:5173
-```
-
-## 🧪 Testing and Quality
-
-### Backend
-
-```bash
-cd backend
-
-ruff check .
-ruff format --check .
-mypy app tests
-pytest
-```
-
-Apply Ruff fixes and formatting:
-
-```bash
-ruff check . --fix
-ruff format .
-```
-
-### Frontend
-
-```bash
-cd frontend
-
-npm run lint
-npm run typecheck
-npm test
-npm run build
-```
-
-Normal tests use `httpx.MockTransport`; test runs must not consume external provider credits.
-
-## 🧯 Troubleshooting
-
-| Problem | What to check |
+The backend and frontend use feature-first ownership. Tests mirror production
+feature boundaries. Concrete provider and storage behavior remains behind
+application-facing protocols.
+
+## ⚠️ Important limitations
+
+- Semantix is a local-first laboratory, not a production-ready multi-tenant
+  gateway.
+- Cache-management endpoints are intentionally unauthenticated.
+- Rate limiting, runtime metrics, and in-flight coalescing are process-local.
+- Semantic similarity is probabilistic; every model and dataset needs
+  threshold evaluation.
+- Hosted providers may receive prompts and add latency, usage cost, and data
+  handling considerations.
+- Ollama keeps inference local but its API must not be exposed to an untrusted
+  network.
+- Benchmark savings and token estimates are evaluation aids, not billing
+  records or service-level guarantees.
+- Changing the embedding provider, model, or dimensions creates an incompatible
+  vector space.
+- Mock providers are intended for tests, demonstrations, and UI development;
+  they do not produce production-quality answers or semantic embeddings.
+
+Review [Provider trade-offs](docs/providers.md),
+[Cache policies](docs/cache-policies.md), and
+[Architecture limitations](docs/architecture.md) before adapting Semantix for a
+shared or public deployment.
+
+## 📚 Documentation
+
+| Guide | Details |
 |---|---|
-| `docker` is not recognized | Install and start Docker Desktop or Docker Engine |
-| Docker daemon is unavailable | Wait for Docker Engine to report running, then retry |
-| Frontend cannot be reached | `docker compose ps` should show `4173->4173/tcp` |
-| `VITE_API_BASE_URL must be configured` | Rebuild the frontend image because Vite variables are embedded at build time |
-| Frontend uses an old API URL | Run `docker compose build frontend --no-cache`, then recreate the container |
-| Frontend cannot resolve a newly added package after rebuilding | Run `docker compose up -d --force-recreate --renew-anon-volumes frontend` to refresh the mounted dependency volume |
-| Backend rejects browser requests | Ensure `ALLOWED_ORIGINS` contains the active frontend URL |
-| Hugging Face reports `model_not_supported` | Choose a model/provider currently enabled for the account |
-| Hugging Face returns an authentication error | Verify the token has inference permission and was copied without quotes or spaces |
-| Ollama returns `model not found` | Run `ollama list` in the Ollama container and use the exact model tag, such as `gemma3:4b` |
-| First Ollama request is slow | Model loading and CPU inference can take time; monitor `docker stats`, use a smaller model, or increase `PROVIDER_TIMEOUT_SECONDS` up to 120 |
-| Ollama consumes too much disk | Remove its container, `semantix_ollama_data` volume, and `ollama/ollama` image using the optional Ollama cleanup instructions |
-| Similar queries miss the cache | Review the embedding model and lower the similarity threshold carefully |
-| Unrelated queries hit the cache | Increase the similarity threshold |
-| Cache disappears after restart | `CACHE_BACKEND=memory` is process-local; select `pgvector` for persistence |
-| pgvector backend does not start | Verify `DATABASE_URL`, database health, schema/extension permissions, and the backend startup log |
+| [Getting started](docs/getting-started.md) | Docker, environment files, local setup, and troubleshooting |
+| [Architecture](docs/architecture.md) | Runtime flow, feature ownership, boundaries, and structure |
+| [API](docs/api.md) | Endpoints, query policies, response evidence, and metrics |
+| [Benchmarking](docs/benchmarking.md) | Datasets, safeguards, metrics, exports, and measured results |
+| [Cache policies](docs/cache-policies.md) | Thresholds, TTL/LRU, namespaces, privacy, and coalescing |
+| [Providers](docs/providers.md) | Capability matrix, hosted providers, Ollama, mocks, and smoke tests |
+| [pgvector](docs/pgvector.md) | Persistent storage, migrations, verification, and integration tests |
+| [Prompt normalization](docs/prompt-typo-normalization.md) | Optional typo correction and limitations |
+| [Load testing](docs/load-testing.md) | Guarded k6 scenarios and metric interpretation |
+| [Development](docs/development.md) | Toolchains, tests, quality checks, and contributions |
 
-Useful commands:
+## 🤝 Contributors
 
-```bash
-docker compose ps
-docker compose logs --tail 100
-docker compose logs -f backend
-docker compose logs -f frontend
-docker system df
-```
-
-After dependency, Dockerfile, or frontend build-variable changes:
-
-```bash
-docker compose down
-docker compose up --build -d
-```
-
-For a completely clean rebuild:
-
-```bash
-docker compose down --remove-orphans
-docker compose build --no-cache
-docker compose up -d
-```
-
-## 🛡️ Reliability and Security
-
-- Provider secrets are loaded only by the backend.
-- Frontend `VITE_*` values contain public configuration only.
-- `.env` files, virtual environments, dependencies, caches, and build output are excluded from Docker build contexts.
-- External provider calls use explicit timeouts and retry handling.
-- Embeddings are validated before entering the cache.
-- Cache size and entry lifetime are bounded.
-- Prompts and generated responses are not written to INFO logs.
-- Provider stack traces are not returned to clients.
-- Public API routes are rate-limited per client IP.
-- CORS does not allow wildcard origins.
-- `DELETE /api/v1/cache` has no authentication because this project is intended for local use.
-
-Add authentication and distributed coordination for rate limits and in-flight
-request coalescing before exposing cache management or running multiple backend
-instances publicly.
-
-## 🤝 Contributing
-
-1. Create a focused branch:
-
-   ```bash
-   git switch -c feat/short-description
-   ```
-
-2. Keep provider logic behind the existing service boundaries.
-3. Add or update tests for changed cache, provider, route, or frontend behavior.
-4. Run the backend and frontend quality checks.
-5. Verify the Docker build:
-
-   ```bash
-   docker compose build
-   ```
-
-6. Open a pull request that explains the behavior change, testing performed, and any environment-variable updates.
-
-## 📜 License
-
-Licensed under the MIT License. See [LICENSE](./LICENSE).
-
-## 🙏 Acknowledgements
-
-- [Hugging Face](https://huggingface.co/), [OpenAI](https://openai.com/), [Anthropic](https://www.anthropic.com/), and [Google Gemini](https://ai.google.dev/) for hosted AI inference
-- [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
-- [React](https://react.dev/) and [Vite](https://vite.dev/) for the frontend toolchain
-- [Docker](https://www.docker.com/) for reproducible local environments
-
-## 👤 Author
+Made with ❤️ by the Semantix team:
 
 <table>
   <tr>
     <td align="center" width="180">
       <a href="https://github.com/Dendroculus">
-        <img src="https://github.com/Dendroculus.png?size=96" width="96" alt="Hans avatar" style="border-radius: 50%;"><br/>
-        <b>Hans</b><br/>
-      </a>
+        <img src="https://github.com/Dendroculus.png?size=96" width="96" alt="Hans avatar"><br>
+        <b>Hans</b>
+      </a><br>
+      <sub><b>Contributor</b></sub>
     </td>
     <td align="center" width="180">
       <a href="https://github.com/Kasanee-Teto">
-        <img src="https://github.com/Kasanee-Teto.png?size=96" width="96" alt="Louis avatar" style="border-radius: 50%;"><br/>
-        <b>Louis</b><br/>
-      </a>
+        <img src="https://github.com/Kasanee-Teto.png?size=96" width="96" alt="Louis avatar"><br>
+        <b>Louis</b>
+      </a><br>
+      <sub><b>Contributor</b></sub>
     </td>
   </tr>
 </table>
+
+## 📜 License
+
+Licensed under the [MIT License](LICENSE).

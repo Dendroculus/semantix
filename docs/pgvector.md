@@ -119,7 +119,8 @@ the application lifespan becomes ready. If `DATABASE_URL` is missing, invalid,
 or unreachable, or a migration fails, the backend does not start.
 
 Applied versions are recorded in `semantix.schema_migrations`. Migration SQL is
-stored with the cache feature under `app/cache/migrations`.
+stored with the cache feature under
+`app/cache/infrastructure/migrations`.
 
 ## Storage behavior
 

@@ -1,0 +1,133 @@
+# Cache policies
+
+Semantix exposes cache behavior explicitly so callers can evaluate reuse,
+privacy, lifetime, isolation, and threshold trade-offs.
+
+## Semantic lookup
+
+For a cache-enabled read:
+
+1. the configured normalizer prepares matching text;
+2. the embedding provider creates a vector;
+3. `EmbeddingService` validates dimensions and finite values, then normalizes
+   the vector;
+4. the selected backend removes expired entries;
+5. the backend searches compatible vectors in the request namespace;
+6. the nearest response is returned only when its cosine similarity meets the
+   active threshold.
+
+The generation provider receives the original prompt only on a miss. The
+original prompt is stored and displayed even when optional typo normalization
+changes the matching text.
+
+## Similarity threshold
+
+`SIMILARITY_THRESHOLD` sets the startup value between `0` and `1`. The active
+threshold can be previewed in the Monitor workspace and applied through the
+cache threshold API.
+
+- Higher thresholds reduce reuse and generally lower false-positive risk.
+- Lower thresholds increase reuse and generally raise false-positive risk.
+
+No universal value is safe for every model or dataset. Use the controlled
+[Benchmark](benchmarking.md) workspace before changing a threshold for a new
+embedding model or workload.
+
+The similarity trace places scored queries on a `0.0` to `1.0` horizontal
+scale. Vertical position only separates overlapping points. Previewing a
+threshold changes projected colors; it does not change backend decisions until
+applied.
+
+## TTL and LRU
+
+`CACHE_TTL_SECONDS` controls entry lifetime. Expired entries are removed before
+cache operations and inspector results.
+
+`MAX_CACHE_SIZE` bounds entries in the active embedding space. When insertion
+would exceed that limit, the least recently used entry is evicted. Reads update
+hit count and recency.
+
+The memory backend resets all entries and counters when its process restarts.
+The pgvector backend persists entries, counters, hit counts, and access times.
+See [pgvector](pgvector.md).
+
+## Namespaces
+
+Every entry and cache key belongs to one namespace. Requests without an
+explicit namespace use `default`. Lookup never compares entries across
+namespaces.
+
+Namespace values:
+
+- contain 1 through 64 characters;
+- allow letters, numbers, `.`, `_`, `:`, and `-`.
+
+Statistics and clearing can target one namespace. Capacity remains global to
+the active embedding space, so heavy writes in one namespace can evict an LRU
+entry from another namespace.
+
+## Read, write, and private policies
+
+Query requests support:
+
+| Input | Effect |
+|---|---|
+| `cache_enabled=false` | Disable both reads and writes |
+| `cache_read_enabled=false` | Skip lookup |
+| `cache_write_enabled=false` | Do not store generated output |
+| `private=true` | Disable reads and writes |
+
+`cache_enabled=false` overrides the granular flags. `private=true` also forces
+both operations off. Semantix does not attempt automatic secret detection;
+callers must mark sensitive prompts private.
+
+Useful combinations:
+
+- read disabled, write enabled: force provider generation and refresh storage;
+- read enabled, write disabled: reuse an existing answer without storing a new
+  one;
+- both disabled: bypass the semantic cache entirely.
+
+Provider failures and empty provider responses are never cached.
+
+## Request coalescing
+
+Concurrent requests with the same namespace, prompt, and effective cache
+policy share one in-flight resolution. A leader performs lookup, generation,
+and storage; followers await it.
+
+The in-flight registry lock protects only task registration and removal. It is
+not held during embedding, cache, or provider I/O. Success and failure both
+remove the task so later requests can use the cache or retry.
+
+Coalescing is process-local. Multiple backend replicas require an external
+coordination design if duplicate provider calls across replicas must also be
+prevented.
+
+## Embedding compatibility
+
+Provider, model, and dimensions define an embedding space. Vectors from
+different spaces must never be compared.
+
+- Memory storage naturally starts a new space after restart.
+- Pgvector partitions stored rows by embedding provider, model, and dimensions.
+
+Changing prompt normalization also changes matching behavior. Clear active
+cache entries when enabling, disabling, or changing typo correction so stored
+and incoming embeddings use one policy. See
+[Prompt typo normalization](prompt-typo-normalization.md).
+
+## Inspector and aggregate counters
+
+The Cache workspace exposes safe metadata:
+
+- namespace and cache key;
+- original prompt and truncated response preview;
+- creation and expiry;
+- remaining TTL;
+- entry hits and last access;
+- LRU recency rank.
+
+Deleting one entry does not rewrite historical aggregate hit/miss counters.
+Clearing the cache removes entries and resets those counters. Embeddings and
+full responses are not returned by inspector endpoints.
