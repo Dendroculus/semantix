@@ -4,12 +4,12 @@ from urllib.parse import quote
 import httpx
 
 from app.core.exceptions import InvalidProviderResponseError
-from app.providers.transport import (
+from app.providers.shared.transport import (
     RetryFactory,
     create_retry_factory,
     post_json,
 )
-from app.providers.vectors import parse_vector
+from app.providers.shared.vectors import parse_vector
 
 RETRY_ATTEMPTS = 3
 RETRY_MULTIPLIER_SECONDS = 0.5

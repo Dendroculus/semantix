@@ -12,7 +12,7 @@ from app.providers.configuration import (
     selected_embedding_space,
     validate_provider_configuration,
 )
-from app.providers.urls import (
+from app.providers.shared.urls import (
     normalize_hosted_provider_url,
     normalize_ollama_url,
 )

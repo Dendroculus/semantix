@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { label: "Monitor", to: "/" },
   { label: "Cache", to: "/cache" },
   { label: "Benchmarks", to: "/benchmarks" },
+  { label: "Observability", to: "/observability" },
 ];
 
 function navClass(isActive: boolean): string {

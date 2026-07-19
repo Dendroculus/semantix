@@ -2,13 +2,14 @@ from typing import cast
 
 from fastapi import Request
 
-from app.benchmark.service import BenchmarkService
-from app.cache.service import SemanticCache
+from app.benchmark.application.service import BenchmarkService
+from app.cache.application.service import SemanticCache
+from app.observability.metrics import RuntimeMetrics
 from app.providers.protocols import (
     EmbeddingProvider,
     GenerationProvider,
 )
-from app.query.service import QueryService
+from app.query.application.service import QueryService
 
 
 def get_benchmark_service(request: Request) -> BenchmarkService:
@@ -29,6 +30,13 @@ def get_query_service(request: Request) -> QueryService:
     return cast(
         QueryService,
         request.app.state.query_service,
+    )
+
+
+def get_runtime_metrics(request: Request) -> RuntimeMetrics:
+    return cast(
+        RuntimeMetrics,
+        request.app.state.runtime_metrics,
     )
 
 

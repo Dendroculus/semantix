@@ -1,0 +1,1 @@
+"""Benchmark application tests."""

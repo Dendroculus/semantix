@@ -1,7 +1,7 @@
 import httpx
 
 from app.core.exceptions import InvalidProviderResponseError
-from app.providers.transport import (
+from app.providers.shared.transport import (
     RetryFactory,
     create_retry_factory,
     post_json,

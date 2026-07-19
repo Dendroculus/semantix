@@ -4,14 +4,15 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
-from app.benchmark.service import BenchmarkService
-from app.cache.factory import cache_backend_lifespan
-from app.cache.service import SemanticCache
+from app.benchmark.application.service import BenchmarkService
+from app.cache.application.service import SemanticCache
+from app.cache.infrastructure.factory import cache_backend_lifespan
 from app.core.config import Settings
 from app.embedding.service import EmbeddingService
+from app.observability.metrics import RuntimeMetrics
 from app.providers.factory import create_provider_bundle
-from app.query.normalization import create_prompt_normalizer
-from app.query.service import QueryService
+from app.query.application.service import QueryService
+from app.query.domain.normalization import create_prompt_normalizer
 
 Lifespan = Callable[
     [FastAPI],
@@ -28,6 +29,7 @@ def create_lifespan(settings: Settings) -> Lifespan:
             enabled=settings.prompt_typo_correction_enabled,
             max_edit_distance=settings.prompt_typo_max_edit_distance,
         )
+        runtime_metrics = RuntimeMetrics()
         timeout = httpx.Timeout(
             settings.provider_timeout_seconds,
         )
@@ -45,19 +47,23 @@ def create_lifespan(settings: Settings) -> Lifespan:
             async with cache_backend_lifespan(
                 settings,
                 dimensions=providers.embedding_dimensions,
+                events=runtime_metrics,
             ) as backend:
                 semantic_cache = SemanticCache(
                     embedding_service,
                     backend,
                     settings.similarity_threshold,
                     prompt_normalizer=prompt_normalizer,
+                    events=runtime_metrics,
                 )
                 application.state.embedding_provider = providers.embedding_provider
                 application.state.generation_provider = providers.generation_provider
                 application.state.semantic_cache = semantic_cache
+                application.state.runtime_metrics = runtime_metrics
                 application.state.query_service = QueryService(
                     semantic_cache,
                     providers.generation_provider,
+                    metrics=runtime_metrics,
                 )
                 application.state.benchmark_service = BenchmarkService(
                     embedding_service,

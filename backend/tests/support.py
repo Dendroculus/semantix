@@ -1,4 +1,4 @@
-from app.cache.backends.memory import InMemoryCacheBackend
+from app.cache.infrastructure.backends.memory import InMemoryCacheBackend
 
 TEST_EMBEDDING_DIMENSIONS = 4
 

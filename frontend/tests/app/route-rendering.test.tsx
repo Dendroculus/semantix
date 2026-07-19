@@ -26,6 +26,7 @@ import {
   updateCacheThreshold,
 } from "@/features/cache/api/cacheApi";
 import { getBenchmarkDatasets } from "@/features/benchmark/api/benchmarkApi";
+import { getRuntimeMetrics } from "@/features/observability/api/metricsApi";
 import type {
   CacheEntryMetadata,
 } from "@/features/cache/types";
@@ -34,6 +35,7 @@ import type { QueryResponse } from "@/features/monitor/types";
 vi.mock("../../src/features/monitor/hooks/useQuery");
 vi.mock("../../src/features/cache/api/cacheApi");
 vi.mock("../../src/features/benchmark/api/benchmarkApi");
+vi.mock("../../src/features/observability/api/metricsApi");
 
 const queryResponse: QueryResponse = {
   response:
@@ -141,6 +143,25 @@ describe("application routing", () => {
         default_dataset_id: "quick",
       },
     });
+    vi.mocked(getRuntimeMetrics).mockResolvedValue({
+      ok: true,
+      data: {
+        observed_at: "2026-07-19T08:00:00Z",
+        uptime_seconds: 120,
+        request_count: 0,
+        error_count: 0,
+        cache_hits: 0,
+        cache_misses: 0,
+        provider_calls: 0,
+        in_flight_coalesced_requests: 0,
+        average_latency_ms: null,
+        p95_latency_ms: null,
+        latency_sample_size: 0,
+        cache_size: 0,
+        evictions: 0,
+        expirations: 0,
+      },
+    });
   });
 
   afterEach(() => {
@@ -153,6 +174,7 @@ describe("application routing", () => {
     ["/", "Probe the cache", "Monitor"],
     ["/cache", "Cache inspector", "Cache"],
     ["/benchmarks", "Benchmark laboratory", "Benchmarks"],
+    ["/observability", "Observability", "Observability"],
   ])("renders %s with an active navigation link", async (path, heading, link) => {
     renderAt(path);
 

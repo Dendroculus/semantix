@@ -2,14 +2,14 @@ import math
 
 import pytest
 
-from app.cache.service import SemanticCache
+from app.cache.application.service import SemanticCache
 from app.embedding.service import EmbeddingService
 from app.providers.adapters.mock import (
     MOCK_GENERATION_PREFIX,
     MockEmbeddingProvider,
     MockGenerationProvider,
 )
-from app.query.service import QueryService
+from app.query.application.service import QueryService
 from tests.support import TEST_EMBEDDING_DIMENSIONS, memory_backend
 
 
