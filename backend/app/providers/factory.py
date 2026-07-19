@@ -7,6 +7,11 @@ from app.core.config import Settings
 from app.providers.adapters.anthropic import AnthropicProvider
 from app.providers.adapters.gemini import GeminiProvider
 from app.providers.adapters.huggingface import HuggingFaceProvider
+from app.providers.adapters.mock import (
+    MockEmbeddingProvider,
+    MockGenerationProvider,
+)
+from app.providers.adapters.ollama import OllamaProvider
 from app.providers.adapters.openai import OpenAIProvider
 from app.providers.protocols import (
     EmbeddingProvider,
@@ -32,6 +37,12 @@ def create_embedding_provider(
             return _create_openai(client, settings)
         case "gemini":
             return _create_gemini(client, settings)
+        case "ollama":
+            return _create_ollama(client, settings)
+        case "mock":
+            return MockEmbeddingProvider(
+                settings.mock_embedding_dimensions,
+            )
 
 
 def create_generation_provider(
@@ -62,29 +73,37 @@ def create_generation_provider(
             )
         case "gemini":
             return _create_gemini(client, settings)
+        case "ollama":
+            return _create_ollama(client, settings)
+        case "mock":
+            return MockGenerationProvider()
 
 
 def create_provider_bundle(
     client: httpx.AsyncClient,
     settings: Settings,
 ) -> ProviderBundle:
-    if settings.embedding_provider == settings.generation_provider:
-        shared_provider = create_embedding_provider(
+    if (
+        settings.embedding_provider == settings.generation_provider
+        and settings.embedding_provider != "mock"
+    ):
+        embedding_provider = create_embedding_provider(
             client,
             settings,
         )
         if not isinstance(
-            shared_provider,
+            embedding_provider,
             (
                 HuggingFaceProvider,
                 OpenAIProvider,
                 GeminiProvider,
+                OllamaProvider,
             ),
         ):
             raise RuntimeError("Selected provider does not support both capabilities")
-        generation_provider: GenerationProvider = shared_provider
+        generation_provider: GenerationProvider = embedding_provider
     else:
-        shared_provider = create_embedding_provider(
+        embedding_provider = create_embedding_provider(
             client,
             settings,
         )
@@ -94,7 +113,7 @@ def create_provider_bundle(
         )
 
     return ProviderBundle(
-        embedding_provider=shared_provider,
+        embedding_provider=embedding_provider,
         generation_provider=generation_provider,
         embedding_dimensions=settings.embedding_dimensions,
     )
@@ -142,6 +161,20 @@ def _create_gemini(
         embedding_model=settings.gemini_embedding_model,
         generation_model=settings.gemini_generation_model,
         embedding_dimensions=settings.gemini_embedding_dimensions,
+        max_new_tokens=settings.generation_max_new_tokens,
+    )
+
+
+def _create_ollama(
+    client: httpx.AsyncClient,
+    settings: Settings,
+) -> OllamaProvider:
+    return OllamaProvider(
+        client=client,
+        base_url=settings.ollama_base_url,
+        embedding_model=settings.ollama_embedding_model,
+        generation_model=settings.ollama_generation_model,
+        embedding_dimensions=settings.ollama_embedding_dimensions,
         max_new_tokens=settings.generation_max_new_tokens,
     )
 

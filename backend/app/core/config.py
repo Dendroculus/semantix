@@ -5,13 +5,18 @@ from urllib.parse import urlparse
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-EmbeddingProviderName = Literal["huggingface", "openai", "gemini"]
-GenerationProviderName = Literal[
-    "huggingface",
-    "openai",
-    "anthropic",
-    "gemini",
-]
+from app.providers.configuration import (
+    EmbeddingProviderName,
+    GenerationProviderName,
+    selected_embedding_dimensions,
+    selected_embedding_space,
+    validate_provider_configuration,
+)
+from app.providers.urls import (
+    normalize_hosted_provider_url,
+    normalize_ollama_url,
+)
+
 CacheBackendName = Literal["memory", "pgvector"]
 
 
@@ -51,6 +56,13 @@ class Settings(BaseSettings):
     gemini_embedding_model: str | None = None
     gemini_generation_model: str | None = None
     gemini_embedding_dimensions: int | None = Field(default=None, gt=0)
+
+    ollama_base_url: str = "http://host.docker.internal:11434"
+    ollama_embedding_model: str | None = None
+    ollama_generation_model: str | None = None
+    ollama_embedding_dimensions: int | None = Field(default=None, gt=0)
+
+    mock_embedding_dimensions: int = Field(default=384, gt=0)
 
     provider_timeout_seconds: float = Field(
         default=30.0,
@@ -122,22 +134,15 @@ class Settings(BaseSettings):
         cls,
         value: str | None,
     ) -> str | None:
-        if value is None or not value.strip():
-            return None
+        return normalize_hosted_provider_url(value)
 
-        normalized = value.strip().rstrip("/")
-        parsed = urlparse(normalized)
-        if (
-            parsed.scheme != "https"
-            or not parsed.netloc
-            or parsed.username is not None
-            or parsed.password is not None
-        ):
-            raise ValueError(
-                "Provider base URLs must be absolute HTTPS URLs "
-                "without embedded credentials"
-            )
-        return normalized
+    @field_validator("ollama_base_url")
+    @classmethod
+    def normalize_ollama_base_url(
+        cls,
+        value: str,
+    ) -> str:
+        return normalize_ollama_url(value)
 
     @field_validator("allowed_origins")
     @classmethod
@@ -169,77 +174,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_selected_providers(self) -> "Settings":
-        if self.embedding_provider == "huggingface":
-            self._require_secret(self.hf_api_key, "HF_API_KEY")
-            self._require_text(
-                self.hf_inference_base_url,
-                "HF_INFERENCE_BASE_URL",
-            )
-            self._require_text(
-                self.hf_embedding_model,
-                "HF_EMBEDDING_MODEL",
-            )
-            self._require_dimensions(
-                self.hf_embedding_dimensions,
-                "HF_EMBEDDING_DIMENSIONS",
-            )
-        elif self.embedding_provider == "openai":
-            self._require_secret(self.openai_api_key, "OPENAI_API_KEY")
-            self._require_text(self.openai_base_url, "OPENAI_BASE_URL")
-            self._require_text(
-                self.openai_embedding_model,
-                "OPENAI_EMBEDDING_MODEL",
-            )
-            self._require_dimensions(
-                self.openai_embedding_dimensions,
-                "OPENAI_EMBEDDING_DIMENSIONS",
-            )
-        else:
-            self._require_secret(self.gemini_api_key, "GEMINI_API_KEY")
-            self._require_text(self.gemini_base_url, "GEMINI_BASE_URL")
-            self._require_text(
-                self.gemini_embedding_model,
-                "GEMINI_EMBEDDING_MODEL",
-            )
-            self._require_dimensions(
-                self.gemini_embedding_dimensions,
-                "GEMINI_EMBEDDING_DIMENSIONS",
-            )
-
-        if self.generation_provider == "huggingface":
-            self._require_secret(self.hf_api_key, "HF_API_KEY")
-            self._require_text(self.hf_chat_base_url, "HF_CHAT_BASE_URL")
-            self._require_text(
-                self.hf_generation_model,
-                "HF_GENERATION_MODEL",
-            )
-        elif self.generation_provider == "openai":
-            self._require_secret(self.openai_api_key, "OPENAI_API_KEY")
-            self._require_text(self.openai_base_url, "OPENAI_BASE_URL")
-            self._require_text(
-                self.openai_generation_model,
-                "OPENAI_GENERATION_MODEL",
-            )
-        elif self.generation_provider == "anthropic":
-            self._require_secret(
-                self.anthropic_api_key,
-                "ANTHROPIC_API_KEY",
-            )
-            self._require_text(
-                self.anthropic_base_url,
-                "ANTHROPIC_BASE_URL",
-            )
-            self._require_text(
-                self.anthropic_generation_model,
-                "ANTHROPIC_GENERATION_MODEL",
-            )
-        else:
-            self._require_secret(self.gemini_api_key, "GEMINI_API_KEY")
-            self._require_text(self.gemini_base_url, "GEMINI_BASE_URL")
-            self._require_text(
-                self.gemini_generation_model,
-                "GEMINI_GENERATION_MODEL",
-            )
+        validate_provider_configuration(self)
 
         if self.cache_backend == "pgvector":
             self._require_secret(self.database_url, "DATABASE_URL")
@@ -253,29 +188,11 @@ class Settings(BaseSettings):
 
     @property
     def embedding_dimensions(self) -> int:
-        if self.embedding_provider == "huggingface":
-            value = self.hf_embedding_dimensions
-        elif self.embedding_provider == "openai":
-            value = self.openai_embedding_dimensions
-        else:
-            value = self.gemini_embedding_dimensions
-
-        if value is None:
-            raise RuntimeError("Selected embedding dimensions were not validated")
-        return value
+        return selected_embedding_dimensions(self)
 
     @property
     def embedding_space(self) -> str:
-        if self.embedding_provider == "huggingface":
-            model = self.hf_embedding_model
-        elif self.embedding_provider == "openai":
-            model = self.openai_embedding_model
-        else:
-            model = self.gemini_embedding_model
-
-        if model is None:
-            raise RuntimeError("Selected embedding model was not validated")
-        return f"{self.embedding_provider}:{model}"
+        return selected_embedding_space(self)
 
     @property
     def database_dsn(self) -> str:
@@ -323,26 +240,6 @@ class Settings(BaseSettings):
         environment_name: str,
     ) -> None:
         if value is None or not value.get_secret_value().strip():
-            raise ValueError(
-                f"{environment_name} is required for the selected provider"
-            )
-
-    @staticmethod
-    def _require_text(
-        value: str | None,
-        environment_name: str,
-    ) -> None:
-        if value is None or not value.strip():
-            raise ValueError(
-                f"{environment_name} is required for the selected provider"
-            )
-
-    @staticmethod
-    def _require_dimensions(
-        value: int | None,
-        environment_name: str,
-    ) -> None:
-        if value is None:
             raise ValueError(
                 f"{environment_name} is required for the selected provider"
             )

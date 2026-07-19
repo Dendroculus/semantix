@@ -2,6 +2,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.providers.configuration import (
+    EmbeddingProviderName,
+    GenerationProviderName,
+)
+
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(
@@ -12,6 +17,8 @@ class StrictModel(BaseModel):
 
 class HealthResponse(StrictModel):
     status: Literal["ok"]
+    embedding_provider: EmbeddingProviderName
+    generation_provider: GenerationProviderName
 
 
 class ErrorResponse(StrictModel):

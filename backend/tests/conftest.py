@@ -12,5 +12,6 @@ def settings() -> Settings:
     return Settings(
         hf_api_key="test-only-placeholder",
         cache_backend="memory",
+        prompt_typo_correction_enabled=False,
         allowed_origins=["http://localhost:5173"],
     )

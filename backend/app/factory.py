@@ -41,6 +41,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     _register_exception_handlers(application)
 
     application.state.limiter = limiter
+    application.state.embedding_provider_name = resolved_settings.embedding_provider
+    application.state.generation_provider_name = resolved_settings.generation_provider
     application.include_router(api_router)
 
     return application

@@ -19,6 +19,15 @@ services:
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
 
+  ollama:
+    image: ollama/ollama:latest
+    profiles:
+      - ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
   backend:
     build:
       context: ./backend
@@ -62,3 +71,4 @@ services:
 
 volumes:
   pgvector_data:
+  ollama_data:

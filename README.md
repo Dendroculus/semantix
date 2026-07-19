@@ -45,6 +45,11 @@ Install:
 - An account and API key for the provider or providers you select
 
 > Docker installs the runtime dependencies inside isolated images. A local Python virtual environment and local `node_modules` are not required for the Docker-only workflow.
+>
+> Hugging Face is the recommended default for most users because it avoids
+> downloading and running multi-gigabyte models locally. Ollama is optional for
+> users who specifically want local inference and have enough disk, memory, and
+> compute capacity.
 
 ### 1. Clone the repository
 
@@ -164,6 +169,68 @@ docker compose --profile pgvector up -d
 Compose profiles. Running `docker compose down` does not delete PostgreSQL data
 unless the `--volumes` flag is also supplied.
 
+#### Optional local Ollama
+
+Ollama is not required for the normal Hugging Face setup. The optional
+`ollama` profile downloads the Ollama image, while each pulled model consumes
+additional persistent disk space. A generation model can require several
+gigabytes and may be slow without GPU acceleration.
+
+Start only Ollama first:
+
+```bash
+docker compose --profile ollama up -d ollama
+```
+
+Pull one embedding model and one generation model. Model tags must match the
+values in `backend/.env` exactly:
+
+```bash
+docker compose --profile ollama exec ollama ollama pull embeddinggemma
+docker compose --profile ollama exec ollama ollama pull gemma3:4b
+```
+
+Configure the backend:
+
+```env
+EMBEDDING_PROVIDER=ollama
+GENERATION_PROVIDER=ollama
+
+OLLAMA_BASE_URL=http://ollama:11434
+OLLAMA_EMBEDDING_MODEL=embeddinggemma
+OLLAMA_GENERATION_MODEL=gemma3:4b
+OLLAMA_EMBEDDING_DIMENSIONS=768
+
+PROVIDER_TIMEOUT_SECONDS=120
+```
+
+Start Ollama with the memory cache:
+
+```bash
+docker compose --profile ollama up --build -d
+```
+
+Or activate both optional services when using pgvector:
+
+```bash
+docker compose --profile pgvector --profile ollama up --build -d
+```
+
+To stop using Ollama, first change both provider selectors in `backend/.env`
+back to `huggingface`, then start the normal stack without the `ollama`
+profile. To permanently recover the Ollama model and image storage:
+
+```bash
+docker compose --profile ollama stop ollama
+docker compose --profile ollama rm -f ollama
+docker volume rm semantix_ollama_data
+docker image rm ollama/ollama:latest
+```
+
+Removing `semantix_ollama_data` permanently deletes downloaded Ollama models.
+It does not remove `semantix_pgvector_data`. Avoid `docker compose down
+--volumes` when PostgreSQL data must be preserved.
+
 ### 4. Verify the containers
 
 ```bash
@@ -183,6 +250,7 @@ Expected local services:
 | Frontend | http://localhost:4173 |
 | Backend | http://localhost:8000 |
 | PostgreSQL | localhost:5433 (pgvector profile only) |
+| Ollama | http://localhost:11434 (Ollama profile only) |
 | FastAPI documentation | http://localhost:8000/docs |
 | Health endpoint | http://localhost:8000/health |
 
@@ -349,7 +417,7 @@ Semantic cache lookup
 - **Embedding boundary** — `EmbeddingService` validates provider output and produces normalized NumPy vectors.
 - **Cache boundary** — `CacheBackend` owns similarity lookup, TTL expiry, LRU eviction, inspector metadata, statistics, and invalidation.
 - **Provider ports** — application code depends only on `EmbeddingProvider` and `GenerationProvider`; provider selection is composed at startup.
-- **Provider adapters** — Hugging Face, OpenAI, Anthropic, and Gemini own their authentication, endpoints, payloads, parsing, retries, and provider-specific errors.
+- **Provider adapters** — hosted providers and optional Ollama/mock adapters own their authentication, endpoints, payloads, parsing, retries, and provider-specific errors.
 - **Application orchestration** — `QueryService` coordinates semantic lookup, generation, insertion, timing, and decision evidence while the route only translates HTTP.
 - **Request coalescing** — identical in-flight queries share one lookup, provider call, and cache write instead of creating a provider stampede.
 - **Typed API contract** — Pydantic schemas and TypeScript API types keep frontend/backend payloads explicit.
@@ -431,8 +499,8 @@ dependencies.
 |---|---|---|
 | Frontend | React 18, TypeScript, Vite 6 | Query UI, response state, cache statistics, API calls |
 | Backend | FastAPI, Pydantic, HTTPX | Validation, orchestration, errors, rate limiting |
-| Embeddings | Hugging Face, OpenAI, or Gemini | Converts queries into semantic vectors |
-| Generation | Hugging Face, OpenAI, Anthropic, or Gemini | Generates responses on cache misses |
+| Embeddings | Hugging Face, OpenAI, Gemini, Ollama, or mock | Converts queries into semantic vectors |
+| Generation | Hugging Face, OpenAI, Anthropic, Gemini, Ollama, or mock | Generates responses on cache misses |
 | Cache | NumPy memory store or PostgreSQL + pgvector | Cosine similarity, TTL expiry, LRU eviction, optional persistence |
 | Testing | Vitest, Testing Library, Pytest | Frontend hooks, backend services, API routes |
 | Quality | ESLint, TypeScript, Ruff, mypy | Linting, formatting, and static analysis |
@@ -551,8 +619,8 @@ All application errors use a stable JSON structure containing `error` and `detai
 
 | Variable | Required | Description |
 |---|---:|---|
-| `EMBEDDING_PROVIDER` | No | `huggingface` (default), `openai`, or `gemini` |
-| `GENERATION_PROVIDER` | No | `huggingface` (default), `openai`, `anthropic`, or `gemini` |
+| `EMBEDDING_PROVIDER` | No | `huggingface` (default), `openai`, `gemini`, `ollama`, or `mock` |
+| `GENERATION_PROVIDER` | No | `huggingface` (default), `openai`, `anthropic`, `gemini`, `ollama`, or `mock` |
 | `HF_API_KEY` | When Hugging Face is selected | Hugging Face inference token |
 | `HF_INFERENCE_BASE_URL` | For Hugging Face embeddings | Feature-extraction endpoint prefix |
 | `HF_CHAT_BASE_URL` | For Hugging Face generation | OpenAI-compatible chat endpoint prefix |
@@ -572,6 +640,11 @@ All application errors use a stable JSON structure containing `error` and `detai
 | `GEMINI_EMBEDDING_MODEL` | For Gemini embeddings | Embedding model name |
 | `GEMINI_GENERATION_MODEL` | For Gemini generation | Generation model name |
 | `GEMINI_EMBEDDING_DIMENSIONS` | For Gemini embeddings | Requested and validated vector size |
+| `OLLAMA_BASE_URL` | When Ollama is selected | Ollama API origin; use `http://ollama:11434` for the Compose service |
+| `OLLAMA_EMBEDDING_MODEL` | For Ollama embeddings | Exact installed embedding model name |
+| `OLLAMA_GENERATION_MODEL` | For Ollama generation | Exact installed generation model name and tag |
+| `OLLAMA_EMBEDDING_DIMENSIONS` | For Ollama embeddings | Exact vector size returned by the model |
+| `MOCK_EMBEDDING_DIMENSIONS` | For mock embeddings | Deterministic mock vector size |
 | `PROVIDER_TIMEOUT_SECONDS` | No | External request timeout |
 | `GENERATION_MAX_NEW_TOKENS` | No | Maximum generated response length |
 | `SIMILARITY_THRESHOLD` | No | Minimum cosine similarity required for a hit |
@@ -607,16 +680,24 @@ ANTHROPIC_GENERATION_MODEL=...
 | OpenAI | Yes | Yes |
 | Anthropic | No | Yes |
 | Gemini | Yes | Yes |
+| Ollama | Yes | Yes |
+| Mock | Yes | Yes |
 
-Selecting Anthropic for embeddings fails during settings validation. All
-configured provider base URLs must be absolute HTTPS URLs, and selected
-embedding dimensions must be greater than zero.
+Selecting Anthropic for embeddings fails during settings validation. Hosted
+provider base URLs remain HTTPS-only; Ollama narrowly allows validated local
+HTTP origins. Selected embedding dimensions must be greater than zero.
+
+See [`docs/providers.md`](docs/providers.md) for provider-specific
+configuration, Ollama Docker networking, mock providers, smoke tests, security
+considerations, and the complete capability matrix.
 
 Existing Hugging Face setups remain the default and do not need to add provider
 selectors. `HF_EMBEDDING_DIMENSIONS` defaults to `384` for the existing
 `all-MiniLM-L6-v2` model. `HF_TIMEOUT_SECONDS` has been renamed to
 `PROVIDER_TIMEOUT_SECONDS`; update that variable if you previously overrode the
-30-second default.
+30-second default. Hugging Face is generally the easier starting point because
+it does not require local model downloads or inference hardware; choose Ollama
+when local execution is worth its additional storage and compute requirements.
 
 Changing an embedding provider, model, or dimension makes existing vectors
 incompatible. The memory backend resets with the process. The optional
@@ -755,6 +836,9 @@ Normal tests use `httpx.MockTransport`; test runs must not consume external prov
 | Backend rejects browser requests | Ensure `ALLOWED_ORIGINS` contains the active frontend URL |
 | Hugging Face reports `model_not_supported` | Choose a model/provider currently enabled for the account |
 | Hugging Face returns an authentication error | Verify the token has inference permission and was copied without quotes or spaces |
+| Ollama returns `model not found` | Run `ollama list` in the Ollama container and use the exact model tag, such as `gemma3:4b` |
+| First Ollama request is slow | Model loading and CPU inference can take time; monitor `docker stats`, use a smaller model, or increase `PROVIDER_TIMEOUT_SECONDS` up to 120 |
+| Ollama consumes too much disk | Remove its container, `semantix_ollama_data` volume, and `ollama/ollama` image using the optional Ollama cleanup instructions |
 | Similar queries miss the cache | Review the embedding model and lower the similarity threshold carefully |
 | Unrelated queries hit the cache | Increase the similarity threshold |
 | Cache disappears after restart | `CACHE_BACKEND=memory` is process-local; select `pgvector` for persistence |
