@@ -1,3 +1,14 @@
+import {
+  createEnumGuard,
+  isIsoDate,
+  isNonNegativeInteger,
+  isNonNegativeNumber,
+  isNullableNonNegativeNumber,
+  isNullableString,
+  isNumberInRange,
+  isRecord,
+} from '@/shared/api/validators';
+import { SIMILARITY_MAX, SIMILARITY_MIN } from '@/shared/domain/similarity';
 import type {
   BenchmarkCategory,
   BenchmarkDatasetId,
@@ -8,72 +19,46 @@ import type {
   BenchmarkQueryResult,
   BenchmarkRunResponse,
   ThresholdEvaluation,
-} from "../types";
-import {
-  isFiniteNumber,
-  isIsoDate,
-  isNonNegativeInteger,
-  isNullableFiniteNumber,
-  isNullableString,
-  isRecord,
-} from "@/shared/api/validators";
+} from '../types';
 
-const DATASET_IDS: readonly BenchmarkDatasetId[] = ["quick", "extended"];
+const DATASET_IDS: readonly BenchmarkDatasetId[] = ['quick', 'extended'];
+
 const CATEGORIES: readonly BenchmarkCategory[] = [
-  "seed",
-  "exact_duplicate",
-  "paraphrase",
-  "unrelated",
-  "typo",
-  "negation",
-  "different_intent",
+  'seed',
+  'exact_duplicate',
+  'paraphrase',
+  'unrelated',
+  'typo',
+  'negation',
+  'different_intent',
 ];
+
 const OUTCOMES: readonly BenchmarkOutcome[] = [
-  "true_positive",
-  "true_negative",
-  "false_positive",
-  "false_negative",
+  'true_positive',
+  'true_negative',
+  'false_positive',
+  'false_negative',
 ];
 
-function inRange(value: unknown, minimum: number, maximum: number): value is number {
-  return isFiniteNumber(value) && value >= minimum && value <= maximum;
-}
-
-function isDatasetId(value: unknown): value is BenchmarkDatasetId {
-  return (
-    typeof value === "string" &&
-    DATASET_IDS.includes(value as BenchmarkDatasetId)
-  );
-}
-
-function isCategory(value: unknown): value is BenchmarkCategory {
-  return (
-    typeof value === "string" &&
-    CATEGORIES.includes(value as BenchmarkCategory)
-  );
-}
-
-function isOutcome(value: unknown): value is BenchmarkOutcome {
-  return (
-    typeof value === "string" &&
-    OUTCOMES.includes(value as BenchmarkOutcome)
-  );
-}
+const isDatasetId = createEnumGuard(DATASET_IDS);
+const isCategory = createEnumGuard(CATEGORIES);
+const isOutcome = createEnumGuard(OUTCOMES);
 
 function dataset(value: unknown): BenchmarkDatasetSummary {
   if (
     !isRecord(value) ||
     !isDatasetId(value.dataset_id) ||
-    typeof value.name !== "string" ||
-    typeof value.description !== "string" ||
+    typeof value.name !== 'string' ||
+    typeof value.description !== 'string' ||
     !isNonNegativeInteger(value.query_count) ||
     !isNonNegativeInteger(value.expected_hits) ||
     !isNonNegativeInteger(value.expected_misses) ||
     !Array.isArray(value.categories) ||
     !value.categories.every(isCategory)
   ) {
-    throw new Error("Invalid benchmark dataset");
+    throw new Error('Invalid benchmark dataset');
   }
+
   return {
     dataset_id: value.dataset_id,
     name: value.name,
@@ -87,8 +72,9 @@ function dataset(value: unknown): BenchmarkDatasetSummary {
 
 function metrics(value: unknown): BenchmarkMetrics {
   if (!isRecord(value)) {
-    throw new Error("Invalid benchmark metrics");
+    throw new Error('Invalid benchmark metrics');
   }
+
   const integers = [
     value.total_queries,
     value.cache_hits,
@@ -99,6 +85,7 @@ function metrics(value: unknown): BenchmarkMetrics {
     value.false_positive_hits,
     value.false_negative_misses,
   ];
+
   const nonNegativeNumbers = [
     value.average_latency_ms,
     value.median_latency_ms,
@@ -106,62 +93,69 @@ function metrics(value: unknown): BenchmarkMetrics {
     value.estimated_latency_saved_ms,
     value.estimated_provider_cost_saved_usd,
   ];
+
   if (
     !integers.every(isNonNegativeInteger) ||
-    !nonNegativeNumbers.every(
-      (item) => isFiniteNumber(item) && item >= 0,
-    ) ||
-    !inRange(value.hit_rate, 0, 1) ||
-    !inRange(value.precision, 0, 1) ||
-    !inRange(value.recall, 0, 1) ||
-    !inRange(value.f1_score, 0, 1) ||
-    !isNullableFiniteNumber(value.average_cache_hit_latency_ms) ||
-    !isNullableFiniteNumber(value.average_cache_miss_latency_ms)
+    !nonNegativeNumbers.every(isNonNegativeNumber) ||
+    !isNumberInRange(value.hit_rate, 0, 1) ||
+    !isNumberInRange(value.precision, 0, 1) ||
+    !isNumberInRange(value.recall, 0, 1) ||
+    !isNumberInRange(value.f1_score, 0, 1) ||
+    !isNullableNonNegativeNumber(value.average_cache_hit_latency_ms) ||
+    !isNullableNonNegativeNumber(value.average_cache_miss_latency_ms)
   ) {
-    throw new Error("Invalid benchmark metrics");
+    throw new Error('Invalid benchmark metrics');
   }
+
   return value as unknown as BenchmarkMetrics;
 }
 
 function queryResult(value: unknown): BenchmarkQueryResult {
+  if (!isRecord(value)) {
+    throw new Error('Invalid benchmark query result');
+  }
+
+  const hasValidSimilarityScore =
+    value.similarity_score === null ||
+    isNumberInRange(value.similarity_score, SIMILARITY_MIN, SIMILARITY_MAX);
+
   if (
-    !isRecord(value) ||
     !isNonNegativeInteger(value.sequence) ||
     !isNonNegativeInteger(value.repetition) ||
-    typeof value.case_id !== "string" ||
+    typeof value.case_id !== 'string' ||
     !isCategory(value.category) ||
-    typeof value.prompt !== "string" ||
-    typeof value.expected_cache_hit !== "boolean" ||
-    typeof value.actual_cache_hit !== "boolean" ||
-    typeof value.correct !== "boolean" ||
+    typeof value.prompt !== 'string' ||
+    typeof value.expected_cache_hit !== 'boolean' ||
+    typeof value.actual_cache_hit !== 'boolean' ||
+    typeof value.correct !== 'boolean' ||
     !isOutcome(value.outcome) ||
-    !isNullableFiniteNumber(value.similarity_score) ||
-    !isFiniteNumber(value.latency_ms) ||
-    value.latency_ms < 0 ||
-    typeof value.provider_called !== "boolean" ||
+    !hasValidSimilarityScore ||
+    !isNonNegativeNumber(value.latency_ms) ||
+    typeof value.provider_called !== 'boolean' ||
     !isNullableString(value.matched_prompt)
   ) {
-    throw new Error("Invalid benchmark query result");
+    throw new Error('Invalid benchmark query result');
   }
+
   return value as unknown as BenchmarkQueryResult;
 }
 
 function thresholdEvaluation(value: unknown): ThresholdEvaluation {
   if (
     !isRecord(value) ||
-    !inRange(value.threshold, 0, 1) ||
-    !inRange(value.hit_rate, 0, 1) ||
-    !inRange(value.precision, 0, 1) ||
-    !inRange(value.recall, 0, 1) ||
-    !inRange(value.f1_score, 0, 1) ||
-    !isFiniteNumber(value.average_latency_ms) ||
-    value.average_latency_ms < 0 ||
+    !isNumberInRange(value.threshold, 0, 1) ||
+    !isNumberInRange(value.hit_rate, 0, 1) ||
+    !isNumberInRange(value.precision, 0, 1) ||
+    !isNumberInRange(value.recall, 0, 1) ||
+    !isNumberInRange(value.f1_score, 0, 1) ||
+    !isNonNegativeNumber(value.average_latency_ms) ||
     !isNonNegativeInteger(value.provider_calls_avoided) ||
     !isNonNegativeInteger(value.false_positive_hits) ||
     !isNonNegativeInteger(value.false_negative_misses)
   ) {
-    throw new Error("Invalid threshold evaluation");
+    throw new Error('Invalid threshold evaluation');
   }
+
   return value as unknown as ThresholdEvaluation;
 }
 
@@ -174,8 +168,9 @@ export function decodeBenchmarkDatasets(
     value.datasets.length === 0 ||
     !isDatasetId(value.default_dataset_id)
   ) {
-    throw new Error("Invalid benchmark dataset response");
+    throw new Error('Invalid benchmark dataset response');
   }
+
   return {
     datasets: value.datasets.map(dataset),
     default_dataset_id: value.default_dataset_id,
@@ -185,21 +180,20 @@ export function decodeBenchmarkDatasets(
 export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
   if (
     !isRecord(value) ||
-    typeof value.run_id !== "string" ||
-    typeof value.started_at !== "string" ||
+    typeof value.run_id !== 'string' ||
     !isIsoDate(value.started_at) ||
-    typeof value.completed_at !== "string" ||
     !isIsoDate(value.completed_at) ||
-    !inRange(value.threshold, 0, 1) ||
+    !isNumberInRange(value.threshold, 0, 1) ||
     !isNonNegativeInteger(value.repetitions) ||
-    typeof value.reset_cache_before_run !== "boolean" ||
-    !isFiniteNumber(value.estimated_cost_per_request_usd) ||
-    !isFiniteNumber(value.estimated_cost_per_1k_tokens_usd) ||
+    typeof value.reset_cache_before_run !== 'boolean' ||
+    !isNonNegativeNumber(value.estimated_cost_per_request_usd) ||
+    !isNonNegativeNumber(value.estimated_cost_per_1k_tokens_usd) ||
     !Array.isArray(value.threshold_evaluations) ||
     !Array.isArray(value.query_results)
   ) {
-    throw new Error("Invalid benchmark run response");
+    throw new Error('Invalid benchmark run response');
   }
+
   return {
     run_id: value.run_id,
     started_at: value.started_at,

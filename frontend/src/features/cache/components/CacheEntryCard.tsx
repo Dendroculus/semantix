@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
+
 import { MarkdownContent } from '@/shared/components/markdown/MarkdownContent';
+import { InlineConfirmation } from '@/shared/components/ui';
 import {
   formatCompactDuration,
   formatCount,
@@ -48,8 +50,15 @@ export function CacheEntryCard({
   onRequestDelete,
 }: Readonly<CacheEntryCardProps>): JSX.Element {
   const status = entry.is_expired
-    ? { color: 'var(--coral)', label: 'Expired' }
-    : { color: 'var(--teal)', label: 'Active' };
+    ? {
+        color: 'var(--coral)',
+        label: 'Expired',
+      }
+    : {
+        color: 'var(--teal)',
+        label: 'Active',
+      };
+
   const entryMetrics = [
     {
       label: 'Created',
@@ -58,10 +67,7 @@ export function CacheEntryCard({
     },
     {
       label: 'Expires',
-      value:
-        entry.expires_at === null
-          ? 'No expiry'
-          : formatTimestamp(entry.expires_at),
+      value: formatTimestamp(entry.expires_at, 'No expiry'),
       valueClassName: 'font-data mt-1 text-[10px] text-(--text-muted)',
     },
     {
@@ -97,12 +103,14 @@ export function CacheEntryCard({
               <span className="ui-label" style={{ color: status.color }}>
                 {status.label}
               </span>
+
               <code
                 className="font-data text-[10px] text-(--text-faint)"
                 title={entry.cache_key}
               >
                 {shortCacheKey(entry.cache_key)}
               </code>
+
               <span className="font-data text-[10px] text-(--text-muted)">
                 namespace / {entry.namespace}
               </span>
@@ -139,34 +147,18 @@ export function CacheEntryCard({
         </dl>
 
         {isPendingDelete && (
-          <fieldset
-            aria-label={`Confirm deletion of ${entry.prompt}`}
-            className="mt-4 min-w-0 border-0 border-l border-(--coral) p-0 pl-4"
-          >
-            <p className="text-xs text-(--text-soft)">
-              Delete this entry? Cached responses using it will no longer be
-              reused.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-4">
-              <button
-                aria-label={`Confirm delete ${entry.prompt}`}
-                className="ui-label min-h-9 text-(--coral) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
-                disabled={isDeleting}
-                type="button"
-                onClick={onConfirmDelete}
-              >
-                {isDeleting ? 'Deleting' : 'Confirm delete'}
-              </button>
-              <button
-                className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
-                disabled={isDeleting}
-                type="button"
-                onClick={onCancelDelete}
-              >
-                Cancel
-              </button>
-            </div>
-          </fieldset>
+          <InlineConfirmation
+            ariaLabel={`Confirm deletion of ${entry.prompt}`}
+            className="mt-4"
+            confirmAriaLabel={`Confirm delete ${entry.prompt}`}
+            confirmLabel="Confirm delete"
+            isPending={isDeleting}
+            message="Delete this entry? Cached responses using it will no longer be reused."
+            messageClassName="text-xs"
+            pendingLabel="Deleting"
+            onCancel={onCancelDelete}
+            onConfirm={onConfirmDelete}
+          />
         )}
       </article>
     </li>

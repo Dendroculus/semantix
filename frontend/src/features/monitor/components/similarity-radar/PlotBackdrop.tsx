@@ -7,6 +7,7 @@ import {
   PLOT_TOP,
   scoreToX,
 } from "./model";
+import { formatDecimal } from "@/shared/lib/formatters";
 
 interface PlotBackdropProps {
   appliedThreshold: number;
@@ -94,7 +95,7 @@ export function PlotBackdrop({
               x={x}
               y={AXIS_Y + 18}
             >
-              {tick.toFixed(2)}
+              {formatDecimal(tick, 2)}
             </text>
           </g>
         );
@@ -124,7 +125,7 @@ export function PlotBackdrop({
         x={appliedThresholdX}
         y={PLOT_TOP - 20}
       >
-        BACKEND {appliedThreshold.toFixed(2)}
+        BACKEND {formatDecimal(appliedThreshold, 2)}
       </text>
 
       {hasPendingThreshold && (
@@ -146,7 +147,7 @@ export function PlotBackdrop({
             x={previewThresholdX}
             y={AXIS_Y + 32}
           >
-            PREVIEW {previewThreshold.toFixed(2)}
+            PREVIEW {formatDecimal(previewThreshold, 2)}
           </text>
         </>
       )}

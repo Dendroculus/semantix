@@ -4,6 +4,10 @@ import {
   formatLatency,
   formatPercent,
 } from '@/shared/lib/formatters';
+import {
+  hasSimilarityScore,
+  meetsSimilarityThreshold,
+} from '@/shared/domain/similarity';
 import type { QueryTrace } from '../types';
 
 interface FieldMetricsProps {
@@ -56,11 +60,11 @@ export function FieldMetrics({
 }: Readonly<FieldMetricsProps>): JSX.Element {
   const scoredTraces = traces.filter(
     (trace): trace is QueryTrace & { similarity: number } =>
-      trace.similarity !== null,
+      hasSimilarityScore(trace.similarity),
   );
   const unscoredCount = traces.length - scoredTraces.length;
   const projectedHits = scoredTraces.filter(
-    (trace) => trace.similarity >= threshold,
+    (trace) => meetsSimilarityThreshold(trace.similarity, threshold),
   ).length;
   const projectedHitRate =
     scoredTraces.length === 0 ? null : projectedHits / scoredTraces.length;

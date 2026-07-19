@@ -85,7 +85,7 @@ describe("CacheInspector", () => {
   });
 
   it("renders the empty state", async () => {
-    render(<CacheInspector refreshKey={0} onMutation={vi.fn()} />);
+    render(<CacheInspector onMutation={vi.fn()} />);
 
     expect(await screen.findByText("The cache is empty.")).toBeTruthy();
     expect(
@@ -98,7 +98,7 @@ describe("CacheInspector", () => {
       new Promise(() => undefined),
     );
 
-    render(<CacheInspector refreshKey={0} onMutation={vi.fn()} />);
+    render(<CacheInspector onMutation={vi.fn()} />);
 
     expect(screen.getByLabelText("Loading cache entries")).toBeTruthy();
   });
@@ -120,7 +120,7 @@ describe("CacheInspector", () => {
     );
 
     const { container } = render(
-      <CacheInspector refreshKey={0} onMutation={vi.fn()} />,
+      <CacheInspector onMutation={vi.fn()} />,
     );
 
     const strongText = await screen.findByText("Formatted preview");
@@ -137,7 +137,7 @@ describe("CacheInspector", () => {
       return successfulPage(items, params);
     });
 
-    render(<CacheInspector refreshKey={0} onMutation={vi.fn()} />);
+    render(<CacheInspector onMutation={vi.fn()} />);
     expect(await screen.findByText(betaEntry.prompt)).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Search cached prompts"), {
@@ -173,7 +173,7 @@ describe("CacheInspector", () => {
       return { ok: true, data: { cleared: true } };
     });
 
-    render(<CacheInspector refreshKey={0} onMutation={vi.fn()} />);
+    render(<CacheInspector onMutation={vi.fn()} />);
     await screen.findByText(alphaEntry.prompt);
 
     fireEvent.change(screen.getByLabelText("Namespace"), {
@@ -206,7 +206,7 @@ describe("CacheInspector", () => {
     vi.mocked(listCacheEntries).mockImplementation(async (params) =>
       successfulPage([alphaEntry, betaEntry], params),
     );
-    render(<CacheInspector refreshKey={0} onMutation={vi.fn()} />);
+    render(<CacheInspector onMutation={vi.fn()} />);
     await screen.findByText(alphaEntry.prompt);
 
     const sortSelect = screen.getByLabelText("Sort cache entries");
@@ -241,7 +241,7 @@ describe("CacheInspector", () => {
       };
     });
     const onMutation = vi.fn();
-    render(<CacheInspector refreshKey={0} onMutation={onMutation} />);
+    render(<CacheInspector onMutation={onMutation} />);
     await screen.findByText(alphaEntry.prompt);
 
     fireEvent.click(
@@ -280,7 +280,7 @@ describe("CacheInspector", () => {
       return { ok: true, data: { cleared: true } };
     });
     const onMutation = vi.fn();
-    render(<CacheInspector refreshKey={0} onMutation={onMutation} />);
+    render(<CacheInspector onMutation={onMutation} />);
     await screen.findByText(alphaEntry.prompt);
 
     fireEvent.click(

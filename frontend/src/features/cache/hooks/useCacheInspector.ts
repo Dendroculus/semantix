@@ -16,7 +16,6 @@ export type CacheMutation = "delete" | "clear";
 
 interface UseCacheInspectorOptions {
   onMutation: (mutation: CacheMutation) => void;
-  refreshKey: number;
 }
 
 export interface CacheInspectorController {
@@ -52,7 +51,6 @@ export interface CacheInspectorController {
 
 export function useCacheInspector({
   onMutation,
-  refreshKey,
 }: Readonly<UseCacheInspectorOptions>): CacheInspectorController {
   const [data, setData] =
     useState<CacheEntryListResponse | null>(null);
@@ -107,7 +105,7 @@ export function useCacheInspector({
 
     void load();
     return () => controller.abort();
-  }, [namespace, offset, refreshKey, reloadKey, search, sort]);
+  }, [namespace, offset, reloadKey, search, sort]);
 
   function refreshFromStart(): void {
     setOffset(0);

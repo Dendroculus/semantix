@@ -1,3 +1,5 @@
+import { Button } from '@/shared/components/ui';
+import { formatDecimal } from '@/shared/lib/formatters';
 import type { BenchmarkController, BenchmarkForm } from '../hooks/useBenchmark';
 
 interface BenchmarkControlsProps {
@@ -6,6 +8,7 @@ interface BenchmarkControlsProps {
 
 function numberValue(value: string, fallback: number): number {
   const parsed = Number(value);
+
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
@@ -13,13 +16,17 @@ function update(
   controller: BenchmarkController,
   patch: Partial<BenchmarkForm>,
 ): void {
-  controller.setForm((current) => ({ ...current, ...patch }));
+  controller.setForm((current) => ({
+    ...current,
+    ...patch,
+  }));
 }
 
 export function BenchmarkControls({
   controller,
 }: Readonly<BenchmarkControlsProps>): JSX.Element {
   const { datasets, datasetsLoading, form, isRunning } = controller;
+
   const controlClass =
     'font-data mt-2 min-h-10 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs text-(--text) outline-none transition-colors hover:border-(--text-faint) focus-visible:border-(--gold) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) disabled:cursor-not-allowed disabled:opacity-50';
 
@@ -27,6 +34,7 @@ export function BenchmarkControls({
     <div className="grid gap-5 border-y border-(--hairline) py-6 md:grid-cols-3">
       <label className="block">
         <span className="ui-label text-(--text-muted)">Dataset</span>
+
         <select
           aria-label="Benchmark dataset"
           className={controlClass}
@@ -50,6 +58,7 @@ export function BenchmarkControls({
         <span className="ui-label text-(--text-muted)">
           Similarity threshold
         </span>
+
         <span className="font-data mt-2 flex items-center gap-3">
           <input
             aria-label="Benchmark threshold"
@@ -66,14 +75,16 @@ export function BenchmarkControls({
               })
             }
           />
+
           <output className="w-12 text-right text-xs">
-            {form.threshold.toFixed(2)}
+            {formatDecimal(form.threshold, 2)}
           </output>
         </span>
       </label>
 
       <label className="block">
         <span className="ui-label text-(--text-muted)">Repetitions</span>
+
         <input
           aria-label="Benchmark repetitions"
           className={controlClass}
@@ -94,6 +105,7 @@ export function BenchmarkControls({
         <span className="ui-label text-(--text-muted)">
           Cost / provider request (USD)
         </span>
+
         <input
           aria-label="Estimated cost per provider request"
           className={controlClass}
@@ -117,6 +129,7 @@ export function BenchmarkControls({
         <span className="ui-label text-(--text-muted)">
           Cost / 1K tokens (USD)
         </span>
+
         <input
           aria-label="Estimated cost per 1K tokens"
           className={controlClass}
@@ -149,16 +162,19 @@ export function BenchmarkControls({
               })
             }
           />
+
           <span>Reset isolated benchmark cache first</span>
         </label>
-        <button
-          className="ui-label min-h-11 border border-(--gold) bg-(--gold) px-4 py-3 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
+
+        <Button
+          className="disabled:opacity-40"
           disabled={datasetsLoading || isRunning || datasets.length === 0}
-          type="button"
+          size="large"
+          variant="primary"
           onClick={controller.reviewRun}
         >
           {isRunning ? 'Benchmark running…' : 'Review benchmark run'}
-        </button>
+        </Button>
       </div>
     </div>
   );

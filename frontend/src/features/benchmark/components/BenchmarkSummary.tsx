@@ -120,7 +120,8 @@ export function BenchmarkSummary({
             {result.dataset.name}
           </h3>
           <p className="font-data mt-2 text-xs text-(--text-muted)">
-            Threshold {result.threshold.toFixed(2)} · {result.repetitions}{' '}
+            Threshold {formatDecimal(result.threshold, 2)} ·{' '}
+            {formatCount(result.repetitions)}{' '}
             repetition{result.repetitions === 1 ? '' : 's'}
           </p>
         </div>

@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+
+import { Button } from '@/shared/components/ui';
+import { formatCount } from '@/shared/lib/formatters';
 
 interface QueryFormProps {
   isLoading: boolean;
@@ -10,6 +12,9 @@ const EXAMPLE_PROMPTS = [
   'Explain semantic caching in simple terms',
   'How does cosine similarity work?',
 ];
+
+const MAX_PROMPT_LENGTH = 2_000;
+const MAX_PROMPT_LENGTH_LABEL = formatCount(MAX_PROMPT_LENGTH);
 
 export function QueryForm({
   isLoading,
@@ -22,6 +27,7 @@ export function QueryForm({
     event: FormEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
+
     const normalizedPrompt = prompt.trim();
 
     if (normalizedPrompt.length === 0) {
@@ -29,8 +35,10 @@ export function QueryForm({
       return;
     }
 
-    if (normalizedPrompt.length > 2_000) {
-      setValidationError('Keep the prompt at or below 2,000 characters.');
+    if (normalizedPrompt.length > MAX_PROMPT_LENGTH) {
+      setValidationError(
+        `Keep the prompt at or below ${MAX_PROMPT_LENGTH_LABEL} characters.`,
+      );
       return;
     }
 
@@ -45,13 +53,16 @@ export function QueryForm({
           <h1 className="font-display text-3xl italic" id="query-heading">
             Probe the cache
           </h1>
-          <p className="mt-2 max-w-2xl text-sm/6  text-(--text-muted)">
+
+          <p className="mt-2 max-w-2xl text-sm/6 text-(--text-muted)">
             Each prompt is embedded, compared with the nearest stored vector,
             then either reused or sent upstream.
           </p>
         </div>
 
-        <p className="ui-label text-(--text-faint)">Max 2,000 chars</p>
+        <p className="ui-label text-(--text-faint)">
+          Max {MAX_PROMPT_LENGTH_LABEL} chars
+        </p>
       </div>
 
       <form
@@ -72,7 +83,7 @@ export function QueryForm({
           }
           className="scrollbar-thin block min-h-36 w-full resize-y border border-(--hairline) bg-(--surface) p-4 text-sm/6 text-(--text) outline-none transition-colors placeholder:text-(--text-faint) hover:border-(--text-faint) focus-visible:border-(--gold) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) disabled:cursor-not-allowed disabled:opacity-55"
           disabled={isLoading}
-          maxLength={2_000}
+          maxLength={MAX_PROMPT_LENGTH}
           name="prompt"
           placeholder="Describe the thing you want the cache to recognize."
           rows={6}
@@ -87,7 +98,10 @@ export function QueryForm({
           <p id="prompt-note">
             Focused wording makes the neighborhood easier to inspect.
           </p>
-          <span className="shrink-0 tabular-nums">{prompt.length} / 2000</span>
+
+          <span className="shrink-0 tabular-nums">
+            {prompt.length} / {MAX_PROMPT_LENGTH_LABEL}
+          </span>
         </div>
 
         {validationError !== null && (
@@ -103,6 +117,7 @@ export function QueryForm({
         <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="ui-label mb-2 text-(--text-faint)">Sample probes</p>
+
             <div className="flex flex-col items-start gap-1.5">
               {EXAMPLE_PROMPTS.map((example) => (
                 <button
@@ -118,13 +133,14 @@ export function QueryForm({
             </div>
           </div>
 
-          <button
-            className="ui-label min-h-11 w-full border border-(--gold) bg-(--gold) px-5 py-3 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto"
+          <Button
+            className="w-full disabled:opacity-55 sm:w-auto"
             disabled={isLoading}
             type="submit"
+            variant="primary"
           >
-            {isLoading ? 'Embedding + lookup\u2026' : 'Run query'}
-          </button>
+            {isLoading ? 'Embedding + lookup…' : 'Run query'}
+          </Button>
         </div>
       </form>
     </section>

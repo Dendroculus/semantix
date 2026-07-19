@@ -1,3 +1,6 @@
+import { Button } from '@/shared/components/ui';
+import { formatDecimal } from '@/shared/lib/formatters';
+
 interface ThresholdControlsProps {
   appliedThreshold: number;
   isApplyingThreshold: boolean;
@@ -24,10 +27,14 @@ export function ThresholdControls({
         >
           Projection threshold
         </label>
+
         <div className="font-data flex gap-4 text-[10px]">
-          <span className="text-(--teal)">Preview {threshold.toFixed(2)}</span>
+          <span className="text-(--teal)">
+            Preview {formatDecimal(threshold, 2)}
+          </span>
+
           <span className="text-(--gold)">
-            Backend applied {appliedThreshold.toFixed(2)}
+            Backend applied {formatDecimal(appliedThreshold, 2)}
           </span>
         </div>
       </div>
@@ -50,14 +57,16 @@ export function ThresholdControls({
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
-        <button
-          className="ui-label min-h-10 border border-(--gold) px-3 py-2 text-(--gold) transition-colors hover:bg-(--gold) hover:text-(--ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
+        <Button
+          className="border-(--gold) text-(--gold) hover:bg-(--gold) hover:text-(--ink) focus-visible:outline-(--gold) disabled:opacity-40"
           disabled={!hasPendingThreshold || isApplyingThreshold}
-          type="button"
+          size="compact"
+          variant="secondary"
           onClick={() => onThresholdApply(threshold)}
         >
           {isApplyingThreshold ? 'Applying' : 'Apply to cache'}
-        </button>
+        </Button>
+
         <button
           className="ui-label min-h-10 border-b border-(--teal) px-1 py-2 text-(--teal) transition-colors hover:text-(--text) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
           disabled={!hasPendingThreshold || isApplyingThreshold}
@@ -69,7 +78,7 @@ export function ThresholdControls({
       </div>
 
       <p
-        className="mt-5 max-w-xl text-xs/5  text-(--text-muted)"
+        className="mt-5 max-w-xl text-xs/5 text-(--text-muted)"
         id="threshold-note"
       >
         Every dot sits at its real similarity score. Vertical position only

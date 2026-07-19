@@ -12,6 +12,36 @@ export function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+export function isNonNegativeNumber(
+  value: unknown,
+): value is number {
+  return isFiniteNumber(value) && value >= 0;
+}
+
+export function isNullableNonNegativeNumber(
+  value: unknown,
+): value is number | null {
+  return value === null || isNonNegativeNumber(value);
+}
+
+export function isNumberInRange(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): value is number {
+  return (
+    isFiniteNumber(value) &&
+    value >= minimum &&
+    value <= maximum
+  );
+}
+
+export function isNonEmptyString(
+  value: unknown,
+): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
 export function isNullableFiniteNumber(
   value: unknown,
 ): value is number | null {
@@ -34,6 +64,31 @@ export function isNonNegativeInteger(
   );
 }
 
-export function isIsoDate(value: string): boolean {
-  return !Number.isNaN(Date.parse(value));
+export function isIsoDate(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    !Number.isNaN(Date.parse(value))
+  );
+}
+
+export function isNullableIsoDate(
+  value: unknown,
+): value is string | null {
+  return value === null || isIsoDate(value);
+}
+
+export function isSha256Hex(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[a-f0-9]{64}$/.test(value)
+  );
+}
+
+export function createEnumGuard<const TValue extends string>(
+  values: readonly TValue[],
+): (value: unknown) => value is TValue {
+  const allowedValues = new Set<string>(values);
+
+  return (value: unknown): value is TValue =>
+    typeof value === "string" && allowedValues.has(value);
 }

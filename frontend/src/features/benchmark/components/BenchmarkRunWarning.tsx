@@ -1,3 +1,4 @@
+import { Button } from '@/shared/components/ui';
 import type { BenchmarkController } from '../hooks/useBenchmark';
 
 interface BenchmarkRunWarningProps {
@@ -13,6 +14,7 @@ export function BenchmarkRunWarning({
 
   const dataset = controller.selectedDataset;
   const queryCount = (dataset?.query_count ?? 0) * controller.form.repetitions;
+
   const expectedProviderCalls =
     (dataset?.expected_misses ?? 0) * controller.form.repetitions;
 
@@ -25,27 +27,27 @@ export function BenchmarkRunWarning({
       <p className="ui-label text-(--coral)" id="benchmark-warning-title">
         External provider warning
       </p>
-      <p className="mt-3 max-w-3xl text-sm/6  text-(--text-soft)">
+
+      <p className="mt-3 max-w-3xl text-sm/6 text-(--text-soft)">
         This run sends {queryCount} embedding requests and is expected to make
         about {expectedProviderCalls} external generation calls. Actual calls
         can differ when the classifier makes false-positive or false-negative
         decisions. Provider charges may apply.
       </p>
+
       <div className="mt-5 flex flex-wrap gap-3">
-        <button
-          className="ui-label min-h-11 bg-(--coral) px-4 py-3 text-(--ink) transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--coral) active:translate-y-px"
-          type="button"
-          onClick={() => void controller.confirmRun()}
-        >
+        <Button variant="danger" onClick={() => void controller.confirmRun()}>
           Run benchmark now
-        </button>
-        <button
-          className="ui-label min-h-11 border border-(--hairline) px-4 py-3 text-(--text-soft) transition-colors hover:border-(--text-muted) hover:text-(--text) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px"
-          type="button"
+        </Button>
+
+        <Button
+          className="border-(--hairline) text-(--text-soft) hover:border-(--text-muted) hover:text-(--text) focus-visible:outline-(--gold)"
+          size="large"
+          variant="secondary"
           onClick={controller.cancelRun}
         >
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   );

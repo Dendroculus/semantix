@@ -1,4 +1,5 @@
 import { formatSimilarity } from '@/shared/lib/formatters';
+import { cacheDecisionLabel } from '@/shared/domain/similarity';
 import {
   PLOT_TOP,
   VIEW_HEIGHT,
@@ -41,10 +42,6 @@ function tooltipPosition(point: PlotPoint): {
   return { x, y };
 }
 
-function formatDecision(value: boolean): string {
-  return value ? 'HIT' : 'MISS';
-}
-
 export function SimilarityTooltip({
   point,
 }: Readonly<SimilarityTooltipProps>): JSX.Element {
@@ -58,12 +55,12 @@ export function SimilarityTooltip({
     {
       color: point.isProjectedHit ? 'var(--gold)' : 'var(--coral)',
       label: 'Preview',
-      value: formatDecision(point.isProjectedHit),
+      value: cacheDecisionLabel(point.isProjectedHit),
     },
     {
       color: point.actualCacheHit ? 'var(--teal)' : 'var(--coral)',
       label: 'Actual',
-      value: formatDecision(point.actualCacheHit),
+      value: cacheDecisionLabel(point.actualCacheHit),
     },
   ] satisfies TooltipItem[];
 

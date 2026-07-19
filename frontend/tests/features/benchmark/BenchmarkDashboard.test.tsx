@@ -4,6 +4,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
   waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -211,7 +212,22 @@ describe('BenchmarkDashboard', () => {
     expect(screen.getByText('Precision / recall vs. threshold')).toBeTruthy();
     expect(screen.getByText('Similarity-score distribution')).toBeTruthy();
     expect(screen.getByText('Per-query evidence')).toBeTruthy();
+    const table = screen.getByRole('table');
+    for (const header of [
+      '#',
+      'Category',
+      'Query',
+      'Expected',
+      'Actual',
+      'Score',
+      'Latency',
+      'Outcome',
+    ]) {
+      expect(within(table).getByRole('columnheader', { name: header })).toBeTruthy();
+    }
     expect(screen.getByText('0.940')).toBeTruthy();
+    expect(within(table).getByText('true positive')).toBeTruthy();
+    expect(within(table).getByText('10.0 ms')).toBeTruthy();
     expect(screen.getByText('n/a')).toBeTruthy();
   });
 

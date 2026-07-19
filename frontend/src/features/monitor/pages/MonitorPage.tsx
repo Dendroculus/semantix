@@ -6,6 +6,7 @@ import { ResponseSkeleton } from "../components/ResponseSkeleton";
 import { SimilarityRadar } from "../components/similarity-radar/SimilarityRadar";
 import { useCacheControl } from "@/features/cache/hooks/useCacheControl";
 import { useMonitor } from "../hooks/useMonitor";
+import { Alert } from "@/shared/components/ui";
 
 export function MonitorPage(): JSX.Element {
   const {
@@ -33,15 +34,16 @@ export function MonitorPage(): JSX.Element {
         )}
 
         {queryState.status === "error" && (
-          <div
+          <Alert
             className="mt-6 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3"
             role="alert"
+            title="Query failed"
+            tone="error"
           >
-            <p className="ui-label text-(--coral)">Query failed</p>
             <p className="font-data mt-1 text-[11px]/5 text-(--text-soft)">
               {queryState.error.detail ?? "The provider returned no detail."}
             </p>
-          </div>
+          </Alert>
         )}
 
         {queryState.status === "success" && (

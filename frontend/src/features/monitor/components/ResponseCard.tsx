@@ -5,6 +5,7 @@ import {
   formatLatency,
   formatSimilarity,
 } from '@/shared/lib/formatters';
+import { hasSimilarityScore } from '@/shared/domain/similarity';
 import type { QueryResponse } from '../types';
 
 interface ResponseCardProps {
@@ -22,7 +23,7 @@ function explainDecision(result: QueryResponse): string {
   const score = formatSimilarity(result.similarity_score);
   const threshold = formatSimilarity(result.similarity_threshold);
 
-  if (result.cache_hit && result.similarity_score !== null) {
+  if (result.cache_hit && hasSimilarityScore(result.similarity_score)) {
     return `Reused a cached response because similarity ${score} met the ${threshold} threshold.`;
   }
 
@@ -30,7 +31,7 @@ function explainDecision(result: QueryResponse): string {
     return 'Awaited an identical in-flight request instead of making a duplicate provider call.';
   }
 
-  if (result.similarity_score === null) {
+  if (!hasSimilarityScore(result.similarity_score)) {
     return 'Generated a fresh response because no cached entry was available to compare.';
   }
 
@@ -68,11 +69,13 @@ export function ResponseCard({
     !result.cache_hit &&
     result.generation_skipped &&
     !result.provider_called;
-  const verdict = result.cache_hit
-    ? { color: 'var(--teal)', label: 'CACHE HIT' }
-    : isCoalesced
-      ? { color: 'var(--gold)', label: 'COALESCED RESPONSE' }
-      : { color: 'var(--coral)', label: 'FRESH RESPONSE' };
+  let verdict = { color: 'var(--coral)', label: 'FRESH RESPONSE' };
+
+  if (result.cache_hit) {
+    verdict = { color: 'var(--teal)', label: 'CACHE HIT' };
+  } else if (isCoalesced) {
+    verdict = { color: 'var(--gold)', label: 'COALESCED RESPONSE' };
+  }
   const cacheAgeValue =
     result.cache_entry_created_at === null ? (
       cacheAge

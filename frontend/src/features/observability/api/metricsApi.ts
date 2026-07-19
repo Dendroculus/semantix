@@ -1,28 +1,18 @@
 import { request, withSignal } from "@/shared/api/httpClient";
 import type { ApiResult } from "@/shared/api/types";
 import {
-  isFiniteNumber,
   isIsoDate,
+  isNonNegativeNumber,
   isNonNegativeInteger,
+  isNullableNonNegativeNumber,
   isRecord,
 } from "@/shared/api/validators";
 
 import type { RuntimeMetrics } from "../types";
 
-function isNonNegativeNumber(value: unknown): value is number {
-  return isFiniteNumber(value) && value >= 0;
-}
-
-function isNullableNonNegativeNumber(
-  value: unknown,
-): value is number | null {
-  return value === null || isNonNegativeNumber(value);
-}
-
 function decodeRuntimeMetrics(value: unknown): RuntimeMetrics {
   if (
     !isRecord(value) ||
-    typeof value.observed_at !== "string" ||
     !isIsoDate(value.observed_at) ||
     !isNonNegativeNumber(value.uptime_seconds) ||
     !isNonNegativeInteger(value.request_count) ||

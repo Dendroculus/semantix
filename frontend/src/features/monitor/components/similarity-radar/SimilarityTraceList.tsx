@@ -1,4 +1,5 @@
 import { formatSimilarity } from '@/shared/lib/formatters';
+import { cacheDecisionLabel } from '@/shared/domain/similarity';
 import { formatPrompt, type PlotPoint } from './model';
 
 interface SimilarityTraceListProps {
@@ -8,10 +9,6 @@ interface SimilarityTraceListProps {
 }
 
 const TRACE_HEADERS = ['Recent scored query', 'Score', 'Preview'] as const;
-
-function formatDecision(value: boolean): string {
-  return value ? 'HIT' : 'MISS';
-}
 
 export function SimilarityTraceList({
   activePointId,
@@ -70,7 +67,7 @@ export function SimilarityTraceList({
               {formatSimilarity(point.similarity)}
             </span>
             <span className="text-right" style={{ color: previewColor }}>
-              {formatDecision(point.isProjectedHit)}
+              {cacheDecisionLabel(point.isProjectedHit)}
             </span>
           </button>
         );

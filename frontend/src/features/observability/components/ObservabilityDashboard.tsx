@@ -1,9 +1,13 @@
+import { Alert, Button, PageHeader } from '@/shared/components/ui';
 import {
   formatCount,
   formatHoursMinutesDuration,
   formatLatency,
 } from '@/shared/lib/formatters';
-import { useRuntimeMetrics } from '../hooks/useRuntimeMetrics';
+import {
+  RUNTIME_METRICS_REFRESH_INTERVAL_MS,
+  useRuntimeMetrics,
+} from '../hooks/useRuntimeMetrics';
 import { MetricsSkeleton } from './MetricsSkeleton';
 import { MetricTile } from './MetricTile';
 
@@ -25,6 +29,7 @@ function MetricGroup({
   return (
     <section>
       <h2 className="ui-label text-(--gold)">{title}</h2>
+
       <dl className="mt-3 flex flex-wrap gap-px border border-(--hairline) bg-(--hairline)">
         {items.map((item) => (
           <MetricTile
@@ -126,48 +131,55 @@ export function ObservabilityDashboard(): JSX.Element {
 
   return (
     <main>
-      <header className="flex flex-col gap-5 border-b border-(--hairline) pb-8 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="ui-label text-(--teal)">Live process telemetry</p>
-          <h1 className="font-display mt-2 text-4xl italic text-(--text) sm:text-5xl">
-            Observability
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm/6 text-(--text-muted)">
-            Query traffic, cache decisions, provider savings, coalescing,
-            latency, and cache lifecycle counters from this backend process.
-          </p>
-        </div>
-
-        <button
-          className="ui-label border border-(--hairline) bg-(--surface) px-4 py-3 text-(--text-soft) transition-colors hover:border-(--gold) hover:text-(--gold) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
-          type="button"
-          onClick={refresh}
-        >
-          Refresh metrics
-        </button>
-      </header>
+      <PageHeader
+        actions={
+          <Button
+            className="border-(--hairline) bg-(--surface) text-(--text-soft) hover:border-(--gold) hover:text-(--gold) focus-visible:outline-(--gold)"
+            size="large"
+            variant="secondary"
+            onClick={refresh}
+          >
+            Refresh metrics
+          </Button>
+        }
+        className="border-b border-(--hairline) pb-8"
+        description="Query traffic, cache decisions, provider savings, coalescing, latency, and cache lifecycle counters from this backend process."
+        eyebrow="Live process telemetry"
+        size="large"
+        title="Observability"
+        tone="teal"
+      />
 
       <div className="mt-8">
         {state.status === 'loading' && <MetricsSkeleton />}
 
         {state.status === 'error' && (
-          <section className="border border-(--coral) bg-(--surface) p-6">
-            <p className="ui-label text-(--coral)">Metrics unavailable</p>
+          <Alert
+            className="border border-(--coral) bg-(--surface) p-6"
+            title="Metrics unavailable"
+            tone="error"
+          >
             <p className="mt-3 text-sm text-(--text-muted)">
               {state.error.detail ??
                 'The runtime metrics endpoint could not be reached.'}
             </p>
-          </section>
+          </Alert>
         )}
 
         {state.status === 'ready' && (
           <div className="space-y-8">
             <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-(--hairline) pb-4 text-xs text-(--text-faint)">
-              <span>Auto-refresh: 5 seconds</span>
+              <span>
+                Auto-refresh:{' '}
+                {formatCount(RUNTIME_METRICS_REFRESH_INTERVAL_MS / 1_000)}{' '}
+                seconds
+              </span>
+
               <span>
                 Process uptime:{' '}
                 {formatHoursMinutesDuration(state.data.uptime_seconds)}
               </span>
+
               <span>
                 Samples: {formatCount(state.data.latency_sample_size)}
               </span>

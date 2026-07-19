@@ -1,5 +1,10 @@
 import { CacheEntryCard } from './CacheEntryCard';
 import type { CacheInspectorController } from '../hooks/useCacheInspector';
+import {
+  Alert,
+  Button,
+  EmptyState,
+} from '@/shared/components/ui';
 
 interface CacheInspectorResultsProps {
   inspector: CacheInspectorController;
@@ -63,43 +68,46 @@ export function CacheInspectorResults({
       )}
 
       {actionError !== null && (
-        <p
+        <Alert
           className="font-data mt-5 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3 text-[11px]/5 text-(--coral)"
           role="alert"
+          tone="error"
         >
           {actionError}
-        </p>
+        </Alert>
       )}
 
       {loadError !== null && (
-        <div
+        <Alert
           className="mt-6 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3"
           role="alert"
+          tone="error"
         >
           <p className="text-sm text-(--text-soft)">{loadError}</p>
-          <button
-            className="ui-label mt-3 min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px"
-            type="button"
+          <Button
+            className="ui-label mt-3 min-h-9 text-(--teal) focus-visible:outline-(--teal)"
+            variant="link"
             onClick={refresh}
           >
             Try again
-          </button>
-        </div>
+          </Button>
+        </Alert>
       )}
 
       {data !== null && loadError === null && data.items.length === 0 && (
-        <div className="mt-7 border-y border-(--hairline) py-8">
-          <p className="font-display text-xl italic text-(--text-soft)">
-            {search.trim() === ''
-              ? 'The cache is empty.'
-              : 'No cached prompts match this search.'}
-          </p>
-          <p className="mt-2 text-sm text-(--text-muted)">
-            {search.trim() === ''
+        <EmptyState
+          className="mt-7 py-8"
+          description={
+            search.trim() === ''
               ? 'Run a query to create the first inspectable entry.'
-              : 'Try a broader prompt fragment or clear the search field.'}
-          </p>
-        </div>
+              : 'Try a broader prompt fragment or clear the search field.'
+          }
+          title={
+            search.trim() === ''
+              ? 'The cache is empty.'
+              : 'No cached prompts match this search.'
+          }
+        />
       )}
 
       {data !== null && loadError === null && data.items.length > 0 && (
@@ -124,22 +132,22 @@ export function CacheInspectorResults({
             {visibleStart}-{visibleEnd} of {data.total} entries
           </span>
           <div className="flex gap-5">
-            <button
-              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:text-(--text-faint)"
+            <Button
+              className="ui-label min-h-9 text-(--teal) focus-visible:outline-(--teal) disabled:text-(--text-faint)"
               disabled={!hasPrevious || isLoading}
-              type="button"
+              variant="link"
               onClick={previousPage}
             >
               Previous
-            </button>
-            <button
-              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:text-(--text-faint)"
+            </Button>
+            <Button
+              className="ui-label min-h-9 text-(--teal) focus-visible:outline-(--teal) disabled:text-(--text-faint)"
               disabled={!hasNext || isLoading}
-              type="button"
+              variant="link"
               onClick={nextPage}
             >
               Next
-            </button>
+            </Button>
           </div>
         </footer>
       )}

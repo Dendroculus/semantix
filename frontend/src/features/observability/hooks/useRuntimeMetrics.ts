@@ -4,7 +4,7 @@ import { getRuntimeMetrics } from "../api/metricsApi";
 import type { RuntimeMetrics } from "../types";
 import type { ApiError } from "@/shared/api/types";
 
-const REFRESH_INTERVAL_MS = 5_000;
+export const RUNTIME_METRICS_REFRESH_INTERVAL_MS = 5_000;
 
 type MetricsState =
   | { status: "loading" }
@@ -38,7 +38,7 @@ export function useRuntimeMetrics(): RuntimeMetricsController {
     load(controller.signal).catch(() => undefined);
     const interval = window.setInterval(() => {
       load(controller.signal).catch(() => undefined);
-    }, REFRESH_INTERVAL_MS);
+    }, RUNTIME_METRICS_REFRESH_INTERVAL_MS);
 
     return () => {
       controller.abort();

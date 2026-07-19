@@ -5,6 +5,8 @@ import {
   VIEW_WIDTH,
   type PlotPoint,
 } from "./model";
+import { formatSimilarity } from "@/shared/lib/formatters";
+import { cacheDecisionLabel } from "@/shared/domain/similarity";
 
 interface SimilarityPlotProps {
   activePointId: string | null;
@@ -18,9 +20,9 @@ interface SimilarityPlotProps {
 function pointLabel(point: PlotPoint): string {
   return [
     `Prompt: ${point.prompt}.`,
-    `Similarity ${point.similarity.toFixed(3)}.`,
-    `Projected ${point.isProjectedHit ? "hit" : "miss"}.`,
-    `Actual ${point.actualCacheHit ? "hit" : "miss"}.`,
+    `Similarity ${formatSimilarity(point.similarity)}.`,
+    `Projected ${cacheDecisionLabel(point.isProjectedHit).toLowerCase()}.`,
+    `Actual ${cacheDecisionLabel(point.actualCacheHit).toLowerCase()}.`,
   ].join(" ");
 }
 

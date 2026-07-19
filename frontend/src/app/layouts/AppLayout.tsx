@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { useCacheControl } from '@/features/cache/hooks/useCacheControl';
 import { Navbar } from '../navigation/Navbar';
 import { AppProviders } from '../providers/AppProviders';
+import { Alert } from '@/shared/components/ui';
 
 function AppShell(): JSX.Element {
   const { clearControlError, controlError } = useCacheControl();
@@ -19,19 +20,22 @@ function AppShell(): JSX.Element {
         <Navbar />
 
         {controlError !== null && (
-          <div
-            className="font-data mt-5 flex flex-wrap items-center justify-between gap-4 border-l border-(--coral) pl-4 text-[11px] text-(--coral)"
+          <Alert
+            action={
+              <button
+                className="ui-label text-(--text-muted) focus-visible:outline-1 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
+                type="button"
+                onClick={clearControlError}
+              >
+                Dismiss
+              </button>
+            }
+            className="font-data mt-5 border-l border-(--coral) pl-4 text-[11px] text-(--coral)"
             role="alert"
+            tone="error"
           >
             <span>{controlError}</span>
-            <button
-              className="ui-label text-(--text-muted) focus-visible:outline-1 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
-              type="button"
-              onClick={clearControlError}
-            >
-              Dismiss
-            </button>
-          </div>
+          </Alert>
         )}
 
         <main className="py-10 sm:py-12" id="main-content">

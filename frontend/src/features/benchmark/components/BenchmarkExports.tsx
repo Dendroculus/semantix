@@ -1,5 +1,11 @@
 import type { BenchmarkRunResponse } from '../types';
 import { downloadBenchmark } from '../lib/exportBuilders';
+import { Button } from '@/shared/components/ui';
+
+const EXPORT_OPTIONS = [
+  { format: 'json', label: 'Export JSON' },
+  { format: 'csv', label: 'Export CSV' },
+] as const;
 
 interface BenchmarkExportsProps {
   result: BenchmarkRunResponse;
@@ -10,20 +16,16 @@ export function BenchmarkExports({
 }: Readonly<BenchmarkExportsProps>): JSX.Element {
   return (
     <div className="flex flex-wrap gap-3">
-      <button
-        className="ui-label min-h-10 border border-(--hairline) px-4 py-2 text-(--text-soft) transition-colors hover:border-(--teal) hover:text-(--teal) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px"
-        type="button"
-        onClick={() => downloadBenchmark(result, 'json')}
-      >
-        Export JSON
-      </button>
-      <button
-        className="ui-label min-h-10 border border-(--hairline) px-4 py-2 text-(--text-soft) transition-colors hover:border-(--teal) hover:text-(--teal) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px"
-        type="button"
-        onClick={() => downloadBenchmark(result, 'csv')}
-      >
-        Export CSV
-      </button>
+      {EXPORT_OPTIONS.map((option) => (
+        <Button
+          className="border-(--hairline) text-(--text-soft) hover:border-(--teal) hover:text-(--teal) focus-visible:outline-(--teal)"
+          key={option.format}
+          variant="secondary"
+          onClick={() => downloadBenchmark(result, option.format)}
+        >
+          {option.label}
+        </Button>
+      ))}
     </div>
   );
 }

@@ -11,21 +11,24 @@ import type { ApiResult } from "@/shared/api/types";
 import { request, withSignal } from "@/shared/api/httpClient";
 import { isCacheNamespace } from "../namespace";
 import {
-  isFiniteNumber,
   isIsoDate,
+  isNonEmptyString,
+  isNonNegativeNumber,
   isNonNegativeInteger,
-  isNullableFiniteNumber,
-  isNullableString,
+  isNullableIsoDate,
+  isNullableNonNegativeNumber,
+  isNumberInRange,
   isRecord,
+  isSha256Hex,
 } from "@/shared/api/validators";
 
 function decodeCacheStats(value: unknown): CacheStatsResponse {
   if (
     !isRecord(value) ||
-    !isFiniteNumber(value.size) ||
-    !isFiniteNumber(value.hits) ||
-    !isFiniteNumber(value.misses) ||
-    !isFiniteNumber(value.hit_rate)
+    !isNonNegativeNumber(value.size) ||
+    !isNonNegativeNumber(value.hits) ||
+    !isNonNegativeNumber(value.misses) ||
+    !isNumberInRange(value.hit_rate, 0, 1)
   ) {
     throw new Error("Invalid cache stats response");
   }
@@ -41,20 +44,16 @@ function decodeCacheStats(value: unknown): CacheStatsResponse {
 function decodeCacheEntry(value: unknown): CacheEntryMetadata {
   if (
     !isRecord(value) ||
-    typeof value.cache_key !== "string" ||
-    !/^[a-f0-9]{64}$/.test(value.cache_key) ||
+    !isSha256Hex(value.cache_key) ||
     typeof value.namespace !== "string" ||
     !isCacheNamespace(value.namespace) ||
-    typeof value.prompt !== "string" ||
-    value.prompt.length === 0 ||
-    typeof value.response_preview !== "string" ||
-    value.response_preview.length === 0 ||
-    typeof value.created_at !== "string" ||
+    !isNonEmptyString(value.prompt) ||
+    !isNonEmptyString(value.response_preview) ||
     !isIsoDate(value.created_at) ||
-    !isNullableString(value.expires_at) ||
-    !isNullableFiniteNumber(value.remaining_ttl_seconds) ||
+    !isNullableIsoDate(value.expires_at) ||
+    !isNullableNonNegativeNumber(value.remaining_ttl_seconds) ||
     !isNonNegativeInteger(value.hit_count) ||
-    !isNullableString(value.last_accessed_at) ||
+    !isNullableIsoDate(value.last_accessed_at) ||
     !isNonNegativeInteger(value.recency_rank) ||
     value.recency_rank < 1 ||
     typeof value.is_expired !== "boolean"
@@ -65,14 +64,9 @@ function decodeCacheEntry(value: unknown): CacheEntryMetadata {
   const hasValidExpiry =
     value.expires_at === null
       ? value.remaining_ttl_seconds === null
-      : isIsoDate(value.expires_at) &&
-        value.remaining_ttl_seconds !== null &&
-        value.remaining_ttl_seconds >= 0;
-  const hasValidLastAccess =
-    value.last_accessed_at === null ||
-    isIsoDate(value.last_accessed_at);
+      : value.remaining_ttl_seconds !== null;
 
-  if (!hasValidExpiry || !hasValidLastAccess) {
+  if (!hasValidExpiry) {
     throw new Error("Invalid cache-entry timestamps");
   }
 
@@ -100,8 +94,7 @@ function decodeCacheEntryList(
     !isNonNegativeInteger(value.total) ||
     !isNonNegativeInteger(value.offset) ||
     !isNonNegativeInteger(value.limit) ||
-    value.limit < 1 ||
-    value.limit > 100 ||
+    !isNumberInRange(value.limit, 1, 100) ||
     typeof value.has_more !== "boolean"
   ) {
     throw new Error("Invalid cache-entry list");
@@ -141,8 +134,7 @@ function decodeDeleteCacheEntry(
   if (
     !isRecord(value) ||
     value.deleted !== true ||
-    typeof value.cache_key !== "string" ||
-    !/^[a-f0-9]{64}$/.test(value.cache_key)
+    !isSha256Hex(value.cache_key)
   ) {
     throw new Error("Invalid delete-cache-entry response");
   }
@@ -158,9 +150,7 @@ function decodeCacheThreshold(
 ): CacheThresholdResponse {
   if (
     !isRecord(value) ||
-    !isFiniteNumber(value.threshold) ||
-    value.threshold < 0 ||
-    value.threshold > 1
+    !isNumberInRange(value.threshold, 0, 1)
   ) {
     throw new Error("Invalid cache-threshold response");
   }

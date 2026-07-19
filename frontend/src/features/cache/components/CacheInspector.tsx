@@ -8,18 +8,13 @@ import {
 export type { CacheMutation };
 
 interface CacheInspectorProps {
-  refreshKey: number;
   onMutation: (mutation: CacheMutation) => void;
 }
 
 export function CacheInspector({
-  refreshKey,
   onMutation,
 }: Readonly<CacheInspectorProps>): JSX.Element {
-  const inspector = useCacheInspector({
-    onMutation,
-    refreshKey,
-  });
+  const inspector = useCacheInspector({ onMutation });
 
   return (
     <section

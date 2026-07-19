@@ -1,4 +1,8 @@
 import type { QueryTrace } from "@/features/monitor/types";
+import {
+  hasSimilarityScore,
+  meetsSimilarityThreshold,
+} from "@/shared/domain/similarity";
 
 export const VIEW_WIDTH = 640;
 export const VIEW_HEIGHT = 230;
@@ -24,7 +28,7 @@ function clampScore(score: number): number {
 function isScoredTrace(
   trace: QueryTrace,
 ): trace is ScoredTrace {
-  return trace.similarity !== null;
+  return hasSimilarityScore(trace.similarity);
 }
 
 export function scoreToX(score: number): number {
@@ -54,7 +58,10 @@ export function buildPlotPoints(
     .filter(isScoredTrace)
     .map((trace) => ({
       ...trace,
-      isProjectedHit: trace.similarity >= threshold,
+      isProjectedHit: meetsSimilarityThreshold(
+        trace.similarity,
+        threshold,
+      ),
       x: scoreToX(trace.similarity),
       y: stableJitter(trace.id),
     }));

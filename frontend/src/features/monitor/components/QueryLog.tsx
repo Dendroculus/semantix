@@ -3,6 +3,11 @@ import {
   formatSimilarity,
   formatTimeOfDay,
 } from '@/shared/lib/formatters';
+import {
+  cacheDecisionLabel,
+  meetsSimilarityThreshold,
+} from '@/shared/domain/similarity';
+import { EmptyState } from '@/shared/components/ui';
 import type { QueryTrace } from '../types';
 
 interface QueryLogProps {
@@ -26,10 +31,6 @@ function MobileLabel({
   );
 }
 
-function formatDecision(value: boolean): string {
-  return value ? 'HIT' : 'MISS';
-}
-
 export function QueryLog({
   traces,
   threshold,
@@ -46,15 +47,16 @@ export function QueryLog({
       </div>
 
       {traces.length === 0 ? (
-        <div className="border-y border-(--hairline) py-6">
-          <p className="font-display text-xl italic text-(--text-soft)">
-            No query traces yet
-          </p>
-          <p className="font-data mt-2 max-w-2xl text-[10px]/5 text-(--text-muted)">
+        <EmptyState
+          className="py-6"
+          description={
+            <p className="font-data text-[10px]/5">
             The first probe seeds the visible history. Later prompts show their
             nearest-cache score and projected decision here.
-          </p>
-        </div>
+            </p>
+          }
+          title="No query traces yet"
+        />
       ) : (
         <div>
           <div className="ui-label hidden grid-cols-[90px_72px_minmax(180px,1fr)_72px_90px] gap-4 border-b border-(--hairline) pb-3 text-(--text-faint) min-[760px]:grid">
@@ -70,7 +72,7 @@ export function QueryLog({
 
           {traces.map((trace) => {
             const isProjectedHit =
-              trace.similarity !== null && trace.similarity >= threshold;
+              meetsSimilarityThreshold(trace.similarity, threshold);
             const projectionColor = isProjectedHit
               ? 'var(--gold)'
               : 'var(--coral)';
@@ -99,7 +101,7 @@ export function QueryLog({
                 <div className="flex justify-between gap-4 min-[760px]:contents">
                   <span style={{ color: projectionColor }}>
                     <MobileLabel>Projection</MobileLabel>
-                    {formatDecision(isProjectedHit)}
+                    {cacheDecisionLabel(isProjectedHit)}
                   </span>
                   <span className="text-(--text-muted) min-[760px]:text-right">
                     <MobileLabel>Latency</MobileLabel>

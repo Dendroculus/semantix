@@ -69,6 +69,24 @@ export function formatHoursMinutesDuration(
   return `${hours}h ${minutes}m`;
 }
 
+export function formatClockDuration(
+  milliseconds: DurationValue,
+  fallback = '00:00:00',
+): string {
+  if (!isValidDuration(milliseconds)) {
+    return fallback;
+  }
+
+  const totalSeconds = Math.floor(milliseconds / 1_000);
+  const hours = Math.floor(totalSeconds / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [hours, minutes, seconds]
+    .map((value) => value.toString().padStart(2, '0'))
+    .join(':');
+}
+
 export function formatTimestamp(
   value: string | null | undefined,
   fallback = 'Never',
