@@ -84,7 +84,6 @@ describe("application routing", () => {
     vi.mocked(useQuery).mockReturnValue({
       state: { status: "idle" },
       submit,
-      reset: vi.fn(),
     });
     submit.mockResolvedValue(queryResponse);
 

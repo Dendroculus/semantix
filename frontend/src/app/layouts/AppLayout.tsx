@@ -1,8 +1,8 @@
-import { Outlet } from "react-router-dom";
+import { Outlet } from 'react-router-dom';
 
-import { useCacheControl } from "@/features/cache/hooks/useCacheControl";
-import { Navbar } from "../navigation/Navbar";
-import { AppProviders } from "../providers/AppProviders";
+import { useCacheControl } from '@/features/cache/hooks/useCacheControl';
+import { Navbar } from '../navigation/Navbar';
+import { AppProviders } from '../providers/AppProviders';
 
 function AppShell(): JSX.Element {
   const { clearControlError, controlError } = useCacheControl();
@@ -25,7 +25,7 @@ function AppShell(): JSX.Element {
           >
             <span>{controlError}</span>
             <button
-              className="ui-label text-(--text-muted) focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
+              className="ui-label text-(--text-muted) focus-visible:outline-1 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
               type="button"
               onClick={clearControlError}
             >

@@ -1,24 +1,47 @@
-import type { QueryTrace } from "../types";
+import {
+  formatLatency,
+  formatSimilarity,
+  formatTimeOfDay,
+} from '@/shared/lib/formatters';
+import type { QueryTrace } from '../types';
 
 interface QueryLogProps {
   traces: QueryTrace[];
   threshold: number;
 }
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour12: false });
+interface MobileLabelProps {
+  children: string;
+}
+
+const TRACE_HEADERS = ['Time', 'Score', 'Query', 'Projection', 'Latency'] as const;
+
+function MobileLabel({
+  children,
+}: Readonly<MobileLabelProps>): JSX.Element {
+  return (
+    <span className="ui-label mr-2 text-(--text-faint) min-[760px]:hidden">
+      {children}
+    </span>
+  );
+}
+
+function formatDecision(value: boolean): string {
+  return value ? 'HIT' : 'MISS';
 }
 
 export function QueryLog({
   traces,
   threshold,
 }: Readonly<QueryLogProps>): JSX.Element {
+  const recordCount = traces.length.toString().padStart(2, '0');
+
   return (
     <section className="mt-16 border-t border-(--hairline) pt-8">
       <div className="mb-6 flex items-baseline justify-between gap-6">
         <h2 className="font-display text-2xl italic">Recent query trace</h2>
         <span className="font-data text-[10px] text-(--text-faint)">
-          {traces.length.toString().padStart(2, "0")} records
+          {recordCount} records
         </span>
       </div>
 
@@ -35,39 +58,37 @@ export function QueryLog({
       ) : (
         <div>
           <div className="ui-label hidden grid-cols-[90px_72px_minmax(180px,1fr)_72px_90px] gap-4 border-b border-(--hairline) pb-3 text-(--text-faint) min-[760px]:grid">
-            <span>Time</span>
-            <span>Score</span>
-            <span>Query</span>
-            <span>Projection</span>
-            <span className="text-right">Latency</span>
+            {TRACE_HEADERS.map((header) => (
+              <span
+                className={header === 'Latency' ? 'text-right' : undefined}
+                key={header}
+              >
+                {header}
+              </span>
+            ))}
           </div>
 
           {traces.map((trace) => {
             const isProjectedHit =
               trace.similarity !== null && trace.similarity >= threshold;
+            const projectionColor = isProjectedHit
+              ? 'var(--gold)'
+              : 'var(--coral)';
 
             return (
               <div
-                key={trace.id}
                 className="font-data grid gap-2 border-b border-l-2 border-[rgba(234,230,221,0.05)] py-4 pr-2 pl-3 text-[11px] transition-colors hover:bg-[rgba(234,230,221,0.025)] min-[760px]:grid-cols-[90px_72px_minmax(180px,1fr)_72px_90px] min-[760px]:gap-4 min-[760px]:border-l-0 min-[760px]:px-0 min-[760px]:py-3"
-                style={{
-                  borderLeftColor: isProjectedHit
-                    ? "var(--gold)"
-                    : "var(--coral)",
-                }}
+                key={trace.id}
+                style={{ borderLeftColor: projectionColor }}
               >
                 <div className="flex justify-between gap-4 min-[760px]:contents">
                   <time className="text-(--text-faint)">
-                    <span className="ui-label mr-2 min-[760px]:hidden">
-                      Time
-                    </span>
-                    {formatTime(trace.recordedAt)}
+                    <MobileLabel>Time</MobileLabel>
+                    {formatTimeOfDay(trace.recordedAt)}
                   </time>
                   <span className="text-(--teal)">
-                    <span className="ui-label mr-2 text-(--text-faint) min-[760px]:hidden">
-                      Score
-                    </span>
-                    {trace.similarity === null ? "n/a" : trace.similarity.toFixed(3)}
+                    <MobileLabel>Score</MobileLabel>
+                    {formatSimilarity(trace.similarity)}
                   </span>
                 </div>
 
@@ -76,17 +97,13 @@ export function QueryLog({
                 </span>
 
                 <div className="flex justify-between gap-4 min-[760px]:contents">
-                  <span style={{ color: isProjectedHit ? "var(--gold)" : "var(--coral)" }}>
-                    <span className="ui-label mr-2 text-(--text-faint) min-[760px]:hidden">
-                      Projection
-                    </span>
-                    {isProjectedHit ? "HIT" : "MISS"}
+                  <span style={{ color: projectionColor }}>
+                    <MobileLabel>Projection</MobileLabel>
+                    {formatDecision(isProjectedHit)}
                   </span>
                   <span className="text-(--text-muted) min-[760px]:text-right">
-                    <span className="ui-label mr-2 text-(--text-faint) min-[760px]:hidden">
-                      Latency
-                    </span>
-                    {trace.latencyMs.toFixed(1)} ms
+                    <MobileLabel>Latency</MobileLabel>
+                    {formatLatency(trace.latencyMs)}
                   </span>
                 </div>
               </div>

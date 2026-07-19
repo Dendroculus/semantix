@@ -1,3 +1,5 @@
+import { formatDecimal } from '@/shared/lib/formatters';
+
 interface ChartPoint {
   x: number;
   y: number;
@@ -21,6 +23,7 @@ const LEFT = 38;
 const RIGHT = 12;
 const TOP = 16;
 const BOTTOM = 28;
+const GRID_FRACTIONS = [0, 0.5, 1] as const;
 
 export function LineChart({
   series,
@@ -35,8 +38,11 @@ export function LineChart({
   const minY = Math.min(0, ...yValues);
   const rawMaxY = Math.max(...yValues);
   const maxY = rawMaxY === minY ? minY + 1 : rawMaxY;
+  const chartTitleId = `${title.replaceAll(' ', '-')}-chart-title`;
   const x = (value: number): number =>
-    LEFT + ((value - minX) / Math.max(maxX - minX, 0.001)) * (WIDTH - LEFT - RIGHT);
+    LEFT +
+    ((value - minX) / Math.max(maxX - minX, 0.001)) *
+      (WIDTH - LEFT - RIGHT);
   const y = (value: number): number =>
     TOP + ((maxY - value) / (maxY - minY)) * (HEIGHT - TOP - BOTTOM);
 
@@ -44,16 +50,18 @@ export function LineChart({
     <figure className="border-t border-(--hairline) pt-4">
       <figcaption className="ui-label text-(--text-muted)">{title}</figcaption>
       <svg
-        aria-labelledby={`${title.replaceAll(" ", "-")}-chart-title`}
+        aria-labelledby={chartTitleId}
         className="mt-3 h-auto w-full"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       >
-        <title id={`${title.replaceAll(" ", "-")}-chart-title`}>
-          {title}. Thresholds {minX.toFixed(2)} through {maxX.toFixed(2)}.
+        <title id={chartTitleId}>
+          {title}. Thresholds {formatDecimal(minX, 2)} through{' '}
+          {formatDecimal(maxX, 2)}.
         </title>
-        {[0, 0.5, 1].map((fraction) => {
+        {GRID_FRACTIONS.map((fraction) => {
           const value = minY + (maxY - minY) * fraction;
           const position = y(value);
+
           return (
             <g key={fraction}>
               <line
@@ -81,23 +89,23 @@ export function LineChart({
               fill="none"
               points={item.points
                 .map((point) => `${x(point.x)},${y(point.y)}`)
-                .join(" ")}
+                .join(' ')}
               stroke={item.color}
               strokeWidth="2"
             />
             {item.points.map((point) => (
               <circle
-                key={`${point.x}-${point.y}`}
                 cx={x(point.x)}
                 cy={y(point.y)}
                 fill={item.color}
+                key={`${point.x}-${point.y}`}
                 r="2.5"
               />
             ))}
           </g>
         ))}
         <text fill="var(--text-faint)" fontSize="8" x={LEFT} y={HEIGHT - 7}>
-          {minX.toFixed(2)}
+          {formatDecimal(minX, 2)}
         </text>
         <text
           fill="var(--text-faint)"
@@ -106,7 +114,7 @@ export function LineChart({
           x={WIDTH - RIGHT}
           y={HEIGHT - 7}
         >
-          {maxX.toFixed(2)} threshold
+          {formatDecimal(maxX, 2)} threshold
         </text>
       </svg>
       <div className="mt-2 flex flex-wrap gap-4">
@@ -117,7 +125,7 @@ export function LineChart({
           >
             <span
               aria-hidden="true"
-              className="size-1.5  rounded-full"
+              className="size-1.5 rounded-full"
               style={{ backgroundColor: item.color }}
             />
             {item.label}

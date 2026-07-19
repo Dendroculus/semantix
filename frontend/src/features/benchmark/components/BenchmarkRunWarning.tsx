@@ -1,4 +1,4 @@
-import type { BenchmarkController } from "../hooks/useBenchmark";
+import type { BenchmarkController } from '../hooks/useBenchmark';
 
 interface BenchmarkRunWarningProps {
   controller: BenchmarkController;
@@ -12,8 +12,7 @@ export function BenchmarkRunWarning({
   }
 
   const dataset = controller.selectedDataset;
-  const queryCount =
-    (dataset?.query_count ?? 0) * controller.form.repetitions;
+  const queryCount = (dataset?.query_count ?? 0) * controller.form.repetitions;
   const expectedProviderCalls =
     (dataset?.expected_misses ?? 0) * controller.form.repetitions;
 
@@ -23,10 +22,7 @@ export function BenchmarkRunWarning({
       className="mt-5 border border-(--coral) bg-[color-mix(in_srgb,var(--coral)_8%,transparent)] p-5"
       role="alertdialog"
     >
-      <p
-        className="ui-label text-(--coral)"
-        id="benchmark-warning-title"
-      >
+      <p className="ui-label text-(--coral)" id="benchmark-warning-title">
         External provider warning
       </p>
       <p className="mt-3 max-w-3xl text-sm/6  text-(--text-soft)">
@@ -37,14 +33,14 @@ export function BenchmarkRunWarning({
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
         <button
-          className="ui-label min-h-11 bg-(--coral) px-4 py-3 text-(--ink) transition-opacity hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--coral) active:translate-y-px"
+          className="ui-label min-h-11 bg-(--coral) px-4 py-3 text-(--ink) transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--coral) active:translate-y-px"
           type="button"
           onClick={() => void controller.confirmRun()}
         >
           Run benchmark now
         </button>
         <button
-          className="ui-label min-h-11 border border-(--hairline) px-4 py-3 text-(--text-soft) transition-colors hover:border-(--text-muted) hover:text-(--text) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px"
+          className="ui-label min-h-11 border border-(--hairline) px-4 py-3 text-(--text-soft) transition-colors hover:border-(--text-muted) hover:text-(--text) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px"
           type="button"
           onClick={controller.cancelRun}
         >

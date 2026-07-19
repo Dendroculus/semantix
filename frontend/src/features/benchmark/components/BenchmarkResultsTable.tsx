@@ -1,15 +1,31 @@
-import type { BenchmarkQueryResult } from "../types";
+import {
+  formatCount,
+  formatLatency,
+  formatSimilarity,
+} from '@/shared/lib/formatters';
+import type { BenchmarkQueryResult } from '../types';
 
 interface BenchmarkResultsTableProps {
   results: BenchmarkQueryResult[];
 }
 
-function label(value: string): string {
-  return value.replaceAll("_", " ");
+const TABLE_HEADERS = [
+  '#',
+  'Category',
+  'Query',
+  'Expected',
+  'Actual',
+  'Score',
+  'Latency',
+  'Outcome',
+] as const;
+
+function formatLabel(value: string): string {
+  return value.replaceAll('_', ' ');
 }
 
-function decision(value: boolean): string {
-  return value ? "HIT" : "MISS";
+function formatDecision(value: boolean): string {
+  return value ? 'HIT' : 'MISS';
 }
 
 export function BenchmarkResultsTable({
@@ -33,14 +49,11 @@ export function BenchmarkResultsTable({
         <table className="w-full min-w-[920px] border-collapse text-left">
           <thead className="bg-(--ink)">
             <tr className="ui-label text-(--text-faint)">
-              <th className="p-3 font-medium" scope="col">#</th>
-              <th className="p-3 font-medium" scope="col">Category</th>
-              <th className="p-3 font-medium" scope="col">Query</th>
-              <th className="p-3 font-medium" scope="col">Expected</th>
-              <th className="p-3 font-medium" scope="col">Actual</th>
-              <th className="p-3 font-medium" scope="col">Score</th>
-              <th className="p-3 font-medium" scope="col">Latency</th>
-              <th className="p-3 font-medium" scope="col">Outcome</th>
+              {TABLE_HEADERS.map((header) => (
+                <th className="p-3 font-medium" key={header} scope="col">
+                  {header}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="font-data text-[11px]">
@@ -50,42 +63,38 @@ export function BenchmarkResultsTable({
                 key={`${result.repetition}-${result.case_id}`}
               >
                 <td className="px-3 py-4 text-(--text-faint)">
-                  {result.sequence}
+                  {formatCount(result.sequence)}
                 </td>
                 <td className="px-3 py-4 capitalize text-(--text-muted)">
-                  {label(result.category)}
+                  {formatLabel(result.category)}
                 </td>
                 <td className="max-w-md px-3 py-4 leading-5 text-(--text-soft)">
                   {result.prompt}
                 </td>
                 <td className="px-3 py-4 text-(--text-muted)">
-                  {decision(result.expected_cache_hit)}
+                  {formatDecision(result.expected_cache_hit)}
                 </td>
                 <td
                   className={
                     result.actual_cache_hit
-                      ? "px-3 py-4 text-(--teal)"
-                      : "px-3 py-4 text-(--coral)"
+                      ? 'px-3 py-4 text-(--teal)'
+                      : 'px-3 py-4 text-(--coral)'
                   }
                 >
-                  {decision(result.actual_cache_hit)}
+                  {formatDecision(result.actual_cache_hit)}
                 </td>
                 <td className="px-3 py-4 tabular-nums">
-                  {result.similarity_score === null
-                    ? "n/a"
-                    : result.similarity_score.toFixed(3)}
+                  {formatSimilarity(result.similarity_score)}
                 </td>
                 <td className="px-3 py-4 tabular-nums">
-                  {result.latency_ms.toFixed(1)} ms
+                  {formatLatency(result.latency_ms)}
                 </td>
                 <td
                   className={`px-3 py-4 capitalize ${
-                    result.correct
-                      ? "text-(--teal)"
-                      : "text-(--coral)"
+                    result.correct ? 'text-(--teal)' : 'text-(--coral)'
                   }`}
                 >
-                  {label(result.outcome)}
+                  {formatLabel(result.outcome)}
                 </td>
               </tr>
             ))}

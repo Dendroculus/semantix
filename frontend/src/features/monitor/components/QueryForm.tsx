@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { FormEvent } from "react";
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 
 interface QueryFormProps {
   isLoading: boolean;
@@ -7,28 +7,30 @@ interface QueryFormProps {
 }
 
 const EXAMPLE_PROMPTS = [
-  "Explain semantic caching in simple terms",
-  "How does cosine similarity work?",
+  'Explain semantic caching in simple terms',
+  'How does cosine similarity work?',
 ];
 
 export function QueryForm({
   isLoading,
   onSubmit,
 }: Readonly<QueryFormProps>): JSX.Element {
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
     event.preventDefault();
     const normalizedPrompt = prompt.trim();
 
     if (normalizedPrompt.length === 0) {
-      setValidationError("A blank prompt has no semantic neighborhood.");
+      setValidationError('A blank prompt has no semantic neighborhood.');
       return;
     }
 
     if (normalizedPrompt.length > 2_000) {
-      setValidationError("Keep the prompt at or below 2,000 characters.");
+      setValidationError('Keep the prompt at or below 2,000 characters.');
       return;
     }
 
@@ -56,14 +58,19 @@ export function QueryForm({
         aria-busy={isLoading}
         onSubmit={(event) => void handleSubmit(event)}
       >
-        <label className="ui-label mb-2 block text-(--text-muted)" htmlFor="prompt">
+        <label
+          className="ui-label mb-2 block text-(--text-muted)"
+          htmlFor="prompt"
+        >
           Query text
         </label>
 
         <textarea
           id="prompt"
-          aria-describedby={validationError === null ? "prompt-note" : "prompt-error"}
-          className="scrollbar-thin block min-h-36 w-full resize-y border border-(--hairline) bg-(--surface) p-4 text-sm/6 text-(--text) outline-none transition-colors placeholder:text-(--text-faint) hover:border-(--text-faint) focus-visible:border-(--gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) disabled:cursor-not-allowed disabled:opacity-55"
+          aria-describedby={
+            validationError === null ? 'prompt-note' : 'prompt-error'
+          }
+          className="scrollbar-thin block min-h-36 w-full resize-y border border-(--hairline) bg-(--surface) p-4 text-sm/6 text-(--text) outline-none transition-colors placeholder:text-(--text-faint) hover:border-(--text-faint) focus-visible:border-(--gold) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) disabled:cursor-not-allowed disabled:opacity-55"
           disabled={isLoading}
           maxLength={2_000}
           name="prompt"
@@ -100,7 +107,7 @@ export function QueryForm({
               {EXAMPLE_PROMPTS.map((example) => (
                 <button
                   key={example}
-                  className="min-h-8 text-left text-xs text-(--teal) underline decoration-[rgba(91,156,148,0.35)] underline-offset-4 transition-colors hover:text-(--text) focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-3 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
+                  className="min-h-8 text-left text-xs text-(--teal) underline decoration-[rgba(91,156,148,0.35)] underline-offset-4 transition-colors hover:text-(--text) focus-visible:outline-1 focus-visible:outline-offset-3 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
                   disabled={isLoading}
                   type="button"
                   onClick={() => setPrompt(example)}
@@ -112,11 +119,11 @@ export function QueryForm({
           </div>
 
           <button
-            className="ui-label min-h-11 w-full border border-(--gold) bg-(--gold) px-5 py-3 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto"
+            className="ui-label min-h-11 w-full border border-(--gold) bg-(--gold) px-5 py-3 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55 sm:w-auto"
             disabled={isLoading}
             type="submit"
           >
-            {isLoading ? "Embedding + lookup\u2026" : "Run query"}
+            {isLoading ? 'Embedding + lookup\u2026' : 'Run query'}
           </button>
         </div>
       </form>

@@ -64,7 +64,6 @@ describe("dashboard correctness", () => {
     vi.mocked(useQuery).mockReturnValue({
       state: { status: "idle" },
       submit: vi.fn().mockResolvedValue(null),
-      reset: vi.fn(),
     });
     vi.mocked(getCacheStats).mockResolvedValue({
       ok: true,
@@ -132,7 +131,6 @@ describe("dashboard correctness", () => {
     vi.mocked(useQuery).mockReturnValue({
       state: { status: "loading" },
       submit: vi.fn().mockResolvedValue(null),
-      reset: vi.fn(),
     });
 
     render(
@@ -162,7 +160,6 @@ describe("dashboard correctness", () => {
         provider_called: true,
         latency_ms: 12,
       }),
-      reset: vi.fn(),
     });
     const { container } = render(
       <MemoryRouter initialEntries={["/"]}>

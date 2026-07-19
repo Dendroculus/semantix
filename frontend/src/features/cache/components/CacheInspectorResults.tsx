@@ -1,5 +1,5 @@
-import { CacheEntryCard } from "./CacheEntryCard";
-import type { CacheInspectorController } from "../hooks/useCacheInspector";
+import { CacheEntryCard } from './CacheEntryCard';
+import type { CacheInspectorController } from '../hooks/useCacheInspector';
 
 interface CacheInspectorResultsProps {
   inspector: CacheInspectorController;
@@ -76,11 +76,9 @@ export function CacheInspectorResults({
           className="mt-6 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3"
           role="alert"
         >
-          <p className="text-sm text-(--text-soft)">
-            {loadError}
-          </p>
+          <p className="text-sm text-(--text-soft)">{loadError}</p>
           <button
-            className="ui-label mt-3 min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px"
+            className="ui-label mt-3 min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px"
             type="button"
             onClick={refresh}
           >
@@ -89,46 +87,36 @@ export function CacheInspectorResults({
         </div>
       )}
 
-      {data !== null &&
-        loadError === null &&
-        data.items.length === 0 && (
-          <div className="mt-7 border-y border-(--hairline) py-8">
-            <p className="font-display text-xl italic text-(--text-soft)">
-              {search.trim() === ""
-                ? "The cache is empty."
-                : "No cached prompts match this search."}
-            </p>
-            <p className="mt-2 text-sm text-(--text-muted)">
-              {search.trim() === ""
-                ? "Run a query to create the first inspectable entry."
-                : "Try a broader prompt fragment or clear the search field."}
-            </p>
-          </div>
-        )}
+      {data !== null && loadError === null && data.items.length === 0 && (
+        <div className="mt-7 border-y border-(--hairline) py-8">
+          <p className="font-display text-xl italic text-(--text-soft)">
+            {search.trim() === ''
+              ? 'The cache is empty.'
+              : 'No cached prompts match this search.'}
+          </p>
+          <p className="mt-2 text-sm text-(--text-muted)">
+            {search.trim() === ''
+              ? 'Run a query to create the first inspectable entry.'
+              : 'Try a broader prompt fragment or clear the search field.'}
+          </p>
+        </div>
+      )}
 
-      {data !== null &&
-        loadError === null &&
-        data.items.length > 0 && (
-          <ol className="mt-6">
-            {data.items.map((entry) => (
-              <CacheEntryCard
-                key={entry.cache_key}
-                entry={entry}
-                isDeleting={mutation === entry.cache_key}
-                isPendingDelete={
-                  pendingDelete === entry.cache_key
-                }
-                onCancelDelete={cancelDelete}
-                onConfirmDelete={() =>
-                  void confirmDeleteEntry(entry.cache_key)
-                }
-                onRequestDelete={() =>
-                  requestDelete(entry.cache_key)
-                }
-              />
-            ))}
-          </ol>
-        )}
+      {data !== null && loadError === null && data.items.length > 0 && (
+        <ol className="mt-6">
+          {data.items.map((entry) => (
+            <CacheEntryCard
+              key={entry.cache_key}
+              entry={entry}
+              isDeleting={mutation === entry.cache_key}
+              isPendingDelete={pendingDelete === entry.cache_key}
+              onCancelDelete={cancelDelete}
+              onConfirmDelete={() => void confirmDeleteEntry(entry.cache_key)}
+              onRequestDelete={() => requestDelete(entry.cache_key)}
+            />
+          ))}
+        </ol>
+      )}
 
       {data !== null && loadError === null && (
         <footer className="font-data mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-(--hairline) pt-4 text-[10px] text-(--text-faint)">
@@ -137,7 +125,7 @@ export function CacheInspectorResults({
           </span>
           <div className="flex gap-5">
             <button
-              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:text-(--text-faint)"
+              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:text-(--text-faint)"
               disabled={!hasPrevious || isLoading}
               type="button"
               onClick={previousPage}
@@ -145,7 +133,7 @@ export function CacheInspectorResults({
               Previous
             </button>
             <button
-              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:text-(--text-faint)"
+              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:text-(--text-faint)"
               disabled={!hasNext || isLoading}
               type="button"
               onClick={nextPage}

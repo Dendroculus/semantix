@@ -1,10 +1,11 @@
-import { MarkdownContent } from "@/shared/components/markdown/MarkdownContent";
-import type { CacheEntryMetadata } from "../types";
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "medium",
-});
+import type { ReactNode } from 'react';
+import { MarkdownContent } from '@/shared/components/markdown/MarkdownContent';
+import {
+  formatCompactDuration,
+  formatCount,
+  formatTimestamp,
+} from '@/shared/lib/formatters';
+import type { CacheEntryMetadata } from '../types';
 
 interface CacheEntryCardProps {
   entry: CacheEntryMetadata;
@@ -15,40 +16,27 @@ interface CacheEntryCardProps {
   onRequestDelete: () => void;
 }
 
-function formatTimestamp(value: string | null): string {
-  return value === null
-    ? "Never"
-    : DATE_FORMATTER.format(new Date(value));
-}
-
-function formatDuration(seconds: number | null): string {
-  if (seconds === null) {
-    return "No expiry";
-  }
-  if (seconds < 1) {
-    return "<1 s";
-  }
-
-  const totalSeconds = Math.floor(seconds);
-  const days = Math.floor(totalSeconds / 86_400);
-  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
-  const remainingSeconds = totalSeconds % 60;
-
-  if (days > 0) {
-    return `${days}d ${hours}h`;
-  }
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  if (minutes > 0) {
-    return `${minutes}m ${remainingSeconds}s`;
-  }
-  return `${remainingSeconds}s`;
+interface EntryMetric {
+  label: string;
+  value: ReactNode;
+  valueClassName: string;
 }
 
 function shortCacheKey(cacheKey: string): string {
   return `${cacheKey.slice(0, 10)}...${cacheKey.slice(-6)}`;
+}
+
+function EntryMetricItem({
+  label,
+  value,
+  valueClassName,
+}: Readonly<EntryMetric>): JSX.Element {
+  return (
+    <div>
+      <dt className="ui-label text-(--text-faint)">{label}</dt>
+      <dd className={valueClassName}>{value}</dd>
+    </div>
+  );
 }
 
 export function CacheEntryCard({
@@ -59,21 +47,55 @@ export function CacheEntryCard({
   onConfirmDelete,
   onRequestDelete,
 }: Readonly<CacheEntryCardProps>): JSX.Element {
+  const status = entry.is_expired
+    ? { color: 'var(--coral)', label: 'Expired' }
+    : { color: 'var(--teal)', label: 'Active' };
+  const entryMetrics = [
+    {
+      label: 'Created',
+      value: formatTimestamp(entry.created_at),
+      valueClassName: 'font-data mt-1 text-[10px] text-(--text-muted)',
+    },
+    {
+      label: 'Expires',
+      value:
+        entry.expires_at === null
+          ? 'No expiry'
+          : formatTimestamp(entry.expires_at),
+      valueClassName: 'font-data mt-1 text-[10px] text-(--text-muted)',
+    },
+    {
+      label: 'TTL remaining',
+      value: formatCompactDuration(entry.remaining_ttl_seconds, {
+        fallback: 'No expiry',
+      }),
+      valueClassName: 'font-data mt-1 text-[10px] text-(--gold)',
+    },
+    {
+      label: 'Entry hits',
+      value: formatCount(entry.hit_count),
+      valueClassName: 'font-data mt-1 text-xs text-(--text-soft)',
+    },
+    {
+      label: 'Last accessed',
+      value: formatTimestamp(entry.last_accessed_at),
+      valueClassName: 'font-data mt-1 text-[10px] text-(--text-muted)',
+    },
+    {
+      label: 'Recency rank',
+      value: `#${formatCount(entry.recency_rank)}`,
+      valueClassName: 'font-data mt-1 text-xs text-(--text-soft)',
+    },
+  ] satisfies EntryMetric[];
+
   return (
     <li className="border-t border-(--hairline) py-5 transition-colors hover:bg-[rgba(234,230,221,0.025)]">
       <article>
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <span
-                className="ui-label"
-                style={{
-                  color: entry.is_expired
-                    ? "var(--coral)"
-                    : "var(--teal)",
-                }}
-              >
-                {entry.is_expired ? "Expired" : "Active"}
+              <span className="ui-label" style={{ color: status.color }}>
+                {status.label}
               </span>
               <code
                 className="font-data text-[10px] text-(--text-faint)"
@@ -94,7 +116,7 @@ export function CacheEntryCard({
           {!isPendingDelete && (
             <button
               aria-label={`Delete ${entry.prompt}`}
-              className="ui-label min-h-9 border-b border-(--coral) px-1 py-2 text-(--coral) transition-colors hover:text-(--text) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
+              className="ui-label min-h-9 border-b border-(--coral) px-1 py-2 text-(--coral) transition-colors hover:text-(--text) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
               disabled={isDeleting}
               type="button"
               onClick={onRequestDelete}
@@ -111,52 +133,9 @@ export function CacheEntryCard({
         />
 
         <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 min-[720px]:grid-cols-3">
-          <div>
-            <dt className="ui-label text-(--text-faint)">Created</dt>
-            <dd className="font-data mt-1 text-[10px] text-(--text-muted)">
-              {formatTimestamp(entry.created_at)}
-            </dd>
-          </div>
-          <div>
-            <dt className="ui-label text-(--text-faint)">Expires</dt>
-            <dd className="font-data mt-1 text-[10px] text-(--text-muted)">
-              {entry.expires_at === null
-                ? "No expiry"
-                : formatTimestamp(entry.expires_at)}
-            </dd>
-          </div>
-          <div>
-            <dt className="ui-label text-(--text-faint)">
-              TTL remaining
-            </dt>
-            <dd className="font-data mt-1 text-[10px] text-(--gold)">
-              {formatDuration(entry.remaining_ttl_seconds)}
-            </dd>
-          </div>
-          <div>
-            <dt className="ui-label text-(--text-faint)">
-              Entry hits
-            </dt>
-            <dd className="font-data mt-1 text-xs text-(--text-soft)">
-              {entry.hit_count}
-            </dd>
-          </div>
-          <div>
-            <dt className="ui-label text-(--text-faint)">
-              Last accessed
-            </dt>
-            <dd className="font-data mt-1 text-[10px] text-(--text-muted)">
-              {formatTimestamp(entry.last_accessed_at)}
-            </dd>
-          </div>
-          <div>
-            <dt className="ui-label text-(--text-faint)">
-              Recency rank
-            </dt>
-            <dd className="font-data mt-1 text-xs text-(--text-soft)">
-              #{entry.recency_rank}
-            </dd>
-          </div>
+          {entryMetrics.map((metric) => (
+            <EntryMetricItem key={metric.label} {...metric} />
+          ))}
         </dl>
 
         {isPendingDelete && (
@@ -171,15 +150,15 @@ export function CacheEntryCard({
             <div className="mt-3 flex flex-wrap gap-4">
               <button
                 aria-label={`Confirm delete ${entry.prompt}`}
-                className="ui-label min-h-9 text-(--coral) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
+                className="ui-label min-h-9 text-(--coral) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
                 disabled={isDeleting}
                 type="button"
                 onClick={onConfirmDelete}
               >
-                {isDeleting ? "Deleting" : "Confirm delete"}
+                {isDeleting ? 'Deleting' : 'Confirm delete'}
               </button>
               <button
-                className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
+                className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
                 disabled={isDeleting}
                 type="button"
                 onClick={onCancelDelete}

@@ -13,8 +13,7 @@ export function ThresholdControls({
   onThresholdChange,
   threshold,
 }: Readonly<ThresholdControlsProps>): JSX.Element {
-  const hasPendingThreshold =
-    Math.abs(threshold - appliedThreshold) >= 0.001;
+  const hasPendingThreshold = Math.abs(threshold - appliedThreshold) >= 0.001;
 
   return (
     <div className="mt-7">
@@ -26,9 +25,7 @@ export function ThresholdControls({
           Projection threshold
         </label>
         <div className="font-data flex gap-4 text-[10px]">
-          <span className="text-(--teal)">
-            Preview {threshold.toFixed(2)}
-          </span>
+          <span className="text-(--teal)">Preview {threshold.toFixed(2)}</span>
           <span className="text-(--gold)">
             Backend applied {appliedThreshold.toFixed(2)}
           </span>
@@ -44,9 +41,7 @@ export function ThresholdControls({
         step="0.01"
         type="range"
         value={threshold}
-        onChange={(event) =>
-          onThresholdChange(Number(event.target.value))
-        }
+        onChange={(event) => onThresholdChange(Number(event.target.value))}
       />
 
       <div className="font-data mt-3 flex justify-between text-[10px] text-(--text-faint)">
@@ -56,20 +51,16 @@ export function ThresholdControls({
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button
-          className="ui-label min-h-10 border border-(--gold) px-3 py-2 text-(--gold) transition-colors hover:bg-(--gold) hover:text-(--ink) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={
-            !hasPendingThreshold || isApplyingThreshold
-          }
+          className="ui-label min-h-10 border border-(--gold) px-3 py-2 text-(--gold) transition-colors hover:bg-(--gold) hover:text-(--ink) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!hasPendingThreshold || isApplyingThreshold}
           type="button"
           onClick={() => onThresholdApply(threshold)}
         >
-          {isApplyingThreshold ? "Applying" : "Apply to cache"}
+          {isApplyingThreshold ? 'Applying' : 'Apply to cache'}
         </button>
         <button
-          className="ui-label min-h-10 border-b border-(--teal) px-1 py-2 text-(--teal) transition-colors hover:text-(--text) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={
-            !hasPendingThreshold || isApplyingThreshold
-          }
+          className="ui-label min-h-10 border-b border-(--teal) px-1 py-2 text-(--teal) transition-colors hover:text-(--text) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!hasPendingThreshold || isApplyingThreshold}
           type="button"
           onClick={() => onThresholdChange(appliedThreshold)}
         >
@@ -81,11 +72,11 @@ export function ThresholdControls({
         className="mt-5 max-w-xl text-xs/5  text-(--text-muted)"
         id="threshold-note"
       >
-        Every dot sits at its real similarity score. Vertical position
-        only prevents overlap. Hover, focus, or select a trace to inspect
-        its prompt and cache decision. Moving the slider previews which
-        scored traces would qualify; it does not change backend behavior
-        until you select Apply to cache.
+        Every dot sits at its real similarity score. Vertical position only
+        prevents overlap. Hover, focus, or select a trace to inspect its prompt
+        and cache decision. Moving the slider previews which scored traces would
+        qualify; it does not change backend behavior until you select Apply to
+        cache.
       </p>
     </div>
   );

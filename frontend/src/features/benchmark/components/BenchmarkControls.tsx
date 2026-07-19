@@ -1,7 +1,4 @@
-import type {
-  BenchmarkController,
-  BenchmarkForm,
-} from "../hooks/useBenchmark";
+import type { BenchmarkController, BenchmarkForm } from '../hooks/useBenchmark';
 
 interface BenchmarkControlsProps {
   controller: BenchmarkController;
@@ -24,7 +21,7 @@ export function BenchmarkControls({
 }: Readonly<BenchmarkControlsProps>): JSX.Element {
   const { datasets, datasetsLoading, form, isRunning } = controller;
   const controlClass =
-    "font-data mt-2 min-h-10 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs text-(--text) outline-none transition-colors hover:border-(--text-faint) focus-visible:border-(--gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) disabled:cursor-not-allowed disabled:opacity-50";
+    'font-data mt-2 min-h-10 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs text-(--text) outline-none transition-colors hover:border-(--text-faint) focus-visible:border-(--gold) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
     <div className="grid gap-5 border-y border-(--hairline) py-6 md:grid-cols-3">
@@ -37,7 +34,7 @@ export function BenchmarkControls({
           value={form.datasetId}
           onChange={(event) =>
             update(controller, {
-              datasetId: event.target.value as BenchmarkForm["datasetId"],
+              datasetId: event.target.value as BenchmarkForm['datasetId'],
             })
           }
         >
@@ -155,12 +152,12 @@ export function BenchmarkControls({
           <span>Reset isolated benchmark cache first</span>
         </label>
         <button
-          className="ui-label min-h-11 border border-(--gold) bg-(--gold) px-4 py-3 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
+          className="ui-label min-h-11 border border-(--gold) bg-(--gold) px-4 py-3 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold) active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
           disabled={datasetsLoading || isRunning || datasets.length === 0}
           type="button"
           onClick={controller.reviewRun}
         >
-          {isRunning ? "Benchmark running…" : "Review benchmark run"}
+          {isRunning ? 'Benchmark running…' : 'Review benchmark run'}
         </button>
       </div>
     </div>

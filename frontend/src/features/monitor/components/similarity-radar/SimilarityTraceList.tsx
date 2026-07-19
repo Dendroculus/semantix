@@ -1,9 +1,16 @@
-import { formatPrompt, type PlotPoint } from "./model";
+import { formatSimilarity } from '@/shared/lib/formatters';
+import { formatPrompt, type PlotPoint } from './model';
 
 interface SimilarityTraceListProps {
   activePointId: string | null;
   onActivePointChange: (pointId: string | null) => void;
   points: PlotPoint[];
+}
+
+const TRACE_HEADERS = ['Recent scored query', 'Score', 'Preview'] as const;
+
+function formatDecision(value: boolean): string {
+  return value ? 'HIT' : 'MISS';
 }
 
 export function SimilarityTraceList({
@@ -18,22 +25,30 @@ export function SimilarityTraceList({
   return (
     <div className="mt-4">
       <div className="ui-label grid grid-cols-[minmax(0,1fr)_58px_52px] gap-3 border-b border-(--hairline) pb-2 text-(--text-faint)">
-        <span>Recent scored query</span>
-        <span className="text-right">Score</span>
-        <span className="text-right">Preview</span>
+        {TRACE_HEADERS.map((header) => (
+          <span
+            className={header === 'Recent scored query' ? undefined : 'text-right'}
+            key={header}
+          >
+            {header}
+          </span>
+        ))}
       </div>
 
       {points.map((point) => {
         const isActive = point.id === activePointId;
+        const previewColor = point.isProjectedHit
+          ? 'var(--gold)'
+          : 'var(--coral)';
 
         return (
           <button
-            key={point.id}
             aria-label={`Inspect ${point.prompt}`}
             className={`font-data grid min-h-10 w-full grid-cols-[minmax(0,1fr)_58px_52px] gap-3 border-b border-[rgba(234,230,221,0.05)] py-2.5 text-left text-[10px] outline-none transition-colors hover:bg-[rgba(234,230,221,0.025)] focus-visible:bg-[rgba(91,156,148,0.08)] ${
-              isActive ? "bg-[rgba(91,156,148,0.08)]" : ""
+              isActive ? 'bg-[rgba(91,156,148,0.08)]' : ''
             }`}
-            data-active={isActive ? "true" : "false"}
+            data-active={isActive ? 'true' : 'false'}
+            key={point.id}
             type="button"
             onBlur={() => onActivePointChange(null)}
             onClick={() => onActivePointChange(point.id)}
@@ -44,25 +59,18 @@ export function SimilarityTraceList({
             <span
               className={
                 isActive
-                  ? "truncate text-(--text)"
-                  : "truncate text-(--text-muted)"
+                  ? 'truncate text-(--text)'
+                  : 'truncate text-(--text-muted)'
               }
               title={point.prompt}
             >
               {formatPrompt(point.prompt)}
             </span>
             <span className="text-right text-(--teal)">
-              {point.similarity.toFixed(3)}
+              {formatSimilarity(point.similarity)}
             </span>
-            <span
-              className="text-right"
-              style={{
-                color: point.isProjectedHit
-                  ? "var(--gold)"
-                  : "var(--coral)",
-              }}
-            >
-              {point.isProjectedHit ? "HIT" : "MISS"}
+            <span className="text-right" style={{ color: previewColor }}>
+              {formatDecision(point.isProjectedHit)}
             </span>
           </button>
         );

@@ -1,9 +1,10 @@
+import { formatSimilarity } from '@/shared/lib/formatters';
 import {
   PLOT_TOP,
   VIEW_HEIGHT,
   VIEW_WIDTH,
   type PlotPoint,
-} from "./model";
+} from './model';
 
 const TOOLTIP_WIDTH = 270;
 const TOOLTIP_HEIGHT = 104;
@@ -11,6 +12,12 @@ const TOOLTIP_GAP = 12;
 
 interface SimilarityTooltipProps {
   point: PlotPoint;
+}
+
+interface TooltipItem {
+  color: string;
+  label: string;
+  value: string;
 }
 
 function tooltipPosition(point: PlotPoint): {
@@ -34,13 +41,31 @@ function tooltipPosition(point: PlotPoint): {
   return { x, y };
 }
 
+function formatDecision(value: boolean): string {
+  return value ? 'HIT' : 'MISS';
+}
+
 export function SimilarityTooltip({
   point,
 }: Readonly<SimilarityTooltipProps>): JSX.Element {
   const position = tooltipPosition(point);
-  const previewColor = point.isProjectedHit
-    ? "var(--gold)"
-    : "var(--coral)";
+  const tooltipItems = [
+    {
+      color: 'var(--text)',
+      label: 'Score',
+      value: formatSimilarity(point.similarity),
+    },
+    {
+      color: point.isProjectedHit ? 'var(--gold)' : 'var(--coral)',
+      label: 'Preview',
+      value: formatDecision(point.isProjectedHit),
+    },
+    {
+      color: point.actualCacheHit ? 'var(--teal)' : 'var(--coral)',
+      label: 'Actual',
+      value: formatDecision(point.actualCacheHit),
+    },
+  ] satisfies TooltipItem[];
 
   return (
     <foreignObject
@@ -54,26 +79,16 @@ export function SimilarityTooltip({
         className="h-full border border-(--teal) bg-(--surface) px-3 py-2.5 text-(--text) shadow-lg"
         role="tooltip"
       >
-        <p className="ui-label text-(--teal)">
-          Selected trace
-        </p>
+        <p className="ui-label text-(--teal)">Selected trace</p>
         <p className="mt-1 max-h-[34px] overflow-hidden wrap-break-word text-[11px] leading-[17px]">
           {point.prompt}
         </p>
         <div className="font-data mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[9px]">
-          <span>Score {point.similarity.toFixed(3)}</span>
-          <span style={{ color: previewColor }}>
-            Preview {point.isProjectedHit ? "HIT" : "MISS"}
-          </span>
-          <span
-            className={
-              point.actualCacheHit
-                ? "text-(--teal)"
-                : "text-(--coral)"
-            }
-          >
-            Actual {point.actualCacheHit ? "HIT" : "MISS"}
-          </span>
+          {tooltipItems.map((item) => (
+            <span key={item.label} style={{ color: item.color }}>
+              {item.label} {item.value}
+            </span>
+          ))}
         </div>
       </div>
     </foreignObject>

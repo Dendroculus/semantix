@@ -1,8 +1,8 @@
-import type { CacheEntrySort } from "../types";
+import type { CacheEntrySort } from '../types';
 import {
   CACHE_NAMESPACE_PATTERN_SOURCE,
   MAX_CACHE_NAMESPACE_LENGTH,
-} from "../namespace";
+} from '../namespace';
 
 interface CacheInspectorControlsProps {
   canClear: boolean;
@@ -40,9 +40,9 @@ export function CacheInspectorControls({
   sort,
 }: Readonly<CacheInspectorControlsProps>): JSX.Element {
   const selectedNamespace = namespace.trim();
-  const isNamespaceSelected = selectedNamespace !== "";
+  const isNamespaceSelected = selectedNamespace !== '';
   const controlClass =
-    "font-data mt-2 min-h-10 w-full border border-(--hairline) bg-(--surface) px-3 py-2.5 text-xs text-(--text) outline-none transition-colors hover:border-(--text-faint) focus-visible:border-(--teal) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal)";
+    'font-data mt-2 min-h-10 w-full border border-(--hairline) bg-(--surface) px-3 py-2.5 text-xs text-(--text) outline-none transition-colors hover:border-(--text-faint) focus-visible:border-(--teal) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal)';
 
   return (
     <>
@@ -61,20 +61,20 @@ export function CacheInspectorControls({
 
         <div className="flex flex-wrap gap-3">
           <button
-            className="ui-label min-h-10 border border-(--hairline) px-3 py-2 text-(--teal) transition-colors hover:border-(--teal) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
+            className="ui-label min-h-10 border border-(--hairline) px-3 py-2 text-(--teal) transition-colors hover:border-(--teal) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
             disabled={isLoading || isMutating}
             type="button"
             onClick={onRefresh}
           >
-            {isLoading ? "Refreshing" : "Refresh"}
+            {isLoading ? 'Refreshing' : 'Refresh'}
           </button>
           <button
-            className="ui-label min-h-10 border border-(--hairline) px-3 py-2 text-(--coral) transition-colors hover:border-(--coral) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
+            className="ui-label min-h-10 border border-(--hairline) px-3 py-2 text-(--coral) transition-colors hover:border-(--coral) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
             disabled={isMutating || !canClear}
             type="button"
             onClick={onRequestClear}
           >
-            {isNamespaceSelected ? "Clear namespace" : "Clear all entries"}
+            {isNamespaceSelected ? 'Clear namespace' : 'Clear all entries'}
           </button>
         </div>
       </header>
@@ -87,19 +87,19 @@ export function CacheInspectorControls({
           <p className="text-sm text-(--text-soft)">
             {isNamespaceSelected
               ? `Clear every entry and reset statistics for ${selectedNamespace}?`
-              : "Clear every cache entry and reset all backend cache statistics?"}
+              : 'Clear every cache entry and reset all backend cache statistics?'}
           </p>
           <div className="mt-3 flex gap-5">
             <button
-              className="ui-label min-h-9 text-(--coral) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
+              className="ui-label min-h-9 text-(--coral) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
               disabled={isClearing}
               type="button"
               onClick={onConfirmClear}
             >
-              {isClearing ? "Clearing" : "Confirm clear cache"}
+              {isClearing ? 'Clearing' : 'Confirm clear cache'}
             </button>
             <button
-              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
+              className="ui-label min-h-9 text-(--teal) underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--teal) active:translate-y-px disabled:opacity-50"
               disabled={isClearing}
               type="button"
               onClick={onCancelClear}
@@ -148,10 +148,7 @@ export function CacheInspectorControls({
         </div>
 
         <div>
-          <label
-            className="ui-label text-(--text-muted)"
-            htmlFor="cache-sort"
-          >
+          <label className="ui-label text-(--text-muted)" htmlFor="cache-sort">
             Sort cache entries
           </label>
           <select
