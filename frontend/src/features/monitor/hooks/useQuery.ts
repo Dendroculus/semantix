@@ -1,16 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { submitQuery } from "../api/queryApi";
-import type { QueryResponse, QueryState } from "../types";
+import { submitQuery } from '../api/queryApi';
+import type { QueryResponse, QueryState } from '../types';
 
 export interface UseQueryResult {
   state: QueryState;
   submit: (prompt: string) => Promise<QueryResponse | null>;
-  reset: () => void;
 }
 
 export function useQuery(): UseQueryResult {
-  const [state, setState] = useState<QueryState>({ status: "idle" });
+  const [state, setState] = useState<QueryState>({ status: 'idle' });
   const controller = useRef<AbortController | null>(null);
   const requestId = useRef(0);
 
@@ -22,33 +21,43 @@ export function useQuery(): UseQueryResult {
     [],
   );
 
-  const submit = useCallback(async (prompt: string): Promise<QueryResponse | null> => {
-    controller.current?.abort();
-    controller.current = new AbortController();
-    requestId.current += 1;
-    const currentRequestId = requestId.current;
+  const submit = useCallback(
+    async (prompt: string): Promise<QueryResponse | null> => {
+      controller.current?.abort();
+      controller.current = new AbortController();
 
-    setState({ status: "loading" });
-    const result = await submitQuery({ prompt }, controller.current.signal);
+      requestId.current += 1;
+      const currentRequestId = requestId.current;
 
-    if (currentRequestId !== requestId.current) {
+      setState({ status: 'loading' });
+
+      const result = await submitQuery({ prompt }, controller.current.signal);
+
+      if (currentRequestId !== requestId.current) {
+        return null;
+      }
+
+      if (result.ok) {
+        setState({
+          status: 'success',
+          data: result.data,
+        });
+
+        return result.data;
+      }
+
+      setState({
+        status: 'error',
+        error: result.error,
+      });
+
       return null;
-    }
+    },
+    [],
+  );
 
-    if (result.ok) {
-      setState({ status: "success", data: result.data });
-      return result.data;
-    }
-
-    setState({ status: "error", error: result.error });
-    return null;
-  }, []);
-
-  const reset = useCallback(() => {
-    controller.current?.abort();
-    requestId.current += 1;
-    setState({ status: "idle" });
-  }, []);
-
-  return { state, submit, reset };
+  return {
+    state,
+    submit,
+  };
 }

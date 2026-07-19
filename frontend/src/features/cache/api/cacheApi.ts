@@ -203,17 +203,6 @@ export function listCacheEntries(
   );
 }
 
-export function getCacheEntry(
-  cacheKey: string,
-  signal?: AbortSignal,
-): Promise<ApiResult<CacheEntryMetadata>> {
-  return request(
-    `/api/v1/cache/entries/${encodeURIComponent(cacheKey)}`,
-    decodeCacheEntry,
-    withSignal({ method: "GET" }, signal),
-  );
-}
-
 export function deleteCacheEntry(
   cacheKey: string,
 ): Promise<ApiResult<DeleteCacheEntryResponse>> {

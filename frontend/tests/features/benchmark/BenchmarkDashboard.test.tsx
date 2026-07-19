@@ -5,36 +5,36 @@ import {
   render,
   screen,
   waitFor,
-} from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { BenchmarkDashboard } from "@/features/benchmark/components/BenchmarkDashboard";
+import { BenchmarkDashboard } from '@/features/benchmark/components/BenchmarkDashboard';
 import {
   buildBenchmarkCsv,
   buildBenchmarkJson,
-} from "@/features/benchmark/lib/exportBuilders";
+} from '@/features/benchmark/lib/exportBuilders';
 import {
   getBenchmarkDatasets,
   runBenchmark,
-} from "@/features/benchmark/api/benchmarkApi";
-import type { BenchmarkRunResponse } from "@/features/benchmark/types";
+} from '@/features/benchmark/api/benchmarkApi';
+import type { BenchmarkRunResponse } from '@/features/benchmark/types';
 
-vi.mock("../../../src/features/benchmark/api/benchmarkApi");
+vi.mock('../../../src/features/benchmark/api/benchmarkApi');
 
 const dataset = {
-  dataset_id: "quick" as const,
-  name: "Quick semantic safety set",
-  description: "Controlled prompts.",
+  dataset_id: 'quick' as const,
+  name: 'Quick semantic safety set',
+  description: 'Controlled prompts.',
   query_count: 2,
   expected_hits: 1,
   expected_misses: 1,
-  categories: ["seed", "exact_duplicate"] as const,
+  categories: ['seed', 'exact_duplicate'] as const,
 };
 
 const result: BenchmarkRunResponse = {
-  run_id: "a".repeat(32),
-  started_at: "2026-07-17T10:00:00Z",
-  completed_at: "2026-07-17T10:00:02Z",
+  run_id: 'a'.repeat(32),
+  started_at: '2026-07-17T10:00:00Z',
+  completed_at: '2026-07-17T10:00:02Z',
   dataset: {
     ...dataset,
     categories: [...dataset.categories],
@@ -93,13 +93,13 @@ const result: BenchmarkRunResponse = {
     {
       sequence: 1,
       repetition: 1,
-      case_id: "seed",
-      category: "seed",
-      prompt: "Explain semantic caching.",
+      case_id: 'seed',
+      category: 'seed',
+      prompt: 'Explain semantic caching.',
       expected_cache_hit: false,
       actual_cache_hit: false,
       correct: true,
-      outcome: "true_negative",
+      outcome: 'true_negative',
       similarity_score: null,
       latency_ms: 100,
       provider_called: true,
@@ -108,28 +108,40 @@ const result: BenchmarkRunResponse = {
     {
       sequence: 2,
       repetition: 1,
-      case_id: "duplicate",
-      category: "exact_duplicate",
-      prompt: "Explain semantic caching.",
+      case_id: 'duplicate',
+      category: 'exact_duplicate',
+      prompt: 'Explain semantic caching.',
       expected_cache_hit: true,
       actual_cache_hit: true,
       correct: true,
-      outcome: "true_positive",
+      outcome: 'true_positive',
       similarity_score: 0.94,
       latency_ms: 10,
       provider_called: false,
-      matched_prompt: "Explain semantic caching.",
+      matched_prompt: 'Explain semantic caching.',
     },
   ],
 };
 
 async function reviewAndConfirm(): Promise<void> {
-  await screen.findByRole("button", { name: "Review benchmark run" });
-  fireEvent.click(screen.getByRole("button", { name: "Review benchmark run" }));
-  fireEvent.click(screen.getByRole("button", { name: "Run benchmark now" }));
+  const reviewButton = await screen.findByRole('button', {
+    name: 'Review benchmark run',
+  });
+
+  fireEvent.click(reviewButton);
+
+  const confirmButton = await screen.findByRole('button', {
+    name: 'Run benchmark now',
+  });
+
+  await act(async () => {
+    fireEvent.click(confirmButton);
+
+    await Promise.resolve();
+  });
 }
 
-describe("BenchmarkDashboard", () => {
+describe('BenchmarkDashboard', () => {
   beforeEach(() => {
     vi.mocked(getBenchmarkDatasets).mockResolvedValue({
       ok: true,
@@ -140,7 +152,7 @@ describe("BenchmarkDashboard", () => {
             categories: [...dataset.categories],
           },
         ],
-        default_dataset_id: "quick",
+        default_dataset_id: 'quick',
       },
     });
     vi.mocked(runBenchmark).mockResolvedValue({ ok: true, data: result });
@@ -151,49 +163,59 @@ describe("BenchmarkDashboard", () => {
     vi.clearAllMocks();
   });
 
-  it("warns before provider calls and submits the selected threshold", async () => {
+  it('warns before provider calls and submits the selected threshold', async () => {
     render(<BenchmarkDashboard />);
-    await screen.findByRole("button", { name: "Review benchmark run" });
+    await screen.findByRole('button', { name: 'Review benchmark run' });
 
-    fireEvent.change(screen.getByLabelText("Benchmark threshold"), {
-      target: { value: "0.90" },
+    fireEvent.change(screen.getByLabelText('Benchmark threshold'), {
+      target: { value: '0.90' },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Review benchmark run" }));
-
-    expect(runBenchmark).not.toHaveBeenCalled();
-    expect(screen.getByRole("alertdialog").textContent).toContain(
-      "external generation calls",
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Review benchmark run' }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Run benchmark now" }));
+    expect(runBenchmark).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog').textContent).toContain(
+      'external generation calls',
+    );
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: 'Run benchmark now',
+        }),
+      );
+
+      await Promise.resolve();
+    });
 
     await waitFor(() =>
       expect(runBenchmark).toHaveBeenCalledWith(
         expect.objectContaining({
           threshold: 0.9,
-          dataset_id: "quick",
+          dataset_id: 'quick',
           allow_external_provider_calls: true,
         }),
       ),
     );
-    expect(await screen.findByText("Measured run")).toBeTruthy();
+    expect(await screen.findByText('Measured run')).toBeTruthy();
   });
 
-  it("renders metrics, charts, and per-query evidence", async () => {
+  it('renders metrics, charts, and per-query evidence', async () => {
     render(<BenchmarkDashboard />);
     await reviewAndConfirm();
 
-    expect(await screen.findByText("Measured run")).toBeTruthy();
-    expect(screen.getByText("50.0%")).toBeTruthy();
-    expect(screen.getByText("Hit rate vs. threshold")).toBeTruthy();
-    expect(screen.getByText("Precision / recall vs. threshold")).toBeTruthy();
-    expect(screen.getByText("Similarity-score distribution")).toBeTruthy();
-    expect(screen.getByText("Per-query evidence")).toBeTruthy();
-    expect(screen.getByText("0.940")).toBeTruthy();
-    expect(screen.getByText("n/a")).toBeTruthy();
+    expect(await screen.findByText('Measured run')).toBeTruthy();
+    expect(screen.getByText('50.0%')).toBeTruthy();
+    expect(screen.getByText('Hit rate vs. threshold')).toBeTruthy();
+    expect(screen.getByText('Precision / recall vs. threshold')).toBeTruthy();
+    expect(screen.getByText('Similarity-score distribution')).toBeTruthy();
+    expect(screen.getByText('Per-query evidence')).toBeTruthy();
+    expect(screen.getByText('0.940')).toBeTruthy();
+    expect(screen.getByText('n/a')).toBeTruthy();
   });
 
-  it("shows loading and error states", async () => {
+  it('shows loading and error states', async () => {
     let resolveRun:
       | ((value: Awaited<ReturnType<typeof runBenchmark>>) => void)
       | undefined;
@@ -205,34 +227,34 @@ describe("BenchmarkDashboard", () => {
     render(<BenchmarkDashboard />);
     await reviewAndConfirm();
 
-    expect(
-      screen.getByLabelText("Loading benchmark results"),
-    ).toBeTruthy();
-    act(() => {
+    expect(screen.getByLabelText('Loading benchmark results')).toBeTruthy();
+    await act(async () => {
       resolveRun?.({
         ok: false,
         error: {
-          code: "upstream_error",
-          detail: "Provider unavailable",
+          code: 'upstream_error',
+          detail: 'Provider unavailable',
           status: 502,
         },
       });
+
+      await Promise.resolve();
     });
 
-    expect((await screen.findByRole("alert")).textContent).toContain(
-      "Provider unavailable",
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Provider unavailable',
     );
   });
 
-  it("builds complete JSON and CSV exports", () => {
+  it('builds complete JSON and CSV exports', () => {
     const json = buildBenchmarkJson(result);
     const csv = buildBenchmarkCsv(result);
 
     expect(JSON.parse(json)).toEqual(result);
     expect(csv).toContain(
-      "sequence,repetition,case_id,category,prompt,expected_cache_hit",
+      'sequence,repetition,case_id,category,prompt,expected_cache_hit',
     );
-    expect(csv).toContain("duplicate,exact_duplicate");
-    expect(csv.split("\r\n")).toHaveLength(3);
+    expect(csv).toContain('duplicate,exact_duplicate');
+    expect(csv.split('\r\n')).toHaveLength(3);
   });
 });
