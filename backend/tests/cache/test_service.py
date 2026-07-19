@@ -19,6 +19,15 @@ class Embeddings:
         return unit_vector() if text in {"one", "similar"} else unit_vector(1)
 
 
+class RecordingEmbeddings:
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+
+    async def embed(self, text: str) -> Sequence[float]:
+        self.prompts.append(text)
+        return unit_vector()
+
+
 @pytest.mark.asyncio
 async def test_semantic_hit() -> None:
     cache = SemanticCache(
@@ -99,3 +108,40 @@ async def test_blank_response_is_not_stored() -> None:
 
     assert stored is False
     assert (await cache.stats()).size == 0
+
+
+@pytest.mark.asyncio
+async def test_normalizes_matching_text_but_preserves_stored_prompt() -> None:
+    embeddings = RecordingEmbeddings()
+    corrections = {
+        "semntic caching": "semantic caching",
+    }
+    cache = SemanticCache(
+        embeddings,
+        memory_backend(),
+        0.92,
+        prompt_normalizer=lambda prompt: corrections.get(prompt, prompt),
+    )
+
+    miss = await cache.lookup("semntic caching")
+    await cache.store("semntic caching", "answer", miss.embedding)
+    hit = await cache.lookup("semantic caching")
+
+    assert embeddings.prompts == ["semantic caching", "semantic caching"]
+    assert hit.cache_hit is True
+    assert hit.matched_prompt == "semntic caching"
+
+
+@pytest.mark.asyncio
+async def test_write_without_lookup_normalizes_embedding_prompt() -> None:
+    embeddings = RecordingEmbeddings()
+    cache = SemanticCache(
+        embeddings,
+        memory_backend(),
+        0.92,
+        prompt_normalizer=lambda prompt: "caching" if prompt == "cahcing" else prompt,
+    )
+
+    assert await cache.store("cahcing", "answer") is True
+
+    assert embeddings.prompts == ["caching"]

@@ -62,6 +62,8 @@ class Settings(BaseSettings):
         ge=1,
         le=2_048,
     )
+    prompt_typo_correction_enabled: bool = False
+    prompt_typo_max_edit_distance: int = Field(default=2, ge=0, le=3)
 
     similarity_threshold: float = Field(
         default=0.92,

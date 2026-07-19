@@ -1,5 +1,6 @@
 import asyncio
 import math
+from collections.abc import Callable
 from datetime import UTC, datetime
 from time import perf_counter
 from uuid import uuid4
@@ -46,6 +47,7 @@ class BenchmarkService:
         cache_ttl_seconds: int | None,
         initial_threshold: float,
         embedding_dimensions: int,
+        prompt_normalizer: Callable[[str], str],
     ) -> None:
         self._provider = provider
         self._cache = SemanticCache(
@@ -56,6 +58,7 @@ class BenchmarkService:
                 dimensions=embedding_dimensions,
             ),
             initial_threshold,
+            prompt_normalizer=prompt_normalizer,
         )
         self._run_lock = asyncio.Lock()
 

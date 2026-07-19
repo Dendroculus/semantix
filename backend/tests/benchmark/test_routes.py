@@ -30,6 +30,7 @@ def benchmark_service(provider: Provider) -> BenchmarkService:
         cache_ttl_seconds=60,
         initial_threshold=0.92,
         embedding_dimensions=TEST_EMBEDDING_DIMENSIONS,
+        prompt_normalizer=lambda prompt: prompt,
     )
 
 

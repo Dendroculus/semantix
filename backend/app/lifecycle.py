@@ -10,6 +10,7 @@ from app.cache.service import SemanticCache
 from app.core.config import Settings
 from app.embedding.service import EmbeddingService
 from app.providers.factory import create_provider_bundle
+from app.query.normalization import create_prompt_normalizer
 from app.query.service import QueryService
 
 Lifespan = Callable[
@@ -23,6 +24,10 @@ def create_lifespan(settings: Settings) -> Lifespan:
     async def lifespan(
         application: FastAPI,
     ) -> AsyncIterator[None]:
+        prompt_normalizer = create_prompt_normalizer(
+            enabled=settings.prompt_typo_correction_enabled,
+            max_edit_distance=settings.prompt_typo_max_edit_distance,
+        )
         timeout = httpx.Timeout(
             settings.provider_timeout_seconds,
         )
@@ -45,6 +50,7 @@ def create_lifespan(settings: Settings) -> Lifespan:
                     embedding_service,
                     backend,
                     settings.similarity_threshold,
+                    prompt_normalizer=prompt_normalizer,
                 )
                 application.state.embedding_provider = providers.embedding_provider
                 application.state.generation_provider = providers.generation_provider
@@ -60,6 +66,7 @@ def create_lifespan(settings: Settings) -> Lifespan:
                     cache_ttl_seconds=settings.cache_ttl_seconds,
                     initial_threshold=settings.similarity_threshold,
                     embedding_dimensions=providers.embedding_dimensions,
+                    prompt_normalizer=prompt_normalizer,
                 )
 
                 yield

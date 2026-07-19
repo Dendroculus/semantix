@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 
 from app.cache.keys import prompt_cache_key
@@ -15,12 +15,18 @@ from app.core.exceptions import CacheEntryNotFoundError
 from app.providers.protocols import EmbeddingGenerator
 
 
+def _preserve_prompt(prompt: str) -> str:
+    return prompt
+
+
 class SemanticCache:
     def __init__(
         self,
         embedding_service: EmbeddingGenerator,
         backend: CacheBackend,
         similarity_threshold: float,
+        *,
+        prompt_normalizer: Callable[[str], str] = _preserve_prompt,
     ) -> None:
         if not 0 <= similarity_threshold <= 1:
             raise ValueError("similarity_threshold must be between 0 and 1")
@@ -28,6 +34,7 @@ class SemanticCache:
         self._embedding_service = embedding_service
         self._backend = backend
         self._similarity_threshold = similarity_threshold
+        self._prompt_normalizer = prompt_normalizer
 
     @property
     def similarity_threshold(self) -> float:
@@ -47,8 +54,10 @@ class SemanticCache:
         namespace: str = DEFAULT_CACHE_NAMESPACE,
     ) -> CacheLookupResult:
         similarity_threshold = self._similarity_threshold
+        matching_prompt = self._prompt_normalizer(prompt)
         embedding = [
-            float(value) for value in await self._embedding_service.embed(prompt)
+            float(value)
+            for value in await self._embedding_service.embed(matching_prompt)
         ]
         candidate = await self._backend.find_nearest(
             embedding,
@@ -97,7 +106,7 @@ class SemanticCache:
             return False
 
         resolved_embedding = (
-            await self._embedding_service.embed(prompt)
+            await self._embedding_service.embed(self._prompt_normalizer(prompt))
             if embedding is None
             else embedding
         )

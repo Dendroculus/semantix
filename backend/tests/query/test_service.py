@@ -23,9 +23,11 @@ class Embeddings:
 class Provider:
     def __init__(self) -> None:
         self.call_count = 0
+        self.prompts: list[str] = []
 
     async def generate(self, prompt: str) -> str:
         self.call_count += 1
+        self.prompts.append(prompt)
         return "answer"
 
 
@@ -112,6 +114,27 @@ async def test_explains_cache_miss_and_hit() -> None:
     assert hit.generation_skipped is True
     assert hit.provider_called is False
     assert provider.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_typo_normalization_does_not_change_generation_prompt() -> None:
+    provider = Provider()
+    service = QueryService(
+        SemanticCache(
+            Embeddings(),
+            memory_backend(),
+            0.92,
+            prompt_normalizer=lambda prompt: (
+                "semantic caching" if prompt == "semntic caching" else prompt
+            ),
+        ),
+        provider,
+    )
+
+    response = await service.execute("semntic caching")
+
+    assert response.provider_called is True
+    assert provider.prompts == ["semntic caching"]
 
 
 @pytest.mark.asyncio

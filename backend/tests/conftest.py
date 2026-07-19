@@ -10,5 +10,7 @@ from app.core.config import Settings, get_settings
 def settings() -> Settings:
     get_settings.cache_clear()
     return Settings(
-        hf_api_key="test-only-placeholder", allowed_origins=["http://localhost:5173"]
+        hf_api_key="test-only-placeholder",
+        cache_backend="memory",
+        allowed_origins=["http://localhost:5173"],
     )

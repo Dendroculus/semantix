@@ -85,6 +85,9 @@ HF_EMBEDDING_DIMENSIONS=384
 PROVIDER_TIMEOUT_SECONDS=30
 GENERATION_MAX_NEW_TOKENS=512
 
+PROMPT_TYPO_CORRECTION_ENABLED=false
+PROMPT_TYPO_MAX_EDIT_DISTANCE=2
+
 SIMILARITY_THRESHOLD=0.92
 CACHE_BACKEND=memory
 MAX_CACHE_SIZE=500
@@ -138,6 +141,29 @@ The `--profile pgvector` flag is required because PostgreSQL is intentionally
 optional. Compose waits for PostgreSQL to become healthy before starting the
 backend, and the backend applies database migrations before becoming ready.
 
+Use that same command whenever bringing the persistent stack back up. Compose
+profiles are selected per command, so running `docker compose up --build -d`
+without `--profile pgvector` does not start PostgreSQL.
+
+When backend dependencies change, `--build` normally installs them into a new
+backend image:
+
+```bash
+docker compose --profile pgvector up --build -d
+```
+
+If Docker reuses a stale dependency layer during troubleshooting, force a clean
+backend rebuild and then start the same pgvector profile:
+
+```bash
+docker compose build --no-cache backend
+docker compose --profile pgvector up -d
+```
+
+`--no-cache` controls Docker image-layer reuse; it does not activate optional
+Compose profiles. Running `docker compose down` does not delete PostgreSQL data
+unless the `--volumes` flag is also supplied.
+
 ### 4. Verify the containers
 
 ```bash
@@ -156,7 +182,7 @@ Expected local services:
 |---|---|
 | Frontend | http://localhost:4173 |
 | Backend | http://localhost:8000 |
-| PostgreSQL | localhost:5432 (pgvector profile only) |
+| PostgreSQL | localhost:5433 (pgvector profile only) |
 | FastAPI documentation | http://localhost:8000/docs |
 | Health endpoint | http://localhost:8000/health |
 
@@ -199,6 +225,11 @@ CACHE_TTL_SECONDS=3600
 ```
 
 A higher similarity threshold makes cache matching stricter. A lower threshold increases the chance of reuse but also increases the risk of returning a response for a query that is not similar enough.
+
+Optional English typo normalization can make harmless spelling variants and
+accidental word splits produce more consistent cache embeddings. It is disabled
+by default; see [Optional prompt typo normalization](docs/prompt-typo-normalization.md)
+for its matching behavior, configuration, and limitations.
 
 ### Frontend routes and session state
 

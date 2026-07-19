@@ -15,6 +15,7 @@ dependencies = [
   "pydantic-settings>=2.6,<3",
   "python-dotenv>=1,<2",
   "slowapi>=0.1.9,<1",
+  "symspellpy>=6.9,<7",
   "tenacity>=9,<10",
   "uvicorn[standard]>=0.32,<1",
 ]
@@ -50,5 +51,5 @@ plugins = ["pydantic.mypy"]
 files = ["app", "tests", "scripts"]
 
 [[tool.mypy.overrides]]
-module = ["slowapi", "slowapi.*"]
+module = ["slowapi", "slowapi.*", "symspellpy", "symspellpy.*"]
 ignore_missing_imports = true
