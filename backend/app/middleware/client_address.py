@@ -7,8 +7,7 @@ from app.core.config import Settings
 
 def _trusted_networks(settings: Settings) -> tuple[IPv4Network | IPv6Network, ...]:
     return tuple(
-        ip_network(value, strict=False)
-        for value in settings.trusted_proxy_cidrs
+        ip_network(value, strict=False) for value in settings.trusted_proxy_cidrs
     )
 
 

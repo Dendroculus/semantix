@@ -3,10 +3,10 @@ name: Quality
 on:
   pull_request:
     branches:
-      - master
+      - main
   push:
     branches:
-      - master
+      - main
   workflow_dispatch:
 
 permissions:
@@ -26,9 +26,6 @@ jobs:
         working-directory: backend
     env:
       PYTHONPYCACHEPREFIX: /tmp/semantix-cache/python
-      EMBEDDING_PROVIDER: mock
-      GENERATION_PROVIDER: mock
-      MOCK_EMBEDDING_DIMENSIONS: "384"
       CACHE_BACKEND: memory
       AUTH_MODE: disabled
     steps:

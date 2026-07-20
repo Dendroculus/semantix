@@ -49,7 +49,6 @@ def authorization(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-
 def test_auth_config_is_public_and_does_not_disclose_principals() -> None:
     with TestClient(create_app(settings())) as client:
         response = client.get("/api/v1/auth/config")
@@ -57,6 +56,7 @@ def test_auth_config_is_public_and_does_not_disclose_principals() -> None:
     assert response.status_code == 200
     assert response.json() == {"authentication_required": True}
     assert "reader" not in response.text
+
 
 def test_protected_routes_require_a_valid_token() -> None:
     with TestClient(create_app(settings())) as client:
