@@ -26,7 +26,8 @@ async def cache_backend_lifespan(
 
     pool = await create_database_pool(settings)
     try:
-        await apply_migrations(pool)
+        if settings.database_migration_mode == "auto":
+            await apply_migrations(pool)
         yield PgVectorCacheBackend(
             pool,
             settings.max_cache_size,

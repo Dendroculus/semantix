@@ -15,12 +15,13 @@ from app.core.exceptions import (
 )
 from app.core.logging import configure_logging
 from app.lifecycle import create_lifespan
+from app.middleware.body_limit import RequestBodyLimitMiddleware
 from app.middleware.rate_limit import limiter
 
 API_TITLE = "Semantic Cache API"
 API_VERSION = "1.0.0"
 CORS_ALLOWED_METHODS = ("GET", "POST", "PUT", "DELETE")
-CORS_ALLOWED_HEADERS = ("Content-Type",)
+CORS_ALLOWED_HEADERS = ("Authorization", "Content-Type")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -36,6 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=API_VERSION,
         lifespan=create_lifespan(resolved_settings),
     )
+    application.state.settings = resolved_settings
 
     _configure_middleware(application, resolved_settings)
     _register_exception_handlers(application)
@@ -48,10 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return application
 
 
-def _configure_middleware(
-    application: FastAPI,
-    settings: Settings,
-) -> None:
+def _configure_middleware(application: FastAPI, settings: Settings) -> None:
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
@@ -59,17 +58,15 @@ def _configure_middleware(
         allow_methods=CORS_ALLOWED_METHODS,
         allow_headers=CORS_ALLOWED_HEADERS,
     )
+    application.add_middleware(
+        RequestBodyLimitMiddleware,
+        max_body_bytes=settings.max_request_body_bytes,
+    )
 
 
 def _register_exception_handlers(application: FastAPI) -> None:
     application.add_exception_handler(AppError, app_error_handler)
-    application.add_exception_handler(
-        RequestValidationError,
-        validation_error_handler,
-    )
-    application.add_exception_handler(
-        RateLimitExceeded,
-        rate_limit_error_handler,
-    )
+    application.add_exception_handler(RequestValidationError, validation_error_handler)
+    application.add_exception_handler(RateLimitExceeded, rate_limit_error_handler)
     application.add_exception_handler(HTTPException, http_error_handler)
     application.add_exception_handler(Exception, unhandled_error_handler)

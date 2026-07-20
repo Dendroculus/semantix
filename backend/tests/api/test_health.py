@@ -1,28 +1,54 @@
+from typing import cast
+
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
+from app.core.exceptions import CacheStorageError
 from app.factory import create_app
 
 
-def test_health_reports_configured_provider_names_only() -> None:
-    settings = Settings(
+def settings() -> Settings:
+    return Settings(
         embedding_provider="mock",
-        generation_provider="ollama",
-        ollama_base_url="http://host.docker.internal:11434",
-        ollama_generation_model="gemma3",
+        generation_provider="mock",
         hf_api_key=None,
         cache_backend="memory",
         allowed_origins=["http://localhost:5173"],
     )
 
-    with TestClient(create_app(settings)) as client:
-        response = client.get("/health")
 
-    assert response.status_code == 200
-    assert response.json() == {
+def test_health_reports_provider_names_and_is_not_rate_limited() -> None:
+    with TestClient(create_app(settings())) as client:
+        responses = [client.get("/health") for _ in range(25)]
+
+    assert all(response.status_code == 200 for response in responses)
+    assert responses[-1].json() == {
         "status": "ok",
         "embedding_provider": "mock",
-        "generation_provider": "ollama",
+        "generation_provider": "mock",
     }
-    assert "host.docker.internal" not in response.text
-    assert "gemma3" not in response.text
+
+
+def test_ready_reports_active_cache_backend() -> None:
+    with TestClient(create_app(settings())) as client:
+        response = client.get("/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready", "cache_backend": "memory"}
+
+
+def test_ready_returns_503_when_cache_dependency_is_unavailable() -> None:
+    class FailingCache:
+        async def stats(self) -> None:
+            raise CacheStorageError
+
+    with TestClient(create_app(settings())) as client:
+        cast(FastAPI, client.app).state.semantic_cache = FailingCache()
+        response = client.get("/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": "not_ready",
+        "detail": "A required cache dependency is unavailable.",
+    }

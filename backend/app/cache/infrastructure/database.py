@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 MIGRATION_PACKAGE = "app.cache.infrastructure.migrations"
 MIGRATION_NAME = re.compile(r"^(?P<version>\d{4})_[a-z0-9_]+\.sql$")
 MIGRATION_LOCK_ID = 7_374_772_830_148_015_240
+ROLE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
 MIGRATION_BOOTSTRAP_SQL = """
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE SCHEMA IF NOT EXISTS semantix;
@@ -51,14 +52,20 @@ def load_migrations() -> tuple[Migration, ...]:
     return ordered
 
 
-async def create_database_pool(settings: Settings) -> Pool:
+async def create_pool(
+    dsn: str,
+    *,
+    min_size: int,
+    max_size: int,
+    timeout: float,
+) -> Pool:
     try:
         return await asyncpg.create_pool(
-            dsn=settings.database_dsn,
-            min_size=settings.database_pool_min_size,
-            max_size=settings.database_pool_max_size,
-            timeout=settings.database_connect_timeout_seconds,
-            command_timeout=settings.database_connect_timeout_seconds,
+            dsn=dsn,
+            min_size=min_size,
+            max_size=max_size,
+            timeout=timeout,
+            command_timeout=timeout,
         )
     except (OSError, TimeoutError, asyncpg.PostgresError) as error:
         raise CacheStorageError(
@@ -66,13 +73,19 @@ async def create_database_pool(settings: Settings) -> Pool:
         ) from error
 
 
+async def create_database_pool(settings: Settings) -> Pool:
+    return await create_pool(
+        settings.database_dsn,
+        min_size=settings.database_pool_min_size,
+        max_size=settings.database_pool_max_size,
+        timeout=settings.database_connect_timeout_seconds,
+    )
+
+
 async def apply_migrations(pool: Pool) -> None:
     try:
         async with pool.acquire() as connection:
-            await connection.execute(
-                "SELECT pg_advisory_lock($1)",
-                MIGRATION_LOCK_ID,
-            )
+            await connection.execute("SELECT pg_advisory_lock($1)", MIGRATION_LOCK_ID)
             try:
                 await connection.execute(MIGRATION_BOOTSTRAP_SQL)
                 applied_rows = await connection.fetch(
@@ -103,4 +116,27 @@ async def apply_migrations(pool: Pool) -> None:
     except (OSError, TimeoutError, asyncpg.PostgresError) as error:
         raise CacheStorageError(
             "Could not initialize the pgvector cache schema"
+        ) from error
+
+
+async def grant_runtime_privileges(pool: Pool, runtime_role: str) -> None:
+    if ROLE_NAME.fullmatch(runtime_role) is None:
+        raise CacheStorageError("DATABASE_RUNTIME_ROLE is not a valid PostgreSQL role")
+    quoted_role = '"' + runtime_role.replace('"', '""') + '"'
+    statements = (
+        f"GRANT USAGE ON SCHEMA semantix TO {quoted_role}",
+        (
+            "GRANT SELECT, INSERT, UPDATE, DELETE ON "
+            "semantix.cache_entries, semantix.cache_namespace_counters "
+            f"TO {quoted_role}"
+        ),
+    )
+    try:
+        async with pool.acquire() as connection:
+            async with connection.transaction():
+                for statement in statements:
+                    await connection.execute(statement)
+    except (OSError, TimeoutError, asyncpg.PostgresError) as error:
+        raise CacheStorageError(
+            "Could not grant runtime database privileges"
         ) from error
