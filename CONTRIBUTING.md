@@ -48,7 +48,7 @@ improvements.
 
 ## Development setup
 
-### Docker workflow
+### Docker development workflow
 
 Create the backend environment file:
 
@@ -63,26 +63,25 @@ EMBEDDING_PROVIDER=mock
 GENERATION_PROVIDER=mock
 MOCK_EMBEDDING_DIMENSIONS=384
 CACHE_BACKEND=memory
+AUTH_MODE=disabled
 ```
 
-Start the application:
+Start the hot-reload development stack:
 
 ```powershell
-docker compose up --build -d
+docker compose -f docker-compose.dev.yml --profile pgvector up --build -d
 ```
 
-Optional profiles:
+Useful commands:
 
 ```powershell
-# Persistent pgvector cache
-docker compose --profile pgvector up --build -d
-
-# Local Ollama provider
-docker compose --profile ollama up --build -d
-
-# Ollama and pgvector together
-docker compose --profile ollama --profile pgvector up --build -d
+docker compose -f docker-compose.dev.yml --profile pgvector ps
+docker compose -f docker-compose.dev.yml --profile pgvector logs -f backend
+docker compose -f docker-compose.dev.yml --profile pgvector down
 ```
+
+Use the hardened stack only when validating production-oriented configuration.
+See [Hardened deployment](docs/deployment.md) before starting it.
 
 ### Local backend workflow
 
@@ -91,8 +90,23 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
+. .\scripts\enable_cache.ps1
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The cache script redirects normal Python bytecode into `backend/.cache/python`
+for the current terminal session. Ruff, mypy, and pytest use the cache
+directories configured in `backend/pyproject.toml`.
+
+Pytest assertion rewriting does not rely on Python's normal bytecode-cache path.
+The test configuration disables writing rewritten bytecode so test runs do not
+recreate scattered `__pycache__` directories.
+
+To remove backend caches and editable-install metadata:
+
+```powershell
+.\scripts\clean_artifacts.ps1
 ```
 
 ### Local frontend workflow
@@ -112,7 +126,7 @@ Create a focused branch from the latest `main` branch:
 
 ```bash
 git switch main
-git pull --ff-only
+git pull --ff-only origin main
 git switch -c <type>/<short-description>
 ```
 
@@ -128,6 +142,7 @@ Recommended branch prefixes:
 | `test/` | Test-only work |
 | `chore/` | Maintenance or tooling |
 | `ci/` | Continuous-integration changes |
+| `build/` | Build-system or dependency changes |
 
 Keep each branch limited to one clear concern.
 
@@ -139,9 +154,11 @@ Semantix follows feature-first ownership.
 - Keep cache behavior inside the cache feature.
 - Keep provider-specific HTTP behavior inside provider adapters.
 - Keep storage-specific behavior inside cache infrastructure adapters.
+- Keep repository-level operational assets under `ops/`.
+- Keep PostgreSQL bootstrap assets under `ops/postgres/`.
+- Keep k6 workloads under `ops/load-tests/`.
 - Depend on protocols from application code rather than concrete adapters.
-- Add architectural layers only when the feature has a distinct
-  responsibility that needs them.
+- Add architectural layers only when a feature has a distinct responsibility.
 - Keep small cohesive features flat.
 - Preserve strict typing; do not use `Any` merely to bypass contracts.
 - Do not scatter provider or cache selection conditionals through routes or
@@ -187,9 +204,10 @@ Update the relevant guide when changing:
 - cache policies;
 - API contracts;
 - benchmark behavior;
-- Docker profiles;
+- Docker or deployment behavior;
 - migration or persistence behavior;
 - load-testing safeguards;
+- CI requirements;
 - known limitations.
 
 Do not report benchmark or performance results without recording the provider,
@@ -198,33 +216,39 @@ conditions.
 
 ## Tests and quality checks
 
-Run the checks affected by your change.
+Run the checks affected by your change before pushing.
 
-Backend:
+### Backend
 
-```bash
+```powershell
 cd backend
+.\.venv\Scripts\Activate.ps1
+. .\scripts\enable_cache.ps1
 python -m pytest
 python -m ruff check .
 python -m ruff format --check .
 python -m mypy app tests scripts
 ```
 
-Frontend:
+### Frontend
 
-```bash
+```powershell
 cd frontend
+npm ci
 npm run lint
 npm run imports:check
 npm run test
 npm run build
 ```
 
-Docker:
+### Docker Compose
 
-```bash
+From the repository root:
+
+```powershell
 docker compose config --quiet
-docker compose build
+docker compose -f docker-compose.dev.yml --profile pgvector config --quiet
+docker compose --env-file .env.production.example -f docker-compose.prod.yml config --quiet
 ```
 
 Pgvector integration tests are opt-in and require a disposable database:
@@ -240,6 +264,32 @@ cd backend
 Do not run tests against production data or billable providers unless that is
 explicitly required and acknowledged.
 
+## Continuous integration
+
+The `Quality` GitHub Actions workflow runs for pull requests targeting `main`,
+pushes to `main`, and manual dispatches.
+
+It validates:
+
+- backend tests, Ruff linting, Ruff formatting, and mypy;
+- frontend linting, import normalization, tests, and production build;
+- compatibility, development, and hardened Docker Compose configuration.
+
+The final required status check is:
+
+```text
+Quality gate
+```
+
+`Quality gate` succeeds only when the backend, frontend, and Compose jobs all
+succeed. A pending, skipped, cancelled, or failed required job must block a
+normal merge.
+
+The repository ruleset requires pull requests and the `Quality gate` check.
+CODEOWNERS identifies review ownership. Ruleset bypass access is reserved for
+repairing broken repository automation or another exceptional administrative
+case; it must not be used to merge known product failures.
+
 ## Commit messages
 
 Use Conventional Commits:
@@ -253,9 +303,9 @@ Examples:
 ```text
 feat(providers): add Ollama generation adapter
 fix(cache): isolate pgvector embedding spaces
-perf(query): coalesce identical in-flight misses
-docs(readme): add zero-key local setup
-test(benchmark): cover threshold false positives
+refactor(repo): consolidate operational assets
+ci(quality): validate development and hardened Compose files
+docs(contributing): document the quality gate
 ```
 
 Common types:
@@ -278,13 +328,16 @@ changes in one commit.
 
 Before opening a pull request:
 
-1. Rebase or update your branch from the latest `main`.
-2. Remove unrelated formatting or generated-file changes.
-3. Add or update tests.
+1. Update your branch from the latest `main`.
+2. Remove unrelated formatting and generated-file changes.
+3. Add or update relevant tests.
 4. Update documentation.
-5. Run the relevant quality checks.
-6. Review the diff for secrets and private data.
-7. Complete the pull request template honestly.
+5. Run the relevant local quality checks.
+6. Validate Docker Compose when configuration is affected.
+7. Review the diff for credentials, private prompts, responses, and personal
+   data.
+8. Complete the pull request template honestly.
+9. Wait for `Quality gate` to pass before merging.
 
 A good pull request should explain:
 
@@ -293,6 +346,9 @@ A good pull request should explain:
 - public API, configuration, migration, or compatibility effects;
 - verification commands and results;
 - any limitation or follow-up work.
+
+Use squash merge so the final `main` history contains one focused commit for
+each pull request.
 
 Screenshots are encouraged for visible frontend changes. Reproducible benchmark
 output is required for performance claims.
