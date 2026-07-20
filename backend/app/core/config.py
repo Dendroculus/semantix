@@ -1,8 +1,17 @@
+import re
 from functools import lru_cache
+from ipaddress import ip_network
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.providers.configuration import (
@@ -18,6 +27,34 @@ from app.providers.shared.urls import (
 )
 
 CacheBackendName = Literal["memory", "pgvector"]
+AuthMode = Literal["disabled", "token"]
+AuthRole = Literal["viewer", "operator", "admin"]
+DatabaseMigrationMode = Literal["auto", "external"]
+_AUTH_NAMESPACE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
+
+
+class AuthPrincipalSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
+    token_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    role: AuthRole
+    namespaces: list[str] = Field(min_length=1)
+
+    @field_validator("namespaces")
+    @classmethod
+    def validate_namespaces(cls, values: list[str]) -> list[str]:
+        normalized = [value.strip() for value in values]
+        if any(
+            value != "*" and _AUTH_NAMESPACE.fullmatch(value) is None
+            for value in normalized
+        ):
+            raise ValueError("Authentication namespaces contain an invalid value")
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("Authentication namespaces cannot contain duplicates")
+        if "*" in normalized and len(normalized) != 1:
+            raise ValueError("Wildcard namespace access must be configured alone")
+        return normalized
 
 
 class Settings(BaseSettings):
@@ -64,57 +101,36 @@ class Settings(BaseSettings):
 
     mock_embedding_dimensions: int = Field(default=384, gt=0)
 
-    provider_timeout_seconds: float = Field(
-        default=30.0,
-        gt=0,
-        le=120,
-    )
-    generation_max_new_tokens: int = Field(
-        default=512,
-        ge=1,
-        le=2_048,
-    )
+    provider_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+    generation_max_new_tokens: int = Field(default=512, ge=1, le=2_048)
     prompt_typo_correction_enabled: bool = False
     prompt_typo_max_edit_distance: int = Field(default=2, ge=0, le=3)
 
-    similarity_threshold: float = Field(
-        default=0.92,
-        ge=0,
-        le=1,
-    )
+    similarity_threshold: float = Field(default=0.92, ge=0, le=1)
     cache_backend: CacheBackendName = "memory"
-    max_cache_size: int = Field(
-        default=500,
-        ge=1,
-        le=100_000,
-    )
-    cache_ttl_seconds: int | None = Field(
-        default=3_600,
-        gt=0,
-    )
+    max_cache_size: int = Field(default=500, ge=1, le=100_000)
+    cache_ttl_seconds: int | None = Field(default=3_600, gt=0)
     database_url: SecretStr | None = None
     database_pool_min_size: int = Field(default=1, ge=1, le=50)
     database_pool_max_size: int = Field(default=5, ge=1, le=50)
     database_connect_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
+    database_migration_mode: DatabaseMigrationMode = "auto"
+
+    auth_mode: AuthMode = "disabled"
+    auth_principals: list[AuthPrincipalSettings] = Field(default_factory=list)
+    trusted_proxy_cidrs: list[str] = Field(default_factory=list)
+    max_request_body_bytes: int = Field(default=65_536, ge=1_024, le=10_485_760)
 
     allowed_origins: list[str] = Field(min_length=1)
     rate_limit: str = Field(
         default="20/minute",
         pattern=r"^\d+/(second|minute|hour|day)$",
     )
-    log_level: Literal[
-        "DEBUG",
-        "INFO",
-        "WARNING",
-        "ERROR",
-    ] = "INFO"
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
     @field_validator("embedding_provider", mode="before")
     @classmethod
-    def reject_generation_only_embedding_provider(
-        cls,
-        value: object,
-    ) -> object:
+    def reject_generation_only_embedding_provider(cls, value: object) -> object:
         if value == "anthropic":
             raise ValueError(
                 "Anthropic supports generation only and cannot be used "
@@ -130,50 +146,45 @@ class Settings(BaseSettings):
         "gemini_base_url",
     )
     @classmethod
-    def normalize_provider_base_url(
-        cls,
-        value: str | None,
-    ) -> str | None:
+    def normalize_provider_base_url(cls, value: str | None) -> str | None:
         return normalize_hosted_provider_url(value)
 
     @field_validator("ollama_base_url")
     @classmethod
-    def normalize_ollama_base_url(
-        cls,
-        value: str,
-    ) -> str:
+    def normalize_ollama_base_url(cls, value: str) -> str:
         return normalize_ollama_url(value)
 
     @field_validator("allowed_origins")
     @classmethod
-    def validate_origins(
-        cls,
-        values: list[str],
-    ) -> list[str]:
+    def validate_origins(cls, values: list[str]) -> list[str]:
         normalized: list[str] = []
-
         for value in values:
             origin = value.strip().rstrip("/")
             parsed = urlparse(origin)
-
             if origin == "*":
                 raise ValueError("Wildcard CORS origins are forbidden")
-
             if parsed.scheme not in {"http", "https"} or not parsed.netloc:
                 raise ValueError(f"Invalid CORS origin: {origin}")
-
             if parsed.username is not None or parsed.password is not None:
                 raise ValueError("CORS origins must not contain credentials")
-
             normalized.append(origin)
-
         if len(normalized) != len(set(normalized)):
             raise ValueError("ALLOWED_ORIGINS must not contain duplicates")
+        return normalized
 
+    @field_validator("trusted_proxy_cidrs")
+    @classmethod
+    def validate_trusted_proxy_cidrs(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for value in values:
+            network = ip_network(value.strip(), strict=False)
+            normalized.append(str(network))
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("TRUSTED_PROXY_CIDRS must not contain duplicates")
         return normalized
 
     @model_validator(mode="after")
-    def validate_selected_providers(self) -> "Settings":
+    def validate_selected_configuration(self) -> "Settings":
         validate_provider_configuration(self)
 
         if self.cache_backend == "pgvector":
@@ -183,6 +194,21 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "DATABASE_POOL_MIN_SIZE cannot exceed DATABASE_POOL_MAX_SIZE"
                 )
+
+        if self.auth_mode == "token":
+            if not self.auth_principals:
+                raise ValueError("AUTH_PRINCIPALS is required when AUTH_MODE=token")
+            names = [principal.name for principal in self.auth_principals]
+            hashes = [principal.token_sha256 for principal in self.auth_principals]
+            if len(names) != len(set(names)):
+                raise ValueError("AUTH_PRINCIPALS names must be unique")
+            if len(hashes) != len(set(hashes)):
+                raise ValueError("AUTH_PRINCIPALS token hashes must be unique")
+            if any(
+                "*" in principal.namespaces and principal.role != "admin"
+                for principal in self.auth_principals
+            ):
+                raise ValueError("Wildcard namespace access requires the admin role")
 
         return self
 
@@ -222,7 +248,6 @@ class Settings(BaseSettings):
     def _validate_database_url(self) -> None:
         if self.database_url is None:
             return
-
         parsed = urlparse(self.database_url.get_secret_value())
         if (
             parsed.scheme not in {"postgres", "postgresql"}

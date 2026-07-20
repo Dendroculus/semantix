@@ -1,8 +1,10 @@
 .venv
-__pycache__
-*.py[cod]
-.pytest_cache
-.mypy_cache
-.ruff_cache
+.cache
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/*.egg-info
 .env
 .git

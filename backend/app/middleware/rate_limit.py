@@ -1,4 +1,5 @@
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 
-limiter = Limiter(key_func=get_remote_address)
+from app.middleware.client_address import client_address
+
+limiter = Limiter(key_func=client_address)

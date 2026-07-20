@@ -26,6 +26,7 @@ dev = [
   "mypy>=1.13,<2",
   "pytest>=8.3,<9",
   "pytest-asyncio>=0.24,<1",
+  "ruff>=0.15,<1",
 ]
 
 [tool.setuptools.packages.find]
@@ -36,10 +37,15 @@ namespaces = true
 [tool.setuptools.package-data]
 "app.cache.infrastructure.migrations" = ["*.sql"]
 
+[tool.ruff]
+cache-dir = ".cache/ruff"
+extend-exclude = [".cache"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 pythonpath = ["."]
 testpaths = ["tests"]
+cache_dir = ".cache/pytest"
 markers = [
   "pgvector: requires a PostgreSQL database with the pgvector extension",
 ]
@@ -49,6 +55,7 @@ python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
 files = ["app", "tests", "scripts"]
+cache_dir = ".cache/mypy"
 
 [[tool.mypy.overrides]]
 module = ["slowapi", "slowapi.*", "symspellpy", "symspellpy.*"]

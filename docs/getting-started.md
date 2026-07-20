@@ -1,205 +1,194 @@
 # Getting started
 
-This guide covers complete local setup. The repository README intentionally
-keeps only the shortest Docker path.
+Semantix has separate development and hardened deployment paths. The development stack is for one trusted developer on a local machine. The hardened stack is the starting point for shared or public deployment and must sit behind TLS.
 
 ## Prerequisites
 
-For the Docker workflow, install:
+Install Git and Docker Desktop or Docker Engine with Compose. Hosted providers also require credentials for the selected provider capabilities.
 
-- [Git](https://git-scm.com/);
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) on Windows
-  or macOS, or Docker Engine with Compose on Linux;
-- credentials for any hosted AI providers you select.
+## Local development
 
-Docker supplies Python, Node.js, and application dependencies. Local toolchains
-are needed only for the non-Docker development workflow.
-
-Hugging Face is the recommended starting provider because it avoids local model
-downloads and inference hardware requirements. See
-[Providers](providers.md) before selecting OpenAI, Anthropic, Gemini, Ollama, or
-the deterministic mock adapters.
-
-## Configure the backend
-
-Clone the repository:
+Clone the repository and create the backend environment file:
 
 ```bash
 git clone https://github.com/Dendroculus/semantix.git
 cd semantix
+cp backend/.env.example backend/.env
 ```
-
-Create the backend environment file.
 
 Windows PowerShell:
 
 ```powershell
+git clone https://github.com/Dendroculus/semantix.git
+Set-Location semantix
 Copy-Item backend\.env.example backend\.env
 ```
 
-macOS or Linux:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-For the default configuration, replace the placeholder `HF_API_KEY` in
-`backend/.env` with a dedicated Hugging Face token that has inference
-permission. Never commit the token.
-
-The checked-in [`backend/.env.example`](../backend/.env.example) is the
-canonical environment reference. Its settings are grouped into:
-
-- embedding and generation providers;
-- provider request limits;
-- optional prompt normalization;
-- similarity, cache size, and TTL;
-- optional pgvector connectivity;
-- CORS, rate limiting, and logging.
-
-Only the selected provider capabilities require credentials and models.
-Provider-specific settings are documented in [Providers](providers.md);
-database settings are documented in [pgvector](pgvector.md); matching behavior
-is documented in [Cache policies](cache-policies.md).
-
-## Start with the memory cache
-
-Keep:
+For a network-free development configuration, set:
 
 ```env
+EMBEDDING_PROVIDER=mock
+GENERATION_PROVIDER=mock
+MOCK_EMBEDDING_DIMENSIONS=384
 CACHE_BACKEND=memory
+AUTH_MODE=disabled
 ```
 
-Build and start the frontend and backend:
+Start the explicitly named development stack:
+
+```bash
+docker compose -f docker-compose.dev.yml up --build -d
+```
+
+Docker Compose 2.20 or newer can also use the compatibility entry point, which loads the same development stack:
 
 ```bash
 docker compose up --build -d
 ```
 
-The memory cache requires no database and resets when the backend process
-restarts.
+All published development ports bind to `127.0.0.1` by default:
 
-## Start with pgvector
+| Service | Address |
+|---|---|
+| Frontend | <http://localhost:4173> |
+| Backend | <http://localhost:8000> |
+| API documentation | <http://localhost:8000/docs> |
+| Liveness | <http://localhost:8000/health> |
+| Readiness | <http://localhost:8000/ready> |
 
-Configure the container-internal database address:
+The development frontend runs Vite HMR and the backend runs Uvicorn reload. Do not expose this stack to an untrusted network.
+
+### Development with pgvector
+
+Set the backend database values:
 
 ```env
 CACHE_BACKEND=pgvector
 DATABASE_URL=postgresql://semantix:semantix@postgres:5432/semantix
+DATABASE_MIGRATION_MODE=auto
 ```
 
-Activate the optional profile:
+Start the profile:
 
 ```bash
-docker compose --profile pgvector up --build -d
+docker compose -f docker-compose.dev.yml --profile pgvector up --build -d
 ```
 
-Compose starts PostgreSQL, waits for its health check, and then starts the
-backend. The backend applies pending migrations before becoming ready. Compose
-profiles are selected per command, so include `--profile pgvector` whenever
-bringing this stack up or inspecting it.
+The database is available to host-side tools at `127.0.0.1:5433` by default. The development role intentionally owns migrations and runtime operations.
 
-For database ports, pgAdmin, migration behavior, persistence, and integration
-tests, see [Persistent pgvector cache](pgvector.md).
+The development commands keep the repository's existing `semantix` Compose project name, so an existing local `pgvector_data` volume continues to be used.
 
-## Verify the application
+### Local toolchains
 
-For the memory stack:
+Backend:
 
 ```bash
-docker compose ps
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-For pgvector:
-
-```bash
-docker compose --profile pgvector ps
-```
-
-Expected endpoints:
-
-| Service | Local address |
-|---|---|
-| Frontend | <http://localhost:4173> |
-| Backend | <http://localhost:8000> |
-| FastAPI documentation | <http://localhost:8000/docs> |
-| Health | <http://localhost:8000/health> |
-| PostgreSQL host port | `localhost:5433` with the pgvector profile |
-
-Check backend health from PowerShell:
+Windows PowerShell activation:
 
 ```powershell
-Invoke-RestMethod http://localhost:8000/health
+.\.venv\Scripts\Activate.ps1
 ```
 
-Submit a query in the Monitor workspace, then try a paraphrase. A hit occurs
-only when the nearest score meets the active threshold.
-
-## Logs, rebuilds, and shutdown
+Frontend:
 
 ```bash
-docker compose logs -f backend
-docker compose logs -f frontend
-docker compose down
+cd frontend
+npm ci
+npm run dev
 ```
 
-When dependencies or Dockerfiles change:
+Set `VITE_API_BASE_URL=http://localhost:8000` in `frontend/.env` for local Vite development.
+
+## Hardened deployment
+
+The hardened stack uses:
+
+- a compiled frontend served by a non-root Nginx image;
+- an internal backend that is not published directly;
+- a database on an internal Docker network with no host port;
+- token authentication, roles, and namespace scopes;
+- proxy-aware rate limiting;
+- reverse-proxy and ASGI request-size limits;
+- separate migration and runtime database roles;
+- unrate-limited liveness and dependency-aware readiness checks.
+
+Create the deployment environment file:
 
 ```bash
-docker compose up --build --force-recreate -d
+cp .env.production.example .env.production
 ```
 
-If Docker reused a stale backend dependency layer:
+Generate strong database passwords and access tokens, replace every placeholder, then start:
 
 ```bash
-docker compose build --no-cache backend
-docker compose up -d
+docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
 ```
 
-For pgvector, add `--profile pgvector` to the final `up` command. `--no-cache`
-controls image-layer reuse; it does not activate Compose profiles.
+The frontend gateway binds to `127.0.0.1:8080` by default. Terminate TLS with a host reverse proxy and forward traffic to that loopback address. Do not publish the backend or database ports.
 
-Running `docker compose down` preserves named volumes. Adding `--volumes`
-permanently removes their data, including PostgreSQL cache entries.
+The hardened stack uses the separate `semantix-prod` Compose project and does not reuse the development PostgreSQL volume.
 
-## Frontend environment
+See [Hardened deployment](deployment.md) for token hashing, role configuration, proxy trust, database privileges, readiness behavior, and validation.
 
-Docker passes the API URL during the frontend build. A frontend environment
-file is needed only for local Vite development:
+## Health checks
 
-Windows PowerShell:
+`GET /health` is a cheap process liveness check and is not rate-limited.
 
-```powershell
-Copy-Item frontend\.env.example frontend\.env
-```
+`GET /ready` checks the active cache dependency. The memory backend returns immediately. The pgvector backend performs a bounded cache-statistics query and returns `503` when the database is unavailable.
 
-macOS or Linux:
+Readiness does not call hosted AI providers and therefore does not consume provider quota.
+
+## Shutdown and volumes
+
+Development:
 
 ```bash
-cp frontend/.env.example frontend/.env
+docker compose -f docker-compose.dev.yml down
 ```
 
-```env
-VITE_API_BASE_URL=http://localhost:8000
+Hardened deployment:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml down
 ```
 
-Every `VITE_*` value is embedded in the browser bundle and is publicly visible.
-Never place credentials in frontend environment variables.
+Named volumes are preserved. Adding `--volumes` permanently removes PostgreSQL data.
 
-## Troubleshooting
+## Quality checks
 
-| Symptom | Check |
-|---|---|
-| Docker command is unavailable | Install and start Docker Desktop or Docker Engine |
-| Frontend cannot be reached | Confirm `docker compose ps` shows `4173->4173/tcp` |
-| Frontend uses an old API URL or UI bundle | Rebuild and force-recreate the frontend, then hard-refresh |
-| Backend rejects browser requests | Add the active frontend origin to `ALLOWED_ORIGINS` |
-| Hosted provider authentication fails | Check the selected provider key and its permissions |
-| Hugging Face reports `model_not_supported` | Select a model available to the configured account |
-| Similar prompts miss | Review the embedding model and evaluate a lower threshold carefully |
-| Unrelated prompts hit | Evaluate a higher threshold |
-| Cache disappears after restart | Memory storage is process-local; use pgvector for persistence |
-| pgvector startup fails | Check the database URL, health, permissions, and backend startup logs |
+Backend:
 
-Provider-specific failures are covered in [Providers](providers.md). Load and
-latency diagnosis is covered in [Load testing](load-testing.md).
+```bash
+cd backend
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy app tests scripts
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm ci
+npm run lint
+npm run imports:check
+npm run test
+npm run build
+```
+
+Container validation:
+
+```bash
+docker compose -f docker-compose.dev.yml config --quiet
+docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
+docker compose -f docker-compose.dev.yml build
+docker compose --env-file .env.production -f docker-compose.prod.yml build
+```

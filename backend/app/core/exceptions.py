@@ -1,5 +1,6 @@
 import logging
 from typing import cast
+
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -12,6 +13,22 @@ class AppError(Exception):
     status_code = 500
     error_code = "internal_error"
     public_detail: str | None = None
+
+
+class AuthenticationRequiredError(AppError):
+    status_code, error_code, public_detail = (
+        401,
+        "authentication_required",
+        "A valid bearer token is required.",
+    )
+
+
+class AuthorizationError(AppError):
+    status_code, error_code, public_detail = (
+        403,
+        "forbidden",
+        "The authenticated principal is not permitted to perform this operation.",
+    )
 
 
 class EmbeddingError(AppError):
@@ -71,12 +88,11 @@ class InvalidProviderResponseError(AppError):
 
 
 def _response(status: int, error: str, detail: str | None) -> JSONResponse:
+    headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
     return JSONResponse(
         status_code=status,
-        content={
-            "error": error,
-            "detail": detail,
-        },
+        content={"error": error, "detail": detail},
+        headers=headers,
     )
 
 

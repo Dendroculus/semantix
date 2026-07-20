@@ -8,16 +8,11 @@ from app.core.config import get_settings
 from app.middleware.rate_limit import limiter
 from app.observability.metrics import RuntimeMetrics
 from app.observability.schemas import MetricsResponse
+from app.security.auth import ViewerPrincipal
 
 router = APIRouter(prefix="/api/v1", tags=["observability"])
-MetricsDependency = Annotated[
-    RuntimeMetrics,
-    Depends(get_runtime_metrics),
-]
-CacheDependency = Annotated[
-    SemanticCache,
-    Depends(get_semantic_cache),
-]
+MetricsDependency = Annotated[RuntimeMetrics, Depends(get_runtime_metrics)]
+CacheDependency = Annotated[SemanticCache, Depends(get_semantic_cache)]
 
 
 @router.get("/metrics", response_model=MetricsResponse)
@@ -26,6 +21,7 @@ async def metrics(
     request: Request,
     runtime_metrics: MetricsDependency,
     cache: CacheDependency,
+    principal: ViewerPrincipal,
 ) -> MetricsResponse:
     cache_stats = await cache.stats()
     return MetricsResponse.from_snapshot(
