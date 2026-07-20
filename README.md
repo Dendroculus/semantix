@@ -286,9 +286,10 @@ and contribution steps.
 semantix/
 ├── backend/
 ├── frontend/
-├── infrastructure/
+├── ops/
+│   ├── postgres/
+│   └── load-tests/
 ├── docs/
-├── load-tests/
 ├── docker-compose.dev.yml
 ├── docker-compose.prod.yml
 └── README.md

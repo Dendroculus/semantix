@@ -18,7 +18,7 @@ services:
       retries: 12
     volumes:
       - pgvector_data:/var/lib/postgresql/data
-      - ./infrastructure/postgres/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-runtime-role.sh:ro
+      - ./ops/postgres/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-runtime-role.sh:ro
     networks:
       - data
 

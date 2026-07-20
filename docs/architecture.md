@@ -128,7 +128,9 @@ semantix/
 │   │   ├── features/
 │   │   └── shared/
 │   └── tests/                    # Mirrors app and features
-├── load-tests/k6/
+├── ops/
+│   ├── postgres/
+│   └── load-tests/
 ├── docs/
 └── docker-compose.yml
 ```

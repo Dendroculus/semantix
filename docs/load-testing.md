@@ -71,7 +71,7 @@ From the repository root in PowerShell:
 $env:BASE_URL = "http://localhost:8000"
 $env:LOAD_ACKNOWLEDGE_PROVIDER_CALLS = "true"
 $env:SCENARIO = "repeated-identical"
-k6 run .\load-tests\k6\semantix.js
+k6 run .\ops\load-tests\semantix.js
 ```
 
 Change `SCENARIO` to run the other workloads. For the protected scenarios:
@@ -79,14 +79,14 @@ Change `SCENARIO` to run the other workloads. For the protected scenarios:
 ```powershell
 $env:SCENARIO = "threshold-changes"
 $env:LOAD_ALLOW_THRESHOLD_CHANGES = "true"
-k6 run .\load-tests\k6\semantix.js
+k6 run .\ops\load-tests\semantix.js
 ```
 
 ```powershell
 $env:SCENARIO = "near-capacity"
 $env:CACHE_CAPACITY = "500"
 $env:LOAD_ALLOW_CACHE_EVICTION = "true"
-k6 run .\load-tests\k6\semantix.js
+k6 run .\ops\load-tests\semantix.js
 ```
 
 `CACHE_CAPACITY` must match `MAX_CACHE_SIZE`. `P95_LIMIT_MS` controls the k6
@@ -99,7 +99,7 @@ Start Semantix first so the `semantix_default` network exists. Then run:
 ```powershell
 docker run --rm `
   --network semantix_default `
-  --volume "${PWD}\load-tests\k6:/scripts:ro" `
+  --volume "${PWD}\ops\load-tests:/scripts:ro" `
   --env BASE_URL=http://backend:8000 `
   --env LOAD_ACKNOWLEDGE_PROVIDER_CALLS=true `
   --env SCENARIO=repeated-identical `
