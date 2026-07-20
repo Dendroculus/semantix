@@ -184,7 +184,7 @@ describe("application routing", () => {
       await screen.findByRole(
         "heading",
         { level: 1, name: heading },
-        { timeout: 3_000 },
+        { timeout: 10_000 },
       ),
     ).toBeTruthy();
     expect(

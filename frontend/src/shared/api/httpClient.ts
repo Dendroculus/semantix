@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../config/env";
+import { getAuthToken } from "./authToken";
 import type { ApiError, ApiResult } from "./types";
 import { isRecord } from "./validators";
 
@@ -30,14 +31,17 @@ export async function request<T>(
   init: RequestInit,
 ): Promise<ApiResult<T>> {
   let response: Response;
+  const headers = new Headers(init.headers);
+  headers.set("Content-Type", "application/json");
+  const token = getAuthToken();
+  if (token !== null) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...init.headers,
-      },
+      headers,
     });
   } catch (error: unknown) {
     return {
@@ -57,8 +61,7 @@ export async function request<T>(
 
   try {
     const text = await response.text();
-    payload =
-      text.trim() === "" ? null : (JSON.parse(text) as unknown);
+    payload = text.trim() === "" ? null : (JSON.parse(text) as unknown);
   } catch {
     return {
       ok: false,
@@ -88,9 +91,7 @@ export async function request<T>(
       error: {
         code: "invalid_response",
         detail:
-          error instanceof Error
-            ? error.message
-            : "Invalid response.",
+          error instanceof Error ? error.message : "Invalid response.",
         status: response.status,
       },
     };
