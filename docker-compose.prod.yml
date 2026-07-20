@@ -1,0 +1,136 @@
+name: semantix-prod
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_MIGRATION_USER:?Set POSTGRES_MIGRATION_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD}
+      SEMANTIX_RUNTIME_USER: ${POSTGRES_RUNTIME_USER:?Set POSTGRES_RUNTIME_USER}
+      SEMANTIX_RUNTIME_PASSWORD: ${POSTGRES_RUNTIME_PASSWORD:?Set POSTGRES_RUNTIME_PASSWORD}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-runtime-role.sh:ro
+    networks:
+      - data
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command:
+      - python
+      - -m
+      - app.cache.infrastructure.migrate
+    environment:
+      MIGRATION_DATABASE_URL: postgresql://${POSTGRES_MIGRATION_USER:?Set POSTGRES_MIGRATION_USER}:${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB}
+      DATABASE_RUNTIME_ROLE: ${POSTGRES_RUNTIME_USER:?Set POSTGRES_RUNTIME_USER}
+      DATABASE_CONNECT_TIMEOUT_SECONDS: ${DATABASE_CONNECT_TIMEOUT_SECONDS:-10}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - data
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-mock}
+      GENERATION_PROVIDER: ${GENERATION_PROVIDER:-mock}
+      MOCK_EMBEDDING_DIMENSIONS: ${MOCK_EMBEDDING_DIMENSIONS:-384}
+      HF_API_KEY: ${HF_API_KEY:-}
+      HF_INFERENCE_BASE_URL: ${HF_INFERENCE_BASE_URL:-https://router.huggingface.co/hf-inference/models}
+      HF_CHAT_BASE_URL: ${HF_CHAT_BASE_URL:-https://router.huggingface.co/v1}
+      HF_EMBEDDING_MODEL: ${HF_EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      HF_GENERATION_MODEL: ${HF_GENERATION_MODEL:-Qwen/Qwen3-4B-Instruct-2507:nscale}
+      HF_EMBEDDING_DIMENSIONS: ${HF_EMBEDDING_DIMENSIONS:-384}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-}
+      OPENAI_GENERATION_MODEL: ${OPENAI_GENERATION_MODEL:-}
+      OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
+      ANTHROPIC_GENERATION_MODEL: ${ANTHROPIC_GENERATION_MODEL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-}
+      GEMINI_GENERATION_MODEL: ${GEMINI_GENERATION_MODEL:-}
+      GEMINI_EMBEDDING_DIMENSIONS: ${GEMINI_EMBEDDING_DIMENSIONS:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-}
+      OLLAMA_GENERATION_MODEL: ${OLLAMA_GENERATION_MODEL:-}
+      OLLAMA_EMBEDDING_DIMENSIONS: ${OLLAMA_EMBEDDING_DIMENSIONS:-}
+      PROVIDER_TIMEOUT_SECONDS: ${PROVIDER_TIMEOUT_SECONDS:-30}
+      GENERATION_MAX_NEW_TOKENS: ${GENERATION_MAX_NEW_TOKENS:-512}
+      PROMPT_TYPO_CORRECTION_ENABLED: ${PROMPT_TYPO_CORRECTION_ENABLED:-false}
+      PROMPT_TYPO_MAX_EDIT_DISTANCE: ${PROMPT_TYPO_MAX_EDIT_DISTANCE:-2}
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.92}
+      MAX_CACHE_SIZE: ${MAX_CACHE_SIZE:-500}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-3600}
+      CACHE_BACKEND: pgvector
+      DATABASE_URL: postgresql://${POSTGRES_RUNTIME_USER:?Set POSTGRES_RUNTIME_USER}:${POSTGRES_RUNTIME_PASSWORD:?Set POSTGRES_RUNTIME_PASSWORD}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB}
+      DATABASE_POOL_MIN_SIZE: ${DATABASE_POOL_MIN_SIZE:-1}
+      DATABASE_POOL_MAX_SIZE: ${DATABASE_POOL_MAX_SIZE:-5}
+      DATABASE_CONNECT_TIMEOUT_SECONDS: ${DATABASE_CONNECT_TIMEOUT_SECONDS:-10}
+      DATABASE_MIGRATION_MODE: external
+      AUTH_MODE: token
+      AUTH_PRINCIPALS: ${AUTH_PRINCIPALS:?Set AUTH_PRINCIPALS to a JSON principal list}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-["http://localhost:8080"]}
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-["172.28.0.0/24"]}
+      MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES:-65536}
+      RATE_LIMIT: ${RATE_LIMIT:-20/minute}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2).read()
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      edge:
+      data:
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+    ports:
+      - "${SEMANTIX_BIND_ADDRESS:-127.0.0.1}:${SEMANTIX_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - edge
+    restart: unless-stopped
+
+volumes:
+  pgvector_data:
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+  data:
+    internal: true
