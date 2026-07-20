@@ -1,8 +1,6 @@
 # Security Policy
 
-Semantix is a local-first semantic-cache laboratory. It is not presented as a
-production-ready multi-tenant gateway, but security reports are still taken
-seriously.
+Semantix is a local-first semantic-cache laboratory. The explicitly named development stack is intended for one trusted developer and must not be exposed to an untrusted network. A separate hardened single-instance deployment path is provided as a prerequisite for shared use.
 
 ## Supported versions
 
@@ -13,99 +11,61 @@ seriously.
 | Older releases and historical commits | No |
 | Third-party forks | No |
 
-Please reproduce reports against the latest supported version when possible.
-
 ## Reporting a vulnerability
 
-Do **not** open a public GitHub issue for a suspected vulnerability.
+Do not open a public issue for a suspected vulnerability. Use the repository Security tab, open Advisories, select **Report a vulnerability**, and submit the report privately.
 
-Use the repository's private GitHub vulnerability-reporting flow:
+Include the affected commit, deployment mode, endpoint or provider, reproducible steps, expected and observed behavior, realistic impact, sanitized evidence, and a suggested remediation when known.
 
-1. Open the repository's **Security** tab.
-2. Open **Advisories**.
-3. Select **Report a vulnerability**.
-4. Submit the report privately.
-
-Include:
-
-- the affected commit, branch, or release;
-- the affected endpoint, provider, cache backend, or deployment mode;
-- reproducible steps or a minimal proof of concept;
-- expected and observed behavior;
-- realistic security impact and required attack conditions;
-- sanitized logs, stack traces, or screenshots;
-- a suggested remediation, when known.
-
-Remove API keys, tokens, database passwords, private prompts, complete
-responses, personal data, and unrelated production information.
-
-## Response targets
-
-The maintainers aim to:
-
-- acknowledge reports within 72 hours;
-- provide an initial assessment within 7 days;
-- provide updates at least every 14 days while remediation is active;
-- coordinate disclosure after a fix or mitigation is available.
-
-These are targets rather than service-level guarantees.
+Remove API keys, access tokens, database passwords, private prompts, complete responses, personal data, and unrelated production information.
 
 ## In scope
 
 Useful reports include concrete issues involving:
 
-- exposure of provider credentials, prompts, or cached responses;
-- cross-namespace or cross-embedding-space data leakage;
-- SQL injection or unsafe pgvector/database operations;
+- exposure of provider credentials, access tokens, prompts, or cached responses;
+- authentication or role bypass;
+- namespace authorization failures;
+- cross-embedding-space data leakage;
+- SQL injection or unsafe pgvector operations;
 - server-side request forgery through provider configuration;
-- unsafe provider URL or credential validation;
 - arbitrary file access or command execution;
 - exploitable dependency vulnerabilities;
-- CORS or request-validation flaws with demonstrated impact;
-- practical denial-of-service paths that bypass documented limits;
+- CORS, trusted-proxy, request-size, or rate-limit boundary failures;
 - unintended exposure of cache-management operations;
-- migration, Docker, or startup behavior that creates a security boundary
-  failure.
+- migration, Docker, or startup behavior that breaks the documented security boundary.
+
+## Deployment expectations
+
+The development stack uses hot reload, development credentials, automatic migrations, and loopback-only ports. Public exposure of that stack is unsupported.
+
+The hardened stack requires:
+
+- TLS termination before public traffic reaches Semantix;
+- token authentication and role/namespace authorization;
+- strong secret-managed tokens and database passwords;
+- explicit trusted-proxy CIDRs;
+- a single backend process unless shared rate-limit storage is added;
+- separate migration and runtime database roles;
+- no direct public backend or database ports;
+- operator review of provider data handling and retention.
+
+The supplied hardened stack is not a complete multi-tenant service. It does not add distributed coordination, deployment-wide metrics, tenant billing, or a general identity provider.
 
 ## Known design limitations
 
-The following are documented limitations when Semantix runs as intended on a
-trusted local machine:
-
-- cache-management endpoints are unauthenticated;
-- Docker Compose uses development database credentials;
-- rate limiting, metrics, and request coalescing are process-local;
-- the supplied deployment is local-first and single-instance;
-- hosted providers receive prompts selected by the operator;
-- Ollama exposes an unauthenticated API unless its network boundary is secured;
-- exposing the development stack publicly without authentication, TLS, secret
-  management, and network hardening is unsupported.
-
-A report may still be valid when implementation behavior exceeds these stated
-limitations.
+- Rate limiting, metrics, and request coalescing remain process-local.
+- Hosted providers receive prompts selected by authorized operators.
+- Semantic similarity remains probabilistic and needs threshold evaluation.
+- Access tokens configured through `AUTH_PRINCIPALS` are operator-managed credentials rather than federated identity.
+- The default production frontend binds to loopback and depends on an external TLS reverse proxy.
 
 ## Out of scope
 
-Please avoid reports based only on:
+Please avoid reports based only on model quality, expected provider latency or pricing, documented local-development limitations, attacks requiring control of the trusted host or Docker daemon, dependency scanner output without reproducible impact, or unauthorized testing against third-party infrastructure.
 
-- model accuracy, hallucination, bias, or semantic-cache quality;
-- expected provider latency, pricing, quotas, or rate limits;
-- documented missing production hardening;
-- attacks requiring control of the trusted host or Docker daemon;
-- dependency version findings without a demonstrated exploit path;
-- scanner output without reproducible impact;
-- testing against third-party provider infrastructure without authorization.
+Do not perform destructive testing, access data that is not yours, degrade services, or incur provider charges without explicit authorization.
 
-Do not perform destructive testing, access data that is not yours, degrade
-services, or incur provider charges without explicit authorization.
+## Coordinated disclosure
 
-## Coordinated disclosure and safe harbor
-
-Please allow reasonable time for investigation and remediation before public
-disclosure.
-
-Good-faith research that follows this policy, avoids privacy violations and
-service disruption, and reports findings privately will be treated as
-authorized for the purpose of improving Semantix. This policy does not
-authorize testing against third-party providers, GitHub, Docker, hosting
-platforms, or infrastructure not owned by the Semantix maintainers.
+Allow reasonable time for investigation and remediation before public disclosure. Good-faith research that follows this policy and avoids privacy violations or service disruption will be treated as authorized for improving Semantix. This policy does not authorize testing against GitHub, Docker, hosting platforms, or third-party providers.
