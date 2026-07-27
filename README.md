@@ -260,10 +260,11 @@ Backend:
 
 ```bash
 cd backend
-python -m pytest
-python -m ruff check .
-python -m ruff format --check .
-python -m mypy app tests scripts
+uv sync --locked --extra dev
+uv run --locked pytest
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked mypy app tests scripts
 ```
 
 Frontend:

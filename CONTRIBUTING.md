@@ -85,12 +85,13 @@ See [Hardened deployment](docs/deployment.md) before starting it.
 
 ### Local backend workflow
 
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then
+create the locked development environment:
+
 ```powershell
 cd backend
-python -m venv .venv
+uv sync --locked --extra dev
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
 . .\scripts\enable_cache.ps1
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -224,10 +225,10 @@ Run the checks affected by your change before pushing.
 cd backend
 .\.venv\Scripts\Activate.ps1
 . .\scripts\enable_cache.ps1
-python -m pytest
-python -m ruff check .
-python -m ruff format --check .
-python -m mypy app tests scripts
+uv run --locked pytest
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked mypy app tests scripts
 ```
 
 ### Frontend
@@ -271,9 +272,12 @@ pushes to `main`, and manual dispatches.
 
 It validates:
 
-- backend tests, Ruff linting, Ruff formatting, and mypy;
+- the checked-in backend lock, tests, Ruff linting, Ruff formatting, and mypy;
 - frontend linting, import normalization, tests, and production build;
-- compatibility, development, and hardened Docker Compose configuration.
+- compatibility, development, and hardened Docker Compose configuration;
+- development and hardened image builds;
+- pgvector integration tests against a disposable service;
+- dependency changes introduced by pull requests.
 
 The final required status check is:
 
@@ -281,9 +285,9 @@ The final required status check is:
 Quality gate
 ```
 
-`Quality gate` succeeds only when the backend, frontend, and Compose jobs all
-succeed. A pending, skipped, cancelled, or failed required job must block a
-normal merge.
+`Quality gate` succeeds only when backend, frontend, container, and pgvector
+checks succeed. Dependency review must also succeed on pull requests. A
+pending, cancelled, or failed required job must block a normal merge.
 
 The repository ruleset requires pull requests and the `Quality gate` check.
 CODEOWNERS identifies review ownership. Ruleset bypass access is reserved for

@@ -56,7 +56,12 @@ All published development ports bind to `127.0.0.1` by default:
 | Liveness | <http://localhost:8000/health> |
 | Readiness | <http://localhost:8000/ready> |
 
-The development frontend runs Vite HMR and the backend runs Uvicorn reload. Do not expose this stack to an untrusted network.
+The development frontend image installs Node dependencies and runs the Vite
+development server with HMR; it does not compile production frontend assets.
+`VITE_API_BASE_URL` is supplied to that development server at runtime. The
+hardened frontend image performs the production build described later in this
+guide. The development backend runs Uvicorn reload. Do not expose this stack
+to an untrusted network.
 
 ### Development with pgvector
 
@@ -84,9 +89,8 @@ Backend:
 
 ```bash
 cd backend
-python -m venv .venv
+uv sync --locked --extra dev
 source .venv/bin/activate
-pip install -e ".[dev]"
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -95,6 +99,10 @@ Windows PowerShell activation:
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) before
+using the local backend workflow. The checked-in lock keeps local, CI, and
+container dependency resolution aligned.
 
 Frontend:
 
@@ -167,10 +175,10 @@ Backend:
 
 ```bash
 cd backend
-python -m pytest
-python -m ruff check .
-python -m ruff format --check .
-python -m mypy app tests scripts
+uv run --locked pytest
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked mypy app tests scripts
 ```
 
 Frontend:

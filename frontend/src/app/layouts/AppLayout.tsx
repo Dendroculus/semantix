@@ -1,3 +1,7 @@
+import {
+  useRef,
+  type RefObject,
+} from "react";
 import { Outlet } from "react-router-dom";
 
 import { AuthPanel } from "@/features/auth/components/AuthPanel";
@@ -9,8 +13,13 @@ import {
   AppProviders,
   WorkspaceProviders,
 } from "../providers/AppProviders";
+import { useRouteAccessibility } from "../router/useRouteAccessibility";
 
-function Workspace(): JSX.Element {
+interface WorkspaceProps {
+  readonly mainRef: RefObject<HTMLElement>;
+}
+
+function Workspace({ mainRef }: WorkspaceProps): JSX.Element {
   const { clearControlError, controlError } = useCacheControl();
 
   return (
@@ -34,7 +43,12 @@ function Workspace(): JSX.Element {
         </Alert>
       )}
 
-      <main className="py-10 sm:py-12" id="main-content">
+      <main
+        className="py-10 sm:py-12"
+        id="main-content"
+        ref={mainRef}
+        tabIndex={-1}
+      >
         <Outlet />
       </main>
     </>
@@ -43,8 +57,11 @@ function Workspace(): JSX.Element {
 
 function AppShell(): JSX.Element {
   const { status } = useAuth();
+  const mainRef = useRef<HTMLElement>(null);
   const canAccessWorkspace =
     status === "disabled" || status === "authenticated";
+
+  useRouteAccessibility(mainRef);
 
   return (
     <div className="min-h-screen overflow-x-clip bg-(--ink) px-4 text-(--text) sm:px-8">
@@ -60,16 +77,21 @@ function AppShell(): JSX.Element {
 
         {canAccessWorkspace ? (
           <WorkspaceProviders>
-            <Workspace />
+            <Workspace mainRef={mainRef} />
           </WorkspaceProviders>
         ) : (
-          <main className="py-10 sm:py-12" id="main-content">
-            <output
-            aria-live="polite"
-            className="font-data text-[11px] text-(--text-muted)"
+          <main
+            className="py-10 sm:py-12"
+            id="main-content"
+            ref={mainRef}
+            tabIndex={-1}
           >
-            Authenticate to load Semantix workspaces.
-          </output>
+            <output
+              aria-live="polite"
+              className="font-data text-[11px] text-(--text-muted)"
+            >
+              Authenticate to load Semantix workspaces.
+            </output>
           </main>
         )}
       </div>
