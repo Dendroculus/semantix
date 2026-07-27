@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,6 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=create_lifespan(resolved_settings),
     )
     application.state.settings = resolved_settings
+    application.state.rate_limit_scope = uuid4().hex
 
     _configure_middleware(application, resolved_settings)
     _register_exception_handlers(application)
