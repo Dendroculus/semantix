@@ -1,5 +1,5 @@
 import { Suspense, type JSX } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router";
 
 import { AppLayout } from "../layouts/AppLayout";
 import { RouteLoader } from "./RouteLoader";

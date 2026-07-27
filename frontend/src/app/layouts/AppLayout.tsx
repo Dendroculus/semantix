@@ -1,5 +1,5 @@
 import { useRef, type RefObject, type JSX } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router';
 
 import { AuthPanel } from '@/features/auth/components/AuthPanel';
 import { useAuth } from '@/features/auth/hooks/useAuth';

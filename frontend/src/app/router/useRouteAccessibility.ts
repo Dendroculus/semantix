@@ -6,7 +6,7 @@ import {
 import {
   useLocation,
   useNavigationType,
-} from "react-router-dom";
+} from "react-router";
 
 import { NAV_ITEMS } from "../navigation/navigationConfig";
 
