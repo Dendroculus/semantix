@@ -132,6 +132,27 @@ export function LineChart({
           </span>
         ))}
       </div>
+      <table className="sr-only">
+        <caption>{title} data</caption>
+        <thead>
+          <tr>
+            <th scope="col">Series</th>
+            <th scope="col">Threshold</th>
+            <th scope="col">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {series.flatMap((item) =>
+            item.points.map((point, index) => (
+              <tr key={`${item.label}-${point.x}-${index}`}>
+                <th scope="row">{item.label}</th>
+                <td>{formatDecimal(point.x, 2)}</td>
+                <td>{valueLabel(point.y)}</td>
+              </tr>
+            )),
+          )}
+        </tbody>
+      </table>
     </figure>
   );
 }

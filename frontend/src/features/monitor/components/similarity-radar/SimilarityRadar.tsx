@@ -52,7 +52,7 @@ export function SimilarityRadar({
           Similarity threshold plot
         </h2>
         <p className="ui-label mt-1 text-(--text-faint)">
-          Position carries meaning / left 0.0 / right 1.0
+          Position carries meaning / left −1.0 / right 1.0
         </p>
       </header>
 
@@ -83,7 +83,7 @@ export function SimilarityRadar({
         onActivePointChange={setSelectedPointId}
       />
       <p className="font-data mt-2 text-[9px] text-(--text-faint) min-[520px]:hidden">
-        Scroll the plot horizontally to inspect the full score range.
+        Scroll the plot horizontally to inspect the −1.0 to 1.0 score range.
       </p>
 
       <SimilarityTraceList

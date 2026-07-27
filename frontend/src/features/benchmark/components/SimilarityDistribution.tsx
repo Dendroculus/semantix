@@ -61,24 +61,26 @@ export function SimilarityDistribution({
       <figcaption className="ui-label text-(--text-muted)">
         Similarity-score distribution
       </figcaption>
-      <p className="sr-only">
-        Similarity-score distribution with {unscoredCount} unscored queries
-      </p>
       <div className="mt-5 flex h-32 items-end gap-1">
-        {bins.map((bin) => (
-          <div
-            className="group relative flex h-full min-w-0 flex-1 items-end"
-            key={bin.label}
-            title={`${bin.label}: ${formatCount(bin.count)}`}
-          >
+        {bins.map((bin) => {
+          const height =
+            bin.count === 0
+              ? '0%'
+              : `${Math.max(2, (bin.count / maxCount) * 100)}%`;
+
+          return (
             <div
-              className="w-full bg-(--teal) opacity-75"
-              style={{
-                height: `${Math.max(2, (bin.count / maxCount) * 100)}%`,
-              }}
-            />
-          </div>
-        ))}
+              className="group relative flex h-full min-w-0 flex-1 items-end"
+              key={bin.label}
+              title={`${bin.label}: ${formatCount(bin.count)}`}
+            >
+              <div
+                className="w-full bg-(--teal) opacity-75"
+                style={{ height }}
+              />
+            </div>
+          );
+        })}
       </div>
       <div className="font-data mt-2 flex justify-between text-[8px] text-(--text-faint)">
         {AXIS_LABELS.map((label) => (
@@ -89,6 +91,27 @@ export function SimilarityDistribution({
         {unscoredCount} unscored seed quer{unscored === 1 ? 'y' : 'ies'}{' '}
         excluded from the histogram.
       </p>
+      <table className="sr-only">
+        <caption>Similarity-score distribution data</caption>
+        <thead>
+          <tr>
+            <th scope="col">Score range</th>
+            <th scope="col">Queries</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bins.map((bin) => (
+            <tr key={bin.label}>
+              <th scope="row">{bin.label}</th>
+              <td>{formatCount(bin.count)}</td>
+            </tr>
+          ))}
+          <tr>
+            <th scope="row">Unscored</th>
+            <td>{unscoredCount}</td>
+          </tr>
+        </tbody>
+      </table>
     </figure>
   );
 }
