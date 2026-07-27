@@ -91,7 +91,10 @@ async def test_embedding_spaces_remain_isolated_across_restarts() -> None:
         )
         assert nearest is not None
         assert nearest.entry.response == "first response"
-        metadata = await first.get_entry(stored.cache_key)
+        metadata = await first.get_entry(
+            stored.cache_key,
+            authorized_namespaces=None,
+        )
         assert metadata is not None
         assert metadata.hit_count == 1
         assert metadata.last_accessed_at is not None

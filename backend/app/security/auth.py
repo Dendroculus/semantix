@@ -97,14 +97,6 @@ def resolve_namespace(
     raise AuthorizationError
 
 
-def ensure_namespace_access(principal: Principal, namespace: str) -> None:
-    if (
-        not principal.has_global_namespace_access
-        and namespace not in principal.namespaces
-    ):
-        raise AuthorizationError
-
-
 def require_global_admin(principal: AdminPrincipal) -> Principal:
     if not principal.has_global_namespace_access:
         raise AuthorizationError

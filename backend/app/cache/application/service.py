@@ -9,7 +9,10 @@ from app.cache.api.schemas import (
 )
 from app.cache.domain.keys import prompt_cache_key
 from app.cache.domain.models import CacheEntry, CacheLookupResult
-from app.cache.domain.namespaces import DEFAULT_CACHE_NAMESPACE
+from app.cache.domain.namespaces import (
+    DEFAULT_CACHE_NAMESPACE,
+    AuthorizedNamespaceScope,
+)
 from app.cache.domain.protocols import CacheBackend, CacheEventRecorder
 from app.core.exceptions import CacheEntryNotFoundError
 from app.providers.protocols import EmbeddingGenerator
@@ -151,14 +154,30 @@ class SemanticCache:
             sort=sort,
         )
 
-    async def get_entry(self, cache_key: str) -> CacheEntryMetadata:
-        entry = await self._backend.get_entry(cache_key)
+    async def get_entry(
+        self,
+        cache_key: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> CacheEntryMetadata:
+        entry = await self._backend.get_entry(
+            cache_key,
+            authorized_namespaces=authorized_namespaces,
+        )
         if entry is None:
             raise CacheEntryNotFoundError
         return entry
 
-    async def delete_entry(self, cache_key: str) -> None:
-        if not await self._backend.delete_entry(cache_key):
+    async def delete_entry(
+        self,
+        cache_key: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> None:
+        if not await self._backend.delete_entry(
+            cache_key,
+            authorized_namespaces=authorized_namespaces,
+        ):
             raise CacheEntryNotFoundError
 
     async def stats(
