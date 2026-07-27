@@ -225,7 +225,7 @@ Run the checks affected by your change before pushing.
 cd backend
 .\.venv\Scripts\Activate.ps1
 . .\scripts\enable_cache.ps1
-uv run --locked pytest
+uv run --locked pytest -m "not pgvector" --cov=app
 uv run --locked ruff check .
 uv run --locked ruff format --check .
 uv run --locked mypy app tests scripts
@@ -238,7 +238,7 @@ cd frontend
 npm ci
 npm run lint
 npm run imports:check
-npm run test
+npm run test:coverage
 npm run build
 ```
 

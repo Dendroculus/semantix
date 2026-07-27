@@ -114,9 +114,12 @@ benchmark from silently creating provider traffic.
 
 Cost and token estimates are evaluation aids, not provider billing records.
 
-Threshold charts reclassify already observed nearest-match scores and do not
-make more provider calls. Their projected latency uses the run's average hit
-and miss latency.
+Threshold charts are **frozen-candidate projections**. They reclassify the
+nearest-match scores observed in the original run without replaying cache
+writes at each alternate threshold. Because the candidate set does not evolve,
+their quality, provider-savings, and latency estimates can differ from a real
+ordered run at that threshold. The projection makes no additional provider
+calls and uses the original run's average hit and miss latency.
 
 ## Comparing runs responsibly
 

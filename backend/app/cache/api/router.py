@@ -15,9 +15,8 @@ from app.cache.api.schemas import (
 )
 from app.cache.application.service import SemanticCache
 from app.cache.domain.namespaces import CacheNamespace
-from app.core.config import get_settings
 from app.core.limits import MAX_PROMPT_LENGTH
-from app.middleware.rate_limit import limiter
+from app.middleware.rate_limit import app_rate_limit, limiter
 from app.security.auth import (
     AdminPrincipal,
     GlobalAdminPrincipal,
@@ -32,7 +31,7 @@ CacheNamespaceQuery = Annotated[CacheNamespace | None, Query()]
 
 
 @router.get("/stats", response_model=CacheStatsResponse)
-@limiter.limit(lambda: get_settings().rate_limit)
+@limiter.limit(app_rate_limit)
 async def cache_stats(
     request: Request,
     cache: SemanticCacheDependency,
@@ -44,7 +43,7 @@ async def cache_stats(
 
 
 @router.get("/entries", response_model=CacheEntryListResponse)
-@limiter.limit(lambda: get_settings().rate_limit)
+@limiter.limit(app_rate_limit)
 async def list_cache_entries(
     request: Request,
     cache: SemanticCacheDependency,
@@ -66,7 +65,7 @@ async def list_cache_entries(
 
 
 @router.get("/entries/{cache_key}", response_model=CacheEntryMetadata)
-@limiter.limit(lambda: get_settings().rate_limit)
+@limiter.limit(app_rate_limit)
 async def get_cache_entry(
     request: Request,
     cache_key: CacheKeyPath,
@@ -82,7 +81,7 @@ async def get_cache_entry(
 
 
 @router.delete("/entries/{cache_key}", response_model=DeleteCacheEntryResponse)
-@limiter.limit(lambda: get_settings().rate_limit)
+@limiter.limit(app_rate_limit)
 async def delete_cache_entry(
     request: Request,
     cache_key: CacheKeyPath,
@@ -99,7 +98,7 @@ async def delete_cache_entry(
 
 
 @router.delete("", response_model=ClearCacheResponse)
-@limiter.limit(lambda: get_settings().rate_limit)
+@limiter.limit(app_rate_limit)
 async def clear_cache(
     request: Request,
     cache: SemanticCacheDependency,
@@ -112,7 +111,7 @@ async def clear_cache(
 
 
 @router.get("/threshold", response_model=CacheThresholdResponse)
-@limiter.limit(lambda: get_settings().rate_limit)
+@limiter.limit(app_rate_limit)
 async def get_threshold(
     request: Request,
     cache: SemanticCacheDependency,
@@ -122,7 +121,7 @@ async def get_threshold(
 
 
 @router.put("/threshold", response_model=CacheThresholdResponse)
-@limiter.limit(lambda: get_settings().rate_limit)
+@limiter.limit(app_rate_limit)
 async def update_threshold(
     request: Request,
     payload: CacheThresholdRequest,

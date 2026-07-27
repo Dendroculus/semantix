@@ -53,7 +53,7 @@ Backend:
 
 ```bash
 cd backend
-uv run --locked pytest
+uv run --locked pytest -m "not pgvector" --cov=app
 uv run --locked ruff check .
 uv run --locked ruff format --check .
 uv run --locked mypy app tests scripts
@@ -65,11 +65,15 @@ Frontend:
 cd frontend
 npm run lint
 npm run imports:check
-npm run test
+npm run test:coverage
 npm run build
 ```
 
 `npm run build` includes strict TypeScript validation through `tsc --noEmit`.
+The checked-in coverage floors are deliberately below the measured baseline,
+so a small refactor does not make the gate brittle while large regressions
+still fail CI. Browser accessibility and authenticated reverse-proxy coverage
+run through `npm run test:e2e` against the hardened Compose stack.
 Normal provider tests use `httpx.MockTransport` and must not call external
 services.
 

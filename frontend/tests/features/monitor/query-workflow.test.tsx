@@ -52,7 +52,7 @@ const traces: QueryTrace[] = [
 
 function metricValue(label: string): string | null | undefined {
   const labelElement = screen.getByText(label);
-  const row = labelElement.closest("div")?.parentElement;
+  const row = labelElement.closest("div");
   return row?.querySelector("dd")?.textContent;
 }
 

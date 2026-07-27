@@ -35,3 +35,7 @@ second="$(
 "$python_command" -c \
   'import json, sys; payload = json.loads(sys.argv[1]); assert payload["cache_hit"] is True; assert payload["provider_called"] is False' \
   "$second"
+
+if (( $# > 0 )); then
+  "$@"
+fi

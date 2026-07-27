@@ -23,6 +23,7 @@ export const benchmarkResult: BenchmarkRunResponse = {
   reset_cache_before_run: true,
   estimated_cost_per_request_usd: 0.01,
   estimated_cost_per_1k_tokens_usd: 0.002,
+  threshold_evaluation_mode: 'frozen_candidate_projection',
   metrics: {
     total_queries: 2,
     cache_hits: 1,

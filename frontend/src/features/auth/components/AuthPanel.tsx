@@ -24,9 +24,17 @@ export function AuthPanel(): JSX.Element | null {
 
   if (status === "authenticated" && session !== null) {
     return (
-      <section className="mt-4 flex flex-wrap items-center justify-between gap-3 border border-(--hairline) bg-(--surface) px-4 py-3">
+      <section
+        aria-labelledby="authenticated-access-heading"
+        className="mt-4 flex flex-wrap items-center justify-between gap-3 border border-(--hairline) bg-(--surface) px-4 py-3"
+      >
         <div>
-          <p className="ui-label text-(--text-faint)">Authenticated access</p>
+          <p
+            className="ui-label text-(--text-faint)"
+            id="authenticated-access-heading"
+          >
+            Authenticated access
+          </p>
           <p className="font-data mt-1 text-[10px] text-(--text-soft)">
             {session.name} Ã‚Â· {session.role} Ã‚Â· {session.namespaces.join(", ")}
           </p>

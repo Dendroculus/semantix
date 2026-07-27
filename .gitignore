@@ -19,6 +19,8 @@ __pycache__/
 node_modules/
 frontend/dist/
 coverage/
+frontend/playwright-report/
+frontend/test-results/
 .vite_cache/
 frontend/.vite-cache
 

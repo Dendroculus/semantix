@@ -4,8 +4,7 @@ from fastapi import APIRouter, Depends, Request
 
 from app.api.deps import get_runtime_metrics, get_semantic_cache
 from app.cache.application.service import SemanticCache
-from app.core.config import get_settings
-from app.middleware.rate_limit import limiter
+from app.middleware.rate_limit import app_rate_limit, limiter
 from app.observability.metrics import RuntimeMetrics
 from app.observability.schemas import MetricsResponse
 from app.security.auth import ViewerPrincipal
@@ -16,7 +15,7 @@ CacheDependency = Annotated[SemanticCache, Depends(get_semantic_cache)]
 
 
 @router.get("/metrics", response_model=MetricsResponse)
-@limiter.limit(lambda: get_settings().rate_limit)
+@limiter.limit(app_rate_limit)
 async def metrics(
     request: Request,
     runtime_metrics: MetricsDependency,

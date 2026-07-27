@@ -17,7 +17,10 @@ from app.benchmark.domain.datasets import (
     get_dataset,
     list_datasets,
 )
-from app.benchmark.domain.metrics import calculate_metrics, evaluate_thresholds
+from app.benchmark.domain.metrics import (
+    calculate_metrics,
+    evaluate_frozen_candidate_thresholds,
+)
 from app.benchmark.domain.models import BenchmarkCase, BenchmarkObservation
 from app.cache.application.service import SemanticCache
 from app.cache.infrastructure.backends.memory import InMemoryCacheBackend
@@ -164,6 +167,10 @@ class BenchmarkService:
                     request.estimated_cost_per_1k_tokens_usd
                 ),
             ),
-            threshold_evaluations=evaluate_thresholds(observations, thresholds),
+            threshold_evaluation_mode="frozen_candidate_projection",
+            threshold_evaluations=evaluate_frozen_candidate_thresholds(
+                observations,
+                thresholds,
+            ),
             query_results=query_results,
         )

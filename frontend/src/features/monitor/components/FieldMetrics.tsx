@@ -37,12 +37,12 @@ function MetricRow({
 }: Readonly<MetricRowProps>): JSX.Element {
   return (
     <div className="flex items-start justify-between gap-6 border-b border-(--hairline) py-4">
-      <div>
-        <dt className="ui-label text-(--text-muted)">{label}</dt>
-        <p className="mt-1 max-w-sm text-[11px]/4 text-(--text-faint)">
+      <dt className="ui-label text-(--text-muted)">
+        {label}
+        <span className="mt-1 block max-w-sm text-[11px]/4 font-normal normal-case tracking-normal text-(--text-faint)">
           {detail}
-        </p>
-      </div>
+        </span>
+      </dt>
       <dd
         className="font-data shrink-0 text-right text-lg tabular-nums"
         style={tone === undefined ? undefined : { color: TONE_COLOR[tone] }}

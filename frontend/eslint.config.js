@@ -90,6 +90,7 @@ export default defineConfig([
          */
         projectService: {
           allowDefaultProject: [
+            'playwright.config.ts',
             'vite.config.ts',
             'vitest.config.ts',
           ],

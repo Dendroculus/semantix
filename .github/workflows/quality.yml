@@ -55,8 +55,8 @@ jobs:
       - name: Run mypy
         run: uv run --no-sync mypy app tests scripts
 
-      - name: Run backend unit tests
-        run: uv run --no-sync pytest -m "not pgvector"
+      - name: Run backend unit tests with coverage
+        run: uv run --no-sync pytest -m "not pgvector" --cov=app
 
   frontend:
     name: Frontend quality
@@ -85,8 +85,8 @@ jobs:
       - name: Check import normalization
         run: npm run imports:check
 
-      - name: Run frontend tests
-        run: npm run test
+      - name: Run frontend tests with coverage
+        run: npm run test:coverage
 
       - name: Build frontend
         run: npm run build
@@ -94,7 +94,7 @@ jobs:
   containers:
     name: Container validation
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -119,6 +119,10 @@ jobs:
       - name: Build hardened images
         run: docker compose --env-file .env.production -f docker-compose.prod.yml build
 
+      - name: Verify development health gates
+        shell: bash
+        run: bash ops/ci/dev-healthcheck-smoke.sh
+
   hardened-windows-checkout:
     name: Hardened Windows-checkout smoke
     runs-on: ubuntu-latest
@@ -128,9 +132,9 @@ jobs:
       AUTH_PRINCIPALS: '[{"name":"smoke-admin","token_sha256":"8a44fe85cd94a910179d544c577ac9112eac506ad75b6124b3e7e6fcd242d37d","role":"admin","namespaces":["*"]}]'
       COMPOSE_PROJECT_NAME: semantix-eol-${{ github.run_id }}
       POSTGRES_DB: semantix
-      POSTGRES_MIGRATION_PASSWORD: migration-smoke-password
+      POSTGRES_MIGRATION_PASSWORD: "migration-${{ github.run_id }}-${{ github.run_attempt }}"
       POSTGRES_MIGRATION_USER: semantix_migrator
-      POSTGRES_RUNTIME_PASSWORD: runtime-smoke-password
+      POSTGRES_RUNTIME_PASSWORD: "runtime-${{ github.run_id }}-${{ github.run_attempt }}"
       POSTGRES_RUNTIME_USER: semantix_runtime
       SEMANTIX_BIND_ADDRESS: 127.0.0.1
       SEMANTIX_PORT: "18080"
@@ -138,6 +142,11 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20"
 
       - name: Verify tracked shell scripts use LF
         run: bash ops/ci/check-shell-eol.sh
@@ -151,11 +160,18 @@ jobs:
           git ls-files --eol '*.sh'
           bash ops/ci/check-shell-eol.sh
 
-      - name: Run fresh hardened-stack smoke
+      - name: Install browser test dependencies
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/semantix-autocrlf/frontend"
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run hardened-stack API, browser, and axe smoke
         shell: bash
         run: |
           cd "$RUNNER_TEMP/semantix-autocrlf"
-          bash ops/ci/hardened-smoke.sh
+          bash ops/ci/hardened-smoke.sh npm --prefix frontend run test:e2e
 
   pgvector:
     name: Pgvector integration
@@ -165,14 +181,14 @@ jobs:
       run:
         working-directory: backend
     env:
-      PGVECTOR_TEST_DATABASE_URL: postgresql://semantix:semantix@127.0.0.1:5432/semantix
+      PGVECTOR_TEST_DATABASE_URL: "postgresql://semantix:ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/semantix"
       PYTHONPYCACHEPREFIX: /tmp/semantix-cache/python
     services:
       postgres:
         image: pgvector/pgvector:pg17
         env:
           POSTGRES_DB: semantix
-          POSTGRES_PASSWORD: semantix
+          POSTGRES_PASSWORD: "ci-${{ github.run_id }}-${{ github.run_attempt }}"
           POSTGRES_USER: semantix
         ports:
           - 5432:5432
@@ -201,6 +217,23 @@ jobs:
 
       - name: Run pgvector integration tests
         run: uv run --no-sync pytest -m pgvector
+
+      - name: Exercise pgvector backup and restore
+        env:
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+        working-directory: .
+        run: |
+          docker exec "$POSTGRES_CONTAINER_ID" \
+            pg_dump -U semantix -d semantix -Fc -f /tmp/semantix.dump
+          docker exec "$POSTGRES_CONTAINER_ID" \
+            createdb -U semantix semantix_restore
+          docker exec "$POSTGRES_CONTAINER_ID" \
+            pg_restore -U semantix -d semantix_restore /tmp/semantix.dump
+          test "$(
+            docker exec "$POSTGRES_CONTAINER_ID" \
+              psql -U semantix -d semantix_restore -Atc \
+              "SELECT to_regclass('semantix.cache_entries') IS NOT NULL"
+          )" = "t"
 
   dependency-review:
     name: Dependency review

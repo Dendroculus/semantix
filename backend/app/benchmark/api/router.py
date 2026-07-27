@@ -9,8 +9,7 @@ from app.benchmark.api.schemas import (
     BenchmarkRunResponse,
 )
 from app.benchmark.application.service import BenchmarkService
-from app.core.config import get_settings
-from app.middleware.rate_limit import limiter
+from app.middleware.rate_limit import app_rate_limit, limiter
 from app.security.auth import OperatorPrincipal, ViewerPrincipal
 
 router = APIRouter(prefix="/api/v1/benchmarks", tags=["benchmarks"])
@@ -18,7 +17,7 @@ BenchmarkDependency = Annotated[BenchmarkService, Depends(get_benchmark_service)
 
 
 @router.get("/datasets", response_model=BenchmarkDatasetListResponse)
-@limiter.limit(lambda: get_settings().rate_limit)
+@limiter.limit(app_rate_limit)
 async def benchmark_datasets(
     request: Request,
     benchmark: BenchmarkDependency,
@@ -28,7 +27,7 @@ async def benchmark_datasets(
 
 
 @router.post("/run", response_model=BenchmarkRunResponse)
-@limiter.limit(lambda: get_settings().rate_limit)
+@limiter.limit(app_rate_limit)
 async def run_benchmark(
     request: Request,
     payload: BenchmarkRunRequest,

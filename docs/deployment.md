@@ -109,6 +109,12 @@ The production database has two roles. Use URL-safe random passwords for the Com
 
 The initialization script creates the runtime login. The one-shot `migrate` service connects with `MIGRATION_DATABASE_URL`, installs pgvector, applies versioned migrations, grants runtime privileges, and exits. The backend starts only after that job succeeds.
 
+Applied migrations record a SHA-256 checksum. Startup rejects a packaged
+migration whose contents no longer match its recorded checksum. A legacy
+`0001` row without a checksum is backfilled only after the released cache
+tables and required columns are verified; later checksum-less versions fail
+closed and require operator review.
+
 The backend receives only `DATABASE_URL` for the runtime role and sets:
 
 ```env
