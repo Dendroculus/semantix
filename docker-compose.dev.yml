@@ -43,7 +43,19 @@ services:
       - "8000"
       - --reload
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=2)
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,9 +71,10 @@ services:
       - ./frontend:/app
       - /app/node_modules
     ports:
-      - "127.0.0.1:4173:4173"
+      - "127.0.0.1:${FRONTEND_PORT:-4173}:4173"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   pgvector_data:
