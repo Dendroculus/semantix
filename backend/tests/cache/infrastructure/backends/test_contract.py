@@ -2,6 +2,7 @@ import asyncio
 import os
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -92,7 +93,10 @@ async def test_similarity_and_entry_metadata(
         assert nearest is not None
         assert nearest.entry.prompt == "alpha prompt"
         assert nearest.similarity_score == pytest.approx(1.0)
-        assert await backend.record_hit(alpha.cache_key)
+        assert await backend.record_hit(
+            alpha.cache_key,
+            expected_created_at=alpha.created_at,
+        )
 
         listing = await backend.list_entries(
             offset=0,
@@ -228,7 +232,10 @@ async def test_namespace_filtering_stats_and_clear(
         )
         assert nearest is not None
         assert nearest.entry.response == "alpha response"
-        assert await backend.record_hit(alpha.cache_key)
+        assert await backend.record_hit(
+            alpha.cache_key,
+            expected_created_at=alpha.created_at,
+        )
         await backend.record_miss("tenant-alpha")
         await backend.record_miss("tenant-beta")
 
@@ -288,3 +295,37 @@ async def test_invalid_vectors_are_rejected_consistently(
                 [0.0] * TEST_EMBEDDING_DIMENSIONS,
                 namespace=DEFAULT_CACHE_NAMESPACE,
             )
+
+
+@pytest.mark.asyncio
+async def test_record_hit_rejects_an_overwritten_candidate(
+    backend_builder: BackendBuilder,
+) -> None:
+    async with backend_builder(10, None) as backend:
+        original = cache_entry(
+            "same key",
+            "old response",
+            vector_index=0,
+        )
+        replacement = original.model_copy(
+            update={
+                "response": "new response",
+                "created_at": original.created_at + timedelta(seconds=1),
+            }
+        )
+        await backend.put(original)
+        candidate = await backend.find_nearest(
+            unit_vector(),
+            namespace=DEFAULT_CACHE_NAMESPACE,
+        )
+        assert candidate is not None
+        await backend.put(replacement)
+
+        assert not await backend.record_hit(
+            candidate.entry.cache_key,
+            expected_created_at=candidate.entry.created_at,
+        )
+        assert await backend.record_hit(
+            replacement.cache_key,
+            expected_created_at=replacement.created_at,
+        )

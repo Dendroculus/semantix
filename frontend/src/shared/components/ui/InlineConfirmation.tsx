@@ -48,7 +48,7 @@ export function InlineConfirmation({
       >
         <Button
           aria-label={confirmAriaLabel}
-          className="ui-label min-h-9 text-(--coral) focus-visible:outline-(--coral) disabled:opacity-50"
+          className="ui-label min-h-9 text-(--coral-text) focus-visible:outline-(--coral) disabled:opacity-50"
           disabled={isPending}
           variant="link"
           onClick={onConfirm}

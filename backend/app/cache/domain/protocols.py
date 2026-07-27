@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Protocol
 
 from app.cache.api.schemas import (
@@ -24,7 +25,12 @@ class CacheBackend(Protocol):
     ) -> CacheCandidate | None: ...
 
     async def put(self, entry: CacheEntry) -> None: ...
-    async def record_hit(self, cache_key: str) -> bool: ...
+    async def record_hit(
+        self,
+        cache_key: str,
+        *,
+        expected_created_at: datetime,
+    ) -> bool: ...
     async def record_miss(self, namespace: str) -> None: ...
 
     async def list_entries(

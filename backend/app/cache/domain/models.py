@@ -9,11 +9,11 @@ from pydantic import (
     model_validator,
 )
 
+from app.cache.domain.namespaces import CacheNamespace
 from app.core.limits import (
     MAX_PROMPT_LENGTH,
     MAX_RESPONSE_LENGTH,
 )
-from app.cache.domain.namespaces import CacheNamespace
 
 
 class CacheModel(BaseModel):

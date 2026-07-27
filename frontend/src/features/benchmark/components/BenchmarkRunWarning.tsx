@@ -24,7 +24,10 @@ export function BenchmarkRunWarning({
       className="mt-5 border border-(--coral) bg-[color-mix(in_srgb,var(--coral)_8%,transparent)] p-5"
       role="alertdialog"
     >
-      <p className="ui-label text-(--coral)" id="benchmark-warning-title">
+      <p
+        className="ui-label text-(--coral-text)"
+        id="benchmark-warning-title"
+      >
         External provider warning
       </p>
 

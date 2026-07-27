@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic import Field, field_validator, model_validator
 
 from app.api.schemas import StrictModel
-from app.cache.domain.namespaces import CacheNamespace, DEFAULT_CACHE_NAMESPACE
+from app.cache.domain.namespaces import DEFAULT_CACHE_NAMESPACE, CacheNamespace
 from app.core.limits import MAX_PROMPT_LENGTH, MAX_RESPONSE_LENGTH
 from app.query.domain.policies import QueryCachePolicy
 

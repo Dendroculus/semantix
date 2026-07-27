@@ -143,7 +143,7 @@ class BenchmarkService:
                 query_results.append(result)
                 observations.append(observation)
 
-        thresholds = sorted(set([*request.evaluation_thresholds, request.threshold]))
+        thresholds = sorted({*request.evaluation_thresholds, request.threshold})
         return BenchmarkRunResponse(
             run_id=uuid4().hex,
             started_at=started_at,

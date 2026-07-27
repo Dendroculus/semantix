@@ -2,6 +2,8 @@ import type { QueryTrace } from "@/features/monitor/types";
 import {
   hasSimilarityScore,
   meetsSimilarityThreshold,
+  SIMILARITY_MAX,
+  SIMILARITY_MIN,
 } from "@/shared/domain/similarity";
 
 export const VIEW_WIDTH = 640;
@@ -11,7 +13,7 @@ export const PLOT_RIGHT = 606;
 export const PLOT_TOP = 58;
 export const PLOT_BOTTOM = 178;
 export const AXIS_Y = 190;
-export const FIXED_TICKS = [0, 0.25, 0.5, 0.75, 0.9, 1];
+export const FIXED_TICKS = [-1, -0.5, 0, 0.5, 0.75, 0.9, 1];
 
 type ScoredTrace = QueryTrace & { similarity: number };
 
@@ -22,7 +24,10 @@ export interface PlotPoint extends ScoredTrace {
 }
 
 function clampScore(score: number): number {
-  return Math.max(0, Math.min(1, score));
+  return Math.max(
+    SIMILARITY_MIN,
+    Math.min(SIMILARITY_MAX, score),
+  );
 }
 
 function isScoredTrace(
@@ -32,7 +37,9 @@ function isScoredTrace(
 }
 
 export function scoreToX(score: number): number {
-  const normalizedScore = clampScore(score);
+  const normalizedScore =
+    (clampScore(score) - SIMILARITY_MIN) /
+    (SIMILARITY_MAX - SIMILARITY_MIN);
   return (
     PLOT_LEFT +
     normalizedScore * (PLOT_RIGHT - PLOT_LEFT)

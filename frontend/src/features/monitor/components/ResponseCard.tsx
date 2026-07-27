@@ -69,12 +69,24 @@ export function ResponseCard({
     !result.cache_hit &&
     result.generation_skipped &&
     !result.provider_called;
-  let verdict = { color: 'var(--coral)', label: 'FRESH RESPONSE' };
+  let verdict = {
+    accentColor: 'var(--coral)',
+    label: 'FRESH RESPONSE',
+    textColor: 'var(--coral-text)',
+  };
 
   if (result.cache_hit) {
-    verdict = { color: 'var(--teal)', label: 'CACHE HIT' };
+    verdict = {
+      accentColor: 'var(--teal)',
+      label: 'CACHE HIT',
+      textColor: 'var(--teal)',
+    };
   } else if (isCoalesced) {
-    verdict = { color: 'var(--gold)', label: 'COALESCED RESPONSE' };
+    verdict = {
+      accentColor: 'var(--gold)',
+      label: 'COALESCED RESPONSE',
+      textColor: 'var(--gold)',
+    };
   }
   const cacheAgeValue =
     result.cache_entry_created_at === null ? (
@@ -150,7 +162,7 @@ export function ResponseCard({
     <article
       aria-live="polite"
       className="border-y border-l-2 border-(--hairline) bg-(--surface) px-4 py-5 sm:px-6"
-      style={{ borderLeftColor: verdict.color }}
+      style={{ borderLeftColor: verdict.accentColor }}
     >
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-(--hairline) pb-4">
         <h2 className="font-display text-xl italic">Latest response</h2>
@@ -158,8 +170,8 @@ export function ResponseCard({
         <span
           className="ui-label border px-2 py-1"
           style={{
-            borderColor: verdict.color,
-            color: verdict.color,
+            borderColor: verdict.accentColor,
+            color: verdict.textColor,
           }}
         >
           {verdict.label}

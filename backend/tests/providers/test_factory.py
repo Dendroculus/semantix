@@ -4,14 +4,14 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.providers.adapters.anthropic import AnthropicProvider
+from app.providers.adapters.gemini import GeminiProvider
+from app.providers.adapters.huggingface import HuggingFaceProvider
+from app.providers.adapters.openai import OpenAIProvider
 from app.providers.factory import (
     create_embedding_provider,
     create_generation_provider,
     create_provider_bundle,
 )
-from app.providers.adapters.gemini import GeminiProvider
-from app.providers.adapters.huggingface import HuggingFaceProvider
-from app.providers.adapters.openai import OpenAIProvider
 
 ORIGINS = ["http://localhost:5173"]
 

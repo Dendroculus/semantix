@@ -33,10 +33,11 @@ No universal value is safe for every model or dataset. Use the controlled
 [Benchmark](benchmarking.md) workspace before changing a threshold for a new
 embedding model or workload.
 
-The similarity trace places scored queries on a `0.0` to `1.0` horizontal
-scale. Vertical position only separates overlapping points. Previewing a
-threshold changes projected colors; it does not change backend decisions until
-applied.
+The similarity trace places scored queries on the full `-1.0` to `1.0`
+cosine-similarity domain. Vertical position only separates overlapping points.
+Cache thresholds remain between `0.0` and `1.0`, so negative scores are always
+projected misses. Previewing a threshold changes projected colors; it does not
+change backend decisions until applied.
 
 ## TTL and LRU
 

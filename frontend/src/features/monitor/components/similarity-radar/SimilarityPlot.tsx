@@ -43,7 +43,7 @@ export function SimilarityPlot({
       className="scrollbar-thin mt-3 overflow-x-auto pb-1"
     >
       <svg
-        aria-label={`${points.length} of ${totalTraces} recent traces plotted on a zero-to-one similarity scale`}
+        aria-label={`${points.length} of ${totalTraces} recent traces plotted on a minus-one-to-one similarity scale`}
         className="block w-full min-w-[500px]"
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
       >

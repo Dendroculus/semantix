@@ -74,7 +74,7 @@ export function CacheInspectorControls({
           </Button>
 
           <Button
-            className="border-(--hairline) text-(--coral) hover:border-(--coral) focus-visible:outline-(--coral) disabled:opacity-50"
+            className="border-(--hairline) text-(--coral-text) hover:border-(--coral) focus-visible:outline-(--coral) disabled:opacity-50"
             disabled={isMutating || !canClear}
             size="compact"
             variant="secondary"

@@ -15,7 +15,7 @@ const BUTTON_VARIANT_CLASSES: Record<ButtonVariant, string> = {
   secondary:
     'ui-label border transition-colors focus-visible:outline-2 active:translate-y-px disabled:cursor-not-allowed',
   danger:
-    'ui-label bg-(--coral) text-(--ink) transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-(--coral) active:translate-y-px disabled:cursor-not-allowed',
+    'ui-label bg-(--coral-text) text-(--ink) transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-(--coral) active:translate-y-px disabled:cursor-not-allowed',
   link: 'underline underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-current active:translate-y-px disabled:cursor-not-allowed',
 };
 

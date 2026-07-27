@@ -69,7 +69,10 @@ class SemanticCache:
         if (
             candidate is not None
             and candidate.similarity_score >= similarity_threshold
-            and await self._backend.record_hit(candidate.entry.cache_key)
+            and await self._backend.record_hit(
+                candidate.entry.cache_key,
+                expected_created_at=candidate.entry.created_at,
+            )
         ):
             if self._events is not None:
                 self._events.record_cache_hit()

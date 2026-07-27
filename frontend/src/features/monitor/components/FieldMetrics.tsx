@@ -26,7 +26,7 @@ interface MetricRowProps {
 const TONE_COLOR: Record<NonNullable<MetricRowProps['tone']>, string> = {
   gold: 'var(--gold)',
   teal: 'var(--teal)',
-  coral: 'var(--coral)',
+  coral: 'var(--coral-text)',
 };
 
 function MetricRow({

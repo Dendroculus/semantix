@@ -20,7 +20,7 @@ interface MetricProps {
 const TONE_CLASS: Record<NonNullable<MetricProps['tone']>, string> = {
   gold: 'text-(--gold)',
   teal: 'text-(--teal)',
-  coral: 'text-(--coral)',
+  coral: 'text-(--coral-text)',
 };
 
 function Metric({ label, tone, value }: Readonly<MetricProps>): JSX.Element {

@@ -10,8 +10,7 @@ import { Alert } from "@/shared/components/ui";
 
 export function MonitorPage(): JSX.Element {
   const {
-    appliedThreshold,
-    cacheStats,
+    cacheState,
     commitThreshold,
     isApplyingThreshold,
     previewThreshold,
@@ -53,23 +52,49 @@ export function MonitorPage(): JSX.Element {
         )}
       </section>
 
-      <div className="grid grid-cols-1 gap-14 min-[760px]:grid-cols-[minmax(280px,3fr)_minmax(0,2fr)]">
-        <FieldMetrics
-          cacheStats={cacheStats}
-          threshold={previewThreshold}
-          traces={traces}
-        />
-        <SimilarityRadar
-          appliedThreshold={appliedThreshold}
-          isApplyingThreshold={isApplyingThreshold}
-          traces={traces}
-          threshold={previewThreshold}
-          onThresholdApply={(value) => void commitThreshold(value)}
-          onThresholdChange={setPreviewThreshold}
-        />
-      </div>
+      {cacheState.status === "loading" && (
+        <output
+          aria-live="polite"
+          className="font-data block border-y border-(--hairline) py-8 text-[11px] text-(--text-muted)"
+        >
+          Loading cache statistics and threshold.
+        </output>
+      )}
 
-      <QueryLog traces={traces} threshold={previewThreshold} />
+      {cacheState.status === "error" && (
+        <Alert
+          className="border-y border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-5"
+          role="alert"
+          title="Cache controls unavailable"
+          tone="error"
+        >
+          <p className="font-data mt-1 text-[11px]/5 text-(--text-soft)">
+            {cacheState.error}
+          </p>
+        </Alert>
+      )}
+
+      {cacheState.status === "ready" && previewThreshold !== null && (
+        <>
+          <div className="grid grid-cols-1 gap-14 min-[760px]:grid-cols-[minmax(280px,3fr)_minmax(0,2fr)]">
+            <FieldMetrics
+              cacheStats={cacheState.data.cacheStats}
+              threshold={previewThreshold}
+              traces={traces}
+            />
+            <SimilarityRadar
+              appliedThreshold={cacheState.data.appliedThreshold}
+              isApplyingThreshold={isApplyingThreshold}
+              traces={traces}
+              threshold={previewThreshold}
+              onThresholdApply={(value) => void commitThreshold(value)}
+              onThresholdChange={setPreviewThreshold}
+            />
+          </div>
+
+          <QueryLog traces={traces} threshold={previewThreshold} />
+        </>
+      )}
     </>
   );
 }

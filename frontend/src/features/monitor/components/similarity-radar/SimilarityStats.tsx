@@ -33,7 +33,7 @@ export function SimilarityStats({
       className: 'p-3',
       label: 'Projected misses',
       value: projectedMisses,
-      valueClassName: 'font-data mt-1 text-lg text-(--coral)',
+      valueClassName: 'font-data mt-1 text-lg text-(--coral-text)',
     },
   ] satisfies SimilarityStat[];
 

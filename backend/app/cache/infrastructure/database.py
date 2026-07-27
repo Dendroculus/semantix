@@ -132,10 +132,9 @@ async def grant_runtime_privileges(pool: Pool, runtime_role: str) -> None:
         ),
     )
     try:
-        async with pool.acquire() as connection:
-            async with connection.transaction():
-                for statement in statements:
-                    await connection.execute(statement)
+        async with pool.acquire() as connection, connection.transaction():
+            for statement in statements:
+                await connection.execute(statement)
     except (OSError, TimeoutError, asyncpg.PostgresError) as error:
         raise CacheStorageError(
             "Could not grant runtime database privileges"

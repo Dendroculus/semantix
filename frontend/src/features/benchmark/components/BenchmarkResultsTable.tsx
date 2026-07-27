@@ -24,6 +24,7 @@ export function BenchmarkResultsTable({
         className="scrollbar-thin mt-5 overflow-x-auto border-y border-(--hairline)"
       >
         <table className="w-full min-w-[920px] border-collapse text-left">
+          <caption className="sr-only">Per-query benchmark results</caption>
           <thead className="bg-(--ink)">
             <tr className="ui-label text-(--text-faint)">
               {BENCHMARK_RESULT_COLUMNS.map((column) => (

@@ -9,8 +9,8 @@ from app.core.exceptions import (
     ProviderRequestError,
     ProviderRetryableError,
 )
-from app.providers.shared.transport import post_json
 from app.core.logging import RedactingJsonFormatter
+from app.providers.shared.transport import post_json
 from tests.providers.support import (
     mock_client,
     no_wait_retrying,

@@ -53,12 +53,12 @@ export function SimilarityTooltip({
       value: formatSimilarity(point.similarity),
     },
     {
-      color: point.isProjectedHit ? 'var(--gold)' : 'var(--coral)',
+      color: point.isProjectedHit ? 'var(--gold)' : 'var(--coral-text)',
       label: 'Preview',
       value: cacheDecisionLabel(point.isProjectedHit),
     },
     {
-      color: point.actualCacheHit ? 'var(--teal)' : 'var(--coral)',
+      color: point.actualCacheHit ? 'var(--teal)' : 'var(--coral-text)',
       label: 'Actual',
       value: cacheDecisionLabel(point.actualCacheHit),
     },

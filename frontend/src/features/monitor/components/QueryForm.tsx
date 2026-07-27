@@ -106,7 +106,7 @@ export function QueryForm({
 
         {validationError !== null && (
           <p
-            className="font-data mt-3 border-l-2 border-(--coral) pl-3 text-[11px]/5 text-(--coral)"
+            className="font-data mt-3 border-l-2 border-(--coral) pl-3 text-[11px]/5 text-(--coral-text)"
             id="prompt-error"
             role="alert"
           >

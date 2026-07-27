@@ -232,6 +232,11 @@ describe("dashboard correctness", () => {
     const point = screen.getByRole("button", {
       name: /Prompt: Close match\./,
     });
+    expect(
+      screen.getByRole("button", {
+        name: /Inspect Close match\. Similarity 0\.950\. Projected HIT\./,
+      }),
+    ).toBeTruthy();
     const pointGroup = point.closest("g");
 
     fireEvent.mouseEnter(point);

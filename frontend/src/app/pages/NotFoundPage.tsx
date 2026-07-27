@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 export function NotFoundPage(): JSX.Element {
   return (
     <section aria-labelledby="not-found-heading" className="py-16">
-      <p className="font-data text-sm text-(--coral)">404</p>
+      <p className="font-data text-sm text-(--coral-text)">404</p>
       <h1 className="font-display mt-2 text-4xl italic" id="not-found-heading">
         Signal not found
       </h1>

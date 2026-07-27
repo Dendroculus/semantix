@@ -75,7 +75,10 @@ export function AuthPanel(): JSX.Element | null {
         </button>
       </form>
       {error !== null && (
-        <p className="font-data mt-3 text-[10px] text-(--coral)" role="alert">
+        <p
+          className="font-data mt-3 text-[10px] text-(--coral-text)"
+          role="alert"
+        >
           {error}
         </p>
       )}

@@ -51,7 +51,7 @@ export function CacheEntryCard({
 }: Readonly<CacheEntryCardProps>): JSX.Element {
   const status = entry.is_expired
     ? {
-        color: 'var(--coral)',
+        color: 'var(--coral-text)',
         label: 'Expired',
       }
     : {
@@ -124,7 +124,7 @@ export function CacheEntryCard({
           {!isPendingDelete && (
             <button
               aria-label={`Delete ${entry.prompt}`}
-              className="ui-label min-h-9 border-b border-(--coral) px-1 py-2 text-(--coral) transition-colors hover:text-(--text) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
+              className="ui-label min-h-9 border-b border-(--coral) px-1 py-2 text-(--coral-text) transition-colors hover:text-(--text) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--coral) active:translate-y-px disabled:opacity-50"
               disabled={isDeleting}
               type="button"
               onClick={onRequestDelete}
