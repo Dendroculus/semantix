@@ -4,6 +4,8 @@ from collections.abc import Sequence
 import pytest
 
 from app.cache.application.service import SemanticCache
+from app.cache.domain.models import CacheCandidate
+from app.cache.infrastructure.backends.memory import InMemoryCacheBackend
 from tests.support import (
     TEST_EMBEDDING_DIMENSIONS,
     memory_backend,
@@ -26,6 +28,34 @@ class RecordingEmbeddings:
     async def embed(self, text: str) -> Sequence[float]:
         self.prompts.append(text)
         return unit_vector()
+
+
+class PausingMemoryBackend(InMemoryCacheBackend):
+    def __init__(self) -> None:
+        super().__init__(
+            max_size=10,
+            ttl_seconds=60,
+            dimensions=TEST_EMBEDDING_DIMENSIONS,
+        )
+        self.candidate_selected = asyncio.Event()
+        self.continue_lookup = asyncio.Event()
+        self.pause_next_candidate = False
+
+    async def find_nearest(
+        self,
+        embedding: Sequence[float],
+        *,
+        namespace: str,
+    ) -> CacheCandidate | None:
+        candidate = await super().find_nearest(
+            embedding,
+            namespace=namespace,
+        )
+        if self.pause_next_candidate and candidate is not None:
+            self.pause_next_candidate = False
+            self.candidate_selected.set()
+            await self.continue_lookup.wait()
+        return candidate
 
 
 @pytest.mark.asyncio
@@ -145,3 +175,21 @@ async def test_write_without_lookup_normalizes_embedding_prompt() -> None:
     assert await cache.store("cahcing", "answer") is True
 
     assert embeddings.prompts == ["caching"]
+
+
+@pytest.mark.asyncio
+async def test_overwritten_candidate_is_not_returned_as_a_hit() -> None:
+    backend = PausingMemoryBackend()
+    cache = SemanticCache(Embeddings(), backend, 0.92)
+    miss = await cache.lookup("one")
+    await cache.store("one", "old answer", miss.embedding)
+    backend.pause_next_candidate = True
+
+    lookup = asyncio.create_task(cache.lookup("one"))
+    await backend.candidate_selected.wait()
+    await cache.store("one", "new answer", miss.embedding)
+    backend.continue_lookup.set()
+    result = await lookup
+
+    assert result.cache_hit is False
+    assert result.response is None

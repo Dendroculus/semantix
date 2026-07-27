@@ -123,12 +123,17 @@ class InMemoryCacheBackend:
             if eviction_count and self._events is not None:
                 self._events.record_evictions(eviction_count)
 
-    async def record_hit(self, cache_key: str) -> bool:
+    async def record_hit(
+        self,
+        cache_key: str,
+        *,
+        expected_created_at: datetime,
+    ) -> bool:
         async with self._lock:
             self._purge()
-            if cache_key not in self._items:
+            item = self._items.get(cache_key)
+            if item is None or item.entry.created_at != expected_created_at:
                 return False
-            item = self._items[cache_key]
             self._items.move_to_end(cache_key)
             counters = self._counters.setdefault(
                 item.entry.namespace,

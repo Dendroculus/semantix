@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import cast
 
 import asyncpg
@@ -157,7 +158,12 @@ class PgVectorCacheBackend:
                 if eviction_count and self._events is not None:
                     self._events.record_evictions(eviction_count)
 
-    async def record_hit(self, cache_key: str) -> bool:
+    async def record_hit(
+        self,
+        cache_key: str,
+        *,
+        expected_created_at: datetime,
+    ) -> bool:
         async with self._connection() as connection:
             async with connection.transaction():
                 await self._purge_expired(connection)
@@ -165,6 +171,7 @@ class PgVectorCacheBackend:
                     RECORD_HIT,
                     self._embedding_space,
                     cache_key,
+                    expected_created_at,
                 )
         return result is not None
 

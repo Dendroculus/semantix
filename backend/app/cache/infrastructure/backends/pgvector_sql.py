@@ -84,6 +84,7 @@ WITH updated AS (
         last_accessed_at = CURRENT_TIMESTAMP
     WHERE embedding_space = $1
       AND cache_key = $2
+      AND created_at = $3
     RETURNING namespace
 )
 INSERT INTO semantix.cache_namespace_counters (
