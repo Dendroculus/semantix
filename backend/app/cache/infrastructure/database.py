@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import logging
 import re
 from dataclasses import dataclass
+from hashlib import sha256
 from importlib.resources import files
 
 import asyncpg
-from asyncpg.pool import Pool
+from asyncpg import Connection
+from asyncpg.pool import Pool, PoolConnectionProxy
 
 from app.core.config import Settings
 from app.core.exceptions import CacheStorageError
@@ -20,15 +24,47 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE SCHEMA IF NOT EXISTS semantix;
 CREATE TABLE IF NOT EXISTS semantix.schema_migrations (
     version TEXT PRIMARY KEY,
+    checksum TEXT,
     applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE semantix.schema_migrations
+    ADD COLUMN IF NOT EXISTS checksum TEXT;
 """
+LEGACY_0001_RELATIONS = {
+    "semantix.cache_entries",
+    "semantix.cache_namespace_counters",
+}
+LEGACY_0001_COLUMNS = {
+    "cache_entries": {
+        "embedding_space",
+        "embedding_dimensions",
+        "cache_key",
+        "namespace",
+        "prompt",
+        "response",
+        "embedding",
+        "created_at",
+        "expires_at",
+        "hit_count",
+        "last_accessed_at",
+    },
+    "cache_namespace_counters": {
+        "embedding_space",
+        "namespace",
+        "hits",
+        "misses",
+    },
+}
 
 
 @dataclass(frozen=True, slots=True)
 class Migration:
     version: str
     sql: str
+
+    @property
+    def checksum(self) -> str:
+        return sha256(self.sql.encode("utf-8")).hexdigest()
 
 
 def load_migrations() -> tuple[Migration, ...]:
@@ -84,6 +120,78 @@ async def create_database_pool(settings: Settings) -> Pool:
     )
 
 
+async def _validate_legacy_migration(
+    connection: Connection[asyncpg.Record] | PoolConnectionProxy[asyncpg.Record],
+    migration: Migration,
+) -> bool:
+    if migration.version != "0001":
+        return False
+
+    relations = {
+        str(row["relation"])
+        for row in await connection.fetch(
+            """
+            SELECT relation
+            FROM unnest($1::text[]) AS expected(relation)
+            WHERE to_regclass(relation) IS NOT NULL
+            """,
+            sorted(LEGACY_0001_RELATIONS),
+        )
+    }
+    if relations != LEGACY_0001_RELATIONS:
+        return False
+
+    rows = await connection.fetch(
+        """
+        SELECT table_name, column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'semantix'
+          AND table_name = ANY($1::text[])
+        """,
+        sorted(LEGACY_0001_COLUMNS),
+    )
+    actual_columns: dict[str, set[str]] = {
+        table_name: set() for table_name in LEGACY_0001_COLUMNS
+    }
+    for row in rows:
+        actual_columns[str(row["table_name"])].add(str(row["column_name"]))
+    return all(
+        required_columns <= actual_columns[table_name]
+        for table_name, required_columns in LEGACY_0001_COLUMNS.items()
+    )
+
+
+async def _verify_applied_migration(
+    connection: Connection[asyncpg.Record] | PoolConnectionProxy[asyncpg.Record],
+    migration: Migration,
+    recorded_checksum: str | None,
+) -> None:
+    if recorded_checksum == migration.checksum:
+        return
+    if recorded_checksum is not None:
+        raise CacheStorageError(
+            f"Cache database migration {migration.version} checksum mismatch"
+        )
+    if not await _validate_legacy_migration(connection, migration):
+        raise CacheStorageError(
+            f"Cache database migration {migration.version} has no checksum "
+            "and its released schema could not be verified"
+        )
+    await connection.execute(
+        """
+        UPDATE semantix.schema_migrations
+        SET checksum = $2
+        WHERE version = $1 AND checksum IS NULL
+        """,
+        migration.version,
+        migration.checksum,
+    )
+    logger.info(
+        "Backfilled cache database migration checksum version=%s",
+        migration.version,
+    )
+
+
 async def apply_migrations(pool: Pool) -> None:
     try:
         async with pool.acquire() as connection:
@@ -91,20 +199,34 @@ async def apply_migrations(pool: Pool) -> None:
             try:
                 await connection.execute(MIGRATION_BOOTSTRAP_SQL)
                 applied_rows = await connection.fetch(
-                    "SELECT version FROM semantix.schema_migrations"
+                    "SELECT version, checksum FROM semantix.schema_migrations"
                 )
-                applied = {str(row["version"]) for row in applied_rows}
+                applied = {
+                    str(row["version"]): (
+                        None if row["checksum"] is None else str(row["checksum"])
+                    )
+                    for row in applied_rows
+                }
                 for migration in load_migrations():
                     if migration.version in applied:
+                        await _verify_applied_migration(
+                            connection,
+                            migration,
+                            applied[migration.version],
+                        )
                         continue
                     async with connection.transaction():
                         await connection.execute(migration.sql)
                         await connection.execute(
                             """
-                            INSERT INTO semantix.schema_migrations (version)
-                            VALUES ($1)
+                            INSERT INTO semantix.schema_migrations (
+                                version,
+                                checksum
+                            )
+                            VALUES ($1, $2)
                             """,
                             migration.version,
+                            migration.checksum,
                         )
                     logger.info(
                         "Applied cache database migration version=%s",

@@ -139,3 +139,5 @@ def test_cache_migrations_have_unique_ordered_versions() -> None:
 
     assert [migration.version for migration in migrations] == ["0001"]
     assert "semantix.cache_entries" in migrations[0].sql
+    assert len(migrations[0].checksum) == 64
+    assert migrations[0].checksum == migrations[0].checksum.lower()
