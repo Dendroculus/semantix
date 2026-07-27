@@ -15,7 +15,21 @@ export default defineConfig({
   },
 
   test: {
+    coverage: {
+      provider: "v8",
+      thresholds: {
+        branches: 75,
+        functions: 82,
+        lines: 82,
+        statements: 82,
+      },
+    },
     environment: "jsdom",
+    exclude: [
+      "tests/e2e/**",
+      "**/node_modules/**",
+      "**/dist/**",
+    ],
     globals: true,
     setupFiles: ["./tests/setup.ts"],
   },
