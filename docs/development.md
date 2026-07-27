@@ -11,10 +11,8 @@ Windows PowerShell:
 
 ```powershell
 cd backend
-python -m venv .venv
+uv sync --locked --extra dev
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -22,12 +20,15 @@ macOS or Linux:
 
 ```bash
 cd backend
-python3 -m venv .venv
+uv sync --locked --extra dev
 source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) before
+using the local backend workflow. `pyproject.toml` declares supported version
+ranges while `uv.lock` records the exact cross-platform resolution used by CI
+and the backend images.
 
 The backend reads `backend/.env`. With `CACHE_BACKEND=pgvector`, a reachable
 database is required before application startup completes. Memory and mock
@@ -52,10 +53,10 @@ Backend:
 
 ```bash
 cd backend
-python -m pytest
-python -m ruff check .
-python -m ruff format --check .
-python -m mypy app tests scripts
+uv run --locked pytest
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked mypy app tests scripts
 ```
 
 Frontend:
