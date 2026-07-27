@@ -136,6 +136,35 @@ def test_hosted_provider_http_remains_rejected() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "hf_inference_base_url",
+        "hf_chat_base_url",
+        "openai_base_url",
+        "anthropic_base_url",
+        "gemini_base_url",
+    ],
+)
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://api.example.test:not-a-port",
+        "https://api.example.test:65536",
+        "https://:443/v1",
+        "https://user:secret@api.example.test/v1",
+        "https://api.example.test/v1?token=secret",
+        "https://api.example.test/v1#fragment",
+    ],
+)
+def test_all_hosted_provider_urls_fail_fast_when_malformed(
+    field_name: str,
+    base_url: str,
+) -> None:
+    with pytest.raises(ValidationError, match="Provider base URLs"):
+        settings(**{field_name: base_url})
+
+
 def test_unselected_ollama_models_are_not_required() -> None:
     configured = settings()
 
