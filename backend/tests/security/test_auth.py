@@ -2,12 +2,14 @@ from hashlib import sha256
 
 from fastapi.testclient import TestClient
 
+from app.cache.domain.keys import prompt_cache_key
 from app.core.config import Settings
 from app.factory import create_app
 
 VIEWER_TOKEN = "viewer-secret"
 OPERATOR_TOKEN = "operator-secret"
 ADMIN_TOKEN = "admin-secret"
+NAMESPACE_ADMIN_TOKEN = "namespace-admin-secret"
 
 
 def token_hash(token: str) -> str:
@@ -40,6 +42,12 @@ def settings() -> Settings:
                 "token_sha256": token_hash(ADMIN_TOKEN),
                 "role": "admin",
                 "namespaces": ["*"],
+            },
+            {
+                "name": "namespace-administrator",
+                "token_sha256": token_hash(NAMESPACE_ADMIN_TOKEN),
+                "role": "admin",
+                "namespaces": ["default"],
             },
         ],
     )
@@ -130,3 +138,55 @@ def test_auth_session_returns_only_principal_metadata() -> None:
         "namespaces": ["default"],
     }
     assert VIEWER_TOKEN not in response.text
+
+
+def test_entry_operations_do_not_reveal_foreign_namespace_existence() -> None:
+    foreign_prompt = "foreign namespace secret"
+    foreign_key = prompt_cache_key(
+        foreign_prompt,
+        namespace="tenant-foreign",
+    )
+    missing_key = "0" * 64
+
+    with TestClient(create_app(settings())) as client:
+        created = client.post(
+            "/api/v1/query",
+            headers=authorization(ADMIN_TOKEN),
+            json={
+                "prompt": foreign_prompt,
+                "namespace": "tenant-foreign",
+            },
+        )
+        foreign_detail = client.get(
+            f"/api/v1/cache/entries/{foreign_key}",
+            headers=authorization(VIEWER_TOKEN),
+        )
+        missing_detail = client.get(
+            f"/api/v1/cache/entries/{missing_key}",
+            headers=authorization(VIEWER_TOKEN),
+        )
+        foreign_delete = client.delete(
+            f"/api/v1/cache/entries/{foreign_key}",
+            headers=authorization(NAMESPACE_ADMIN_TOKEN),
+        )
+        missing_delete = client.delete(
+            f"/api/v1/cache/entries/{missing_key}",
+            headers=authorization(NAMESPACE_ADMIN_TOKEN),
+        )
+        global_detail = client.get(
+            f"/api/v1/cache/entries/{foreign_key}",
+            headers=authorization(ADMIN_TOKEN),
+        )
+        global_delete = client.delete(
+            f"/api/v1/cache/entries/{foreign_key}",
+            headers=authorization(ADMIN_TOKEN),
+        )
+
+    assert created.status_code == 200
+    assert foreign_detail.status_code == missing_detail.status_code == 404
+    assert foreign_detail.json() == missing_detail.json()
+    assert foreign_delete.status_code == missing_delete.status_code == 404
+    assert foreign_delete.json() == missing_delete.json()
+    assert global_detail.status_code == 200
+    assert global_detail.json()["namespace"] == "tenant-foreign"
+    assert global_delete.status_code == 200

@@ -22,7 +22,6 @@ from app.security.auth import (
     AdminPrincipal,
     GlobalAdminPrincipal,
     ViewerPrincipal,
-    ensure_namespace_access,
     resolve_namespace,
 )
 
@@ -74,9 +73,12 @@ async def get_cache_entry(
     cache: SemanticCacheDependency,
     principal: ViewerPrincipal,
 ) -> CacheEntryMetadata:
-    entry = await cache.get_entry(cache_key)
-    ensure_namespace_access(principal, entry.namespace)
-    return entry
+    return await cache.get_entry(
+        cache_key,
+        authorized_namespaces=(
+            None if principal.has_global_namespace_access else principal.namespaces
+        ),
+    )
 
 
 @router.delete("/entries/{cache_key}", response_model=DeleteCacheEntryResponse)
@@ -87,10 +89,12 @@ async def delete_cache_entry(
     cache: SemanticCacheDependency,
     principal: AdminPrincipal,
 ) -> DeleteCacheEntryResponse:
-    if not principal.has_global_namespace_access:
-        entry = await cache.get_entry(cache_key)
-        ensure_namespace_access(principal, entry.namespace)
-    await cache.delete_entry(cache_key)
+    await cache.delete_entry(
+        cache_key,
+        authorized_namespaces=(
+            None if principal.has_global_namespace_access else principal.namespaces
+        ),
+    )
     return DeleteCacheEntryResponse(deleted=True, cache_key=cache_key)
 
 

@@ -14,6 +14,7 @@ from app.cache.api.schemas import (
     CacheStatsResponse,
 )
 from app.cache.domain.models import CacheCandidate, CacheEntry
+from app.cache.domain.namespaces import AuthorizedNamespaceScope
 from app.cache.domain.protocols import CacheEventRecorder
 from app.cache.domain.vector_validation import validated_cache_vector
 from app.cache.infrastructure.backends.memory_records import (
@@ -206,12 +207,20 @@ class InMemoryCacheBackend:
                 has_more=offset + len(page) < total,
             )
 
-    async def get_entry(self, cache_key: str) -> CacheEntryMetadata | None:
+    async def get_entry(
+        self,
+        cache_key: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> CacheEntryMetadata | None:
         async with self._lock:
             now_monotonic = time.monotonic()
             self._purge(now_monotonic)
             item = self._items.get(cache_key)
-            if item is None:
+            if item is None or (
+                authorized_namespaces is not None
+                and item.entry.namespace not in authorized_namespaces
+            ):
                 return None
             recency_rank = next(
                 rank
@@ -224,10 +233,22 @@ class InMemoryCacheBackend:
                 recency_rank=recency_rank,
             )
 
-    async def delete_entry(self, cache_key: str) -> bool:
+    async def delete_entry(
+        self,
+        cache_key: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> bool:
         async with self._lock:
             self._purge()
-            return self._items.pop(cache_key, None) is not None
+            item = self._items.get(cache_key)
+            if item is None or (
+                authorized_namespaces is not None
+                and item.entry.namespace not in authorized_namespaces
+            ):
+                return False
+            del self._items[cache_key]
+            return True
 
     async def clear(self, namespace: str | None) -> None:
         async with self._lock:

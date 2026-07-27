@@ -157,11 +157,23 @@ async def test_sort_pagination_delete_and_clear(
         assert [item.prompt for item in oldest.items] == list(prompts)
 
         alpha_key = prompt_cache_key("alpha")
-        alpha = await backend.get_entry(alpha_key)
+        alpha = await backend.get_entry(
+            alpha_key,
+            authorized_namespaces=None,
+        )
         assert alpha is not None
         assert alpha.expires_at is None
-        assert await backend.delete_entry(alpha_key)
-        assert await backend.get_entry(alpha_key) is None
+        assert await backend.delete_entry(
+            alpha_key,
+            authorized_namespaces=None,
+        )
+        assert (
+            await backend.get_entry(
+                alpha_key,
+                authorized_namespaces=None,
+            )
+            is None
+        )
 
         await backend.clear(None)
         assert (
@@ -187,7 +199,13 @@ async def test_expiry_and_lru_capacity(
         )
         await backend.put(expiring)
         await asyncio.sleep(1.05)
-        assert await backend.get_entry(expiring.cache_key) is None
+        assert (
+            await backend.get_entry(
+                expiring.cache_key,
+                authorized_namespaces=None,
+            )
+            is None
+        )
 
     async with backend_builder(1, None) as backend:
         alpha = cache_entry(
@@ -202,8 +220,73 @@ async def test_expiry_and_lru_capacity(
         )
         await backend.put(alpha)
         await backend.put(beta)
-        assert await backend.get_entry(alpha.cache_key) is None
-        assert await backend.get_entry(beta.cache_key) is not None
+        assert (
+            await backend.get_entry(
+                alpha.cache_key,
+                authorized_namespaces=None,
+            )
+            is None
+        )
+        assert (
+            await backend.get_entry(
+                beta.cache_key,
+                authorized_namespaces=None,
+            )
+            is not None
+        )
+
+
+@pytest.mark.asyncio
+async def test_entry_operations_enforce_namespace_scope(
+    backend_builder: BackendBuilder,
+) -> None:
+    async with backend_builder(10, None) as backend:
+        alpha = cache_entry(
+            "alpha prompt",
+            "alpha response",
+            namespace="tenant-alpha",
+            vector_index=0,
+        )
+        beta = cache_entry(
+            "beta prompt",
+            "beta response",
+            namespace="tenant-beta",
+            vector_index=1,
+        )
+        await backend.put(alpha)
+        await backend.put(beta)
+
+        alpha_scope = frozenset({"tenant-alpha"})
+        assert (
+            await backend.get_entry(
+                beta.cache_key,
+                authorized_namespaces=alpha_scope,
+            )
+            is None
+        )
+        assert not await backend.delete_entry(
+            beta.cache_key,
+            authorized_namespaces=alpha_scope,
+        )
+        assert (
+            await backend.get_entry(
+                beta.cache_key,
+                authorized_namespaces=None,
+            )
+            is not None
+        )
+
+        assert await backend.delete_entry(
+            beta.cache_key,
+            authorized_namespaces=None,
+        )
+        assert (
+            await backend.get_entry(
+                alpha.cache_key,
+                authorized_namespaces=alpha_scope,
+            )
+            is not None
+        )
 
 
 @pytest.mark.asyncio

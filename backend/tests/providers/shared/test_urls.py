@@ -19,6 +19,22 @@ def test_hosted_provider_urls_require_https_origins() -> None:
 @pytest.mark.parametrize(
     "value",
     [
+        "https://api.example.test:not-a-port",
+        "https://api.example.test:65536",
+        "https://:443/v1",
+        "https://user:secret@api.example.test/v1",
+        "https://api.example.test/v1?token=secret",
+        "https://api.example.test/v1#fragment",
+    ],
+)
+def test_hosted_provider_urls_reject_malformed_authorities(value: str) -> None:
+    with pytest.raises(ValueError, match="Provider base URLs"):
+        normalize_hosted_provider_url(value)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
         "http://localhost:11434",
         "http://ollama:11434",
         "https://ollama.example.test",

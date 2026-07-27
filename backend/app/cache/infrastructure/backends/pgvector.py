@@ -14,6 +14,7 @@ from app.cache.api.schemas import (
     CacheStatsResponse,
 )
 from app.cache.domain.models import CacheCandidate, CacheEntry
+from app.cache.domain.namespaces import AuthorizedNamespaceScope
 from app.cache.domain.protocols import CacheEventRecorder
 from app.cache.domain.vector_validation import (
     validated_cache_vector,
@@ -226,23 +227,43 @@ class PgVectorCacheBackend:
             has_more=offset + len(items) < total,
         )
 
-    async def get_entry(self, cache_key: str) -> CacheEntryMetadata | None:
+    async def get_entry(
+        self,
+        cache_key: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> CacheEntryMetadata | None:
         async with self._connection() as connection:
             await self._purge_expired(connection)
             row = await connection.fetchrow(
                 GET_ENTRY,
                 self._embedding_space,
                 cache_key,
+                (
+                    None
+                    if authorized_namespaces is None
+                    else list(authorized_namespaces)
+                ),
             )
         return None if row is None else cache_metadata_from_record(row)
 
-    async def delete_entry(self, cache_key: str) -> bool:
+    async def delete_entry(
+        self,
+        cache_key: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> bool:
         async with self._connection() as connection:
             await self._purge_expired(connection)
             result = await connection.execute(
                 DELETE_ENTRY,
                 self._embedding_space,
                 cache_key,
+                (
+                    None
+                    if authorized_namespaces is None
+                    else list(authorized_namespaces)
+                ),
             )
         return result == "DELETE 1"
 

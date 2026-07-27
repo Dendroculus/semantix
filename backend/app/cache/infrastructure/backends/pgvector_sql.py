@@ -146,12 +146,14 @@ WITH ranked AS (
 SELECT *, CURRENT_TIMESTAMP AS observed_at
 FROM ranked
 WHERE cache_key = $2
+  AND ($3::text[] IS NULL OR namespace = ANY($3::text[]))
 """
 
 DELETE_ENTRY = """
 DELETE FROM semantix.cache_entries
 WHERE embedding_space = $1
   AND cache_key = $2
+  AND ($3::text[] IS NULL OR namespace = ANY($3::text[]))
 """
 
 CLEAR_ENTRIES = """

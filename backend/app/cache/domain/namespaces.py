@@ -19,3 +19,5 @@ CacheNamespace = Annotated[
         pattern=CACHE_NAMESPACE_PATTERN,
     ),
 ]
+
+AuthorizedNamespaceScope = frozenset[str] | None

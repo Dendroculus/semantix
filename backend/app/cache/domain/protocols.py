@@ -9,6 +9,7 @@ from app.cache.api.schemas import (
     CacheStatsResponse,
 )
 from app.cache.domain.models import CacheCandidate, CacheEntry
+from app.cache.domain.namespaces import AuthorizedNamespaceScope
 
 
 class CacheBackend(Protocol):
@@ -43,8 +44,18 @@ class CacheBackend(Protocol):
         sort: CacheEntrySort,
     ) -> CacheEntryListResponse: ...
 
-    async def get_entry(self, cache_key: str) -> CacheEntryMetadata | None: ...
-    async def delete_entry(self, cache_key: str) -> bool: ...
+    async def get_entry(
+        self,
+        cache_key: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> CacheEntryMetadata | None: ...
+    async def delete_entry(
+        self,
+        cache_key: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> bool: ...
     async def clear(self, namespace: str | None) -> None: ...
     async def stats(self, namespace: str | None) -> CacheStatsResponse: ...
 

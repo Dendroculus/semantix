@@ -9,6 +9,7 @@ from app.core.exceptions import (
     InvalidProviderResponseError,
     ProviderRequestError,
 )
+from app.core.limits import MAX_RESPONSE_LENGTH
 from app.observability.metrics import RuntimeMetrics
 from app.providers.protocols import GenerationProvider
 from app.query.application.service import QueryService
@@ -235,6 +236,65 @@ async def test_empty_provider_response_is_not_cached() -> None:
         await service.execute("empty response")
 
     retry = await service.execute("empty response")
+    assert retry.response == "valid response"
+    assert retry.provider_called is True
+    assert provider.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_maximum_length_provider_response_succeeds() -> None:
+    response_text = "x" * MAX_RESPONSE_LENGTH
+    service = query_service(SequenceProvider([response_text]))
+
+    response = await service.execute("maximum response")
+
+    assert response.response == response_text
+
+
+@pytest.mark.parametrize(
+    ("read_enabled", "write_enabled"),
+    [
+        (True, True),
+        (False, True),
+        (True, False),
+        (False, False),
+    ],
+)
+@pytest.mark.asyncio
+async def test_oversized_provider_response_is_rejected_before_storage(
+    read_enabled: bool,
+    write_enabled: bool,
+) -> None:
+    backend = memory_backend()
+    cache = SemanticCache(
+        Embeddings(),
+        backend,
+        0.92,
+    )
+    provider = SequenceProvider(
+        [
+            "x" * (MAX_RESPONSE_LENGTH + 1),
+            "valid response",
+        ]
+    )
+    service = QueryService(cache, provider)
+    policy = QueryCachePolicy(
+        read_enabled=read_enabled,
+        write_enabled=write_enabled,
+    )
+
+    with pytest.raises(InvalidProviderResponseError):
+        await service.execute("oversized response", policy=policy)
+
+    assert (
+        await backend.get_entry(
+            prompt_cache_key("oversized response"),
+            authorized_namespaces=None,
+        )
+        is None
+    )
+
+    retry = await service.execute("oversized response", policy=policy)
     assert retry.response == "valid response"
     assert retry.provider_called is True
     assert provider.call_count == 2

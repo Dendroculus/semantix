@@ -7,6 +7,7 @@ from app.cache.application.service import SemanticCache
 from app.cache.domain.namespaces import DEFAULT_CACHE_NAMESPACE
 from app.core.config import Settings
 from app.core.exceptions import ProviderRequestError
+from app.core.limits import MAX_RESPONSE_LENGTH
 from app.factory import create_app
 from app.query.api.router import query
 from app.query.api.schemas import QueryRequest
@@ -31,8 +32,13 @@ class FailingProvider:
         )
 
 
+class OversizedProvider:
+    async def generate(self, prompt: str) -> str:
+        return "x" * (MAX_RESPONSE_LENGTH + 1)
+
+
 def query_service(
-    provider: Provider | FailingProvider,
+    provider: Provider | FailingProvider | OversizedProvider,
 ) -> QueryService:
     return QueryService(
         SemanticCache(
@@ -124,3 +130,22 @@ def test_provider_error_response_hides_api_key(
     assert response.status_code == 502
     assert response.json()["error"] == "upstream_error"
     assert "test-only-placeholder" not in response.text
+
+
+def test_oversized_provider_response_uses_stable_upstream_error(
+    settings: Settings,
+) -> None:
+    app = create_app(settings)
+
+    with TestClient(app) as client:
+        app.state.query_service = query_service(OversizedProvider())
+        response = client.post(
+            "/api/v1/query",
+            json={"prompt": "one"},
+        )
+
+    assert response.status_code == 502
+    assert response.json() == {
+        "error": "invalid_upstream_response",
+        "detail": "The AI service returned an invalid response.",
+    }

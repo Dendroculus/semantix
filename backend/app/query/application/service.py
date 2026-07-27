@@ -6,8 +6,8 @@ from typing import Protocol
 
 from app.cache.application.service import SemanticCache
 from app.cache.domain.models import CacheLookupResult
-from app.core.exceptions import InvalidProviderResponseError
 from app.providers.protocols import GenerationProvider
+from app.providers.shared.responses import validate_generation_response
 from app.query.api.schemas import QueryResponse
 from app.query.application.coalescing import RequestCoalescer
 from app.query.domain.policies import (
@@ -135,11 +135,9 @@ class QueryService:
 
         if self._metrics is not None:
             self._metrics.record_provider_call()
-        response = await self._generation_provider.generate(prompt)
-        if not response.strip():
-            raise InvalidProviderResponseError(
-                "Generation provider returned an empty response"
-            )
+        response = validate_generation_response(
+            await self._generation_provider.generate(prompt)
+        )
 
         if policy.write_enabled:
             await self._cache.store(
