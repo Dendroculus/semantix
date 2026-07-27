@@ -38,7 +38,7 @@
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.64.0",
     "@typescript-eslint/parser": "^8.64.0",
-    "@vitejs/plugin-react": "4.3.4",
+    "@vitejs/plugin-react": "5.1.4",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "eslint-plugin-better-tailwindcss": "^4.6.1",
@@ -51,7 +51,7 @@
     "jsdom": "^25.0.1",
     "tailwindcss": "^4.3.2",
     "typescript": "^5.7.2",
-    "vite": "^6.0.1",
+    "vite": "7.3.6",
     "vitest": "^4.1.10"
   }
 }
