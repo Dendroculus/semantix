@@ -51,6 +51,26 @@ def test_preserves_project_terms(
     assert normalizer.normalize(prompt) == expected
 
 
+@pytest.mark.parametrize(
+    "prompt",
+    [
+        "do not cache this",
+        "never reuse private data",
+        "cache without sharing",
+        "we must not reuse this",
+        "we should not cache this",
+        "we may cache this",
+        "can we cache this",
+        "no cache reuse",
+    ],
+)
+def test_preserves_negation_modality_and_short_function_words(
+    normalizer: SymSpellPromptNormalizer,
+    prompt: str,
+) -> None:
+    assert normalizer.normalize(prompt) == prompt
+
+
 def test_disabled_normalizer_does_not_load_dictionary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
