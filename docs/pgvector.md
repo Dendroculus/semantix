@@ -14,11 +14,16 @@ DATABASE_URL=postgresql://semantix:semantix@postgres:5432/semantix
 DATABASE_POOL_MIN_SIZE=1
 DATABASE_POOL_MAX_SIZE=5
 DATABASE_CONNECT_TIMEOUT_SECONDS=10
+DATABASE_COMMAND_TIMEOUT_SECONDS=30
 ```
 
 `DATABASE_URL` is required only when `CACHE_BACKEND=pgvector`. The memory
 backend does not connect to PostgreSQL, even when a database URL is present.
-The minimum pool size cannot exceed the maximum.
+The minimum pool size cannot exceed the maximum. The connection timeout bounds
+pool connection establishment; the command timeout independently bounds SQL
+statements after a connection is available. Increase the command timeout for
+measured long-running migrations or cache operations without weakening
+connection-failure detection.
 
 The supplied Docker profile uses `semantix` as both the PostgreSQL database and
 the application schema. A different database name may be used in

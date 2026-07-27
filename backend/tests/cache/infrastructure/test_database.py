@@ -1,7 +1,11 @@
+from typing import cast
+
+import asyncpg
 import pytest
+from asyncpg.pool import Pool
 from pydantic import ValidationError
 
-from app.cache.infrastructure.database import load_migrations
+from app.cache.infrastructure.database import create_pool, load_migrations
 from app.core.config import Settings
 
 ORIGINS = ["http://localhost:5173"]
@@ -50,6 +54,72 @@ def test_pgvector_pool_bounds_are_validated() -> None:
             hf_api_key="test-only-placeholder",
             allowed_origins=ORIGINS,
         )
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "database_connect_timeout_seconds",
+        "database_command_timeout_seconds",
+    ],
+)
+def test_database_timeouts_must_be_positive(field_name: str) -> None:
+    with pytest.raises(ValidationError, match=field_name):
+        Settings.model_validate(
+            {
+                "cache_backend": "pgvector",
+                "database_url": ("postgresql://user:secret@database:5432/semantix"),
+                "hf_api_key": "test-only-placeholder",
+                "allowed_origins": ORIGINS,
+                field_name: 0,
+            }
+        )
+
+
+@pytest.mark.asyncio
+async def test_database_pool_uses_independent_timeouts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configured: dict[str, object] = {}
+    expected_pool = cast(Pool, object())
+
+    async def fake_create_pool(
+        *,
+        dsn: str,
+        min_size: int,
+        max_size: int,
+        timeout: float,
+        command_timeout: float,
+    ) -> Pool:
+        configured.update(
+            {
+                "dsn": dsn,
+                "min_size": min_size,
+                "max_size": max_size,
+                "timeout": timeout,
+                "command_timeout": command_timeout,
+            }
+        )
+        return expected_pool
+
+    monkeypatch.setattr(asyncpg, "create_pool", fake_create_pool)
+
+    result = await create_pool(
+        "postgresql://user:secret@database:5432/semantix",
+        min_size=2,
+        max_size=7,
+        connect_timeout=3.5,
+        command_timeout=45.0,
+    )
+
+    assert result is expected_pool
+    assert configured == {
+        "dsn": "postgresql://user:secret@database:5432/semantix",
+        "min_size": 2,
+        "max_size": 7,
+        "timeout": 3.5,
+        "command_timeout": 45.0,
+    }
 
 
 def test_database_credentials_are_registered_for_log_redaction() -> None:
