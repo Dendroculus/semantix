@@ -219,13 +219,13 @@ export function clearCache(namespace?: string): Promise<
   );
 }
 
-export function getCacheThreshold(): Promise<
-  ApiResult<CacheThresholdResponse>
-> {
+export function getCacheThreshold(
+  signal?: AbortSignal,
+): Promise<ApiResult<CacheThresholdResponse>> {
   return request(
     "/api/v1/cache/threshold",
     decodeCacheThreshold,
-    { method: "GET" },
+    withSignal({ method: "GET" }, signal),
   );
 }
 

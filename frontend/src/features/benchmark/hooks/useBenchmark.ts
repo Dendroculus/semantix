@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
   getBenchmarkDatasets,
@@ -67,6 +71,8 @@ export function useBenchmark(): BenchmarkController {
   const [error, setError] = useState<string | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const activeRun = useRef<AbortController | null>(null);
+  const runSequence = useRef(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -94,20 +100,51 @@ export function useBenchmark(): BenchmarkController {
     return () => controller.abort();
   }, []);
 
+  useEffect(
+    () => () => {
+      runSequence.current += 1;
+      activeRun.current?.abort();
+      activeRun.current = null;
+    },
+    [],
+  );
+
   const selectedDataset =
     datasets.find((dataset) => dataset.dataset_id === form.datasetId) ?? null;
 
   async function confirmRun(): Promise<void> {
+    const controller = new AbortController();
+    const runId = runSequence.current + 1;
+    runSequence.current = runId;
+    activeRun.current?.abort();
+    activeRun.current = controller;
     setShowWarning(false);
     setIsRunning(true);
     setError(null);
-    const response = await runBenchmark(requestFromForm(form));
-    setIsRunning(false);
-    if (!response.ok) {
-      setError(response.error.detail ?? "The benchmark run failed.");
-      return;
+
+    try {
+      const response = await runBenchmark(
+        requestFromForm(form),
+        controller.signal,
+      );
+      if (
+        controller.signal.aborted ||
+        runId !== runSequence.current
+      ) {
+        return;
+      }
+
+      if (!response.ok) {
+        setError(response.error.detail ?? "The benchmark run failed.");
+        return;
+      }
+      setResult(response.data);
+    } finally {
+      if (runId === runSequence.current) {
+        activeRun.current = null;
+        setIsRunning(false);
+      }
     }
-    setResult(response.data);
   }
 
   return {

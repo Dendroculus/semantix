@@ -45,7 +45,7 @@ function MetricGroup({
 }
 
 export function ObservabilityDashboard(): JSX.Element {
-  const { state, refresh } = useRuntimeMetrics();
+  const { isRefreshing, state, refresh } = useRuntimeMetrics();
 
   const metricGroups: MetricGroupProps[] =
     state.status === 'ready'
@@ -134,7 +134,9 @@ export function ObservabilityDashboard(): JSX.Element {
       <PageHeader
         actions={
           <Button
+            aria-busy={isRefreshing}
             className="border-(--hairline) bg-(--surface) text-(--text-soft) hover:border-(--gold) hover:text-(--gold) focus-visible:outline-(--gold)"
+            disabled={isRefreshing}
             size="large"
             variant="secondary"
             onClick={refresh}

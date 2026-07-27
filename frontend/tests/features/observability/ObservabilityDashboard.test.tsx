@@ -1,13 +1,17 @@
 import {
   act,
   cleanup,
+  fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getRuntimeMetrics } from "@/features/observability/api/metricsApi";
 import { ObservabilityDashboard } from "@/features/observability/components/ObservabilityDashboard";
+import { deferred } from "../support";
 
 vi.mock("@/features/observability/api/metricsApi");
 
@@ -85,5 +89,70 @@ describe("ObservabilityDashboard", () => {
 
     expect(await screen.findByText("Backend unavailable")).toBeTruthy();
     expect(screen.queryByText("25.5 ms")).toBeNull();
+  });
+
+  it("ignores an older response that resolves after a newer request", async () => {
+    const older =
+      deferred<Awaited<ReturnType<typeof getRuntimeMetrics>>>();
+    const newer =
+      deferred<Awaited<ReturnType<typeof getRuntimeMetrics>>>();
+    vi.mocked(getRuntimeMetrics)
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
+
+    render(
+      <StrictMode>
+        <ObservabilityDashboard />
+      </StrictMode>,
+    );
+
+    await waitFor(() =>
+      expect(getRuntimeMetrics).toHaveBeenCalledTimes(2),
+    );
+
+    await act(async () => {
+      newer.resolve({
+        ok: true,
+        data: { ...metrics, request_count: 91 },
+      });
+    });
+
+    const requestMetric = screen.getByText("Requests").closest("div");
+    expect(requestMetric?.textContent).toContain("91");
+
+    await act(async () => {
+      older.resolve({ ok: true, data: metrics });
+    });
+
+    expect(requestMetric?.textContent).toContain("91");
+  });
+
+  it("disables and coalesces manual refresh while a request is active", async () => {
+    vi.mocked(getRuntimeMetrics).mockResolvedValueOnce({
+      ok: true,
+      data: metrics,
+    });
+    const refresh =
+      deferred<Awaited<ReturnType<typeof getRuntimeMetrics>>>();
+    vi.mocked(getRuntimeMetrics).mockReturnValueOnce(refresh.promise);
+
+    render(<ObservabilityDashboard />);
+    await screen.findByText("25.5 ms");
+
+    const button = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Refresh metrics",
+    });
+    fireEvent.click(button);
+
+    await waitFor(() => expect(button.disabled).toBe(true));
+    fireEvent.click(button);
+    expect(getRuntimeMetrics).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      refresh.resolve({
+        ok: true,
+        data: { ...metrics, request_count: 13 },
+      });
+    });
   });
 });

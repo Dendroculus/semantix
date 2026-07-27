@@ -70,6 +70,10 @@ has an explicit expected classification.
 Benchmark requests may call the selected generation provider. Review provider
 cost, rate limits, and data handling before confirming.
 
+Leaving the Benchmark workspace aborts the browser request and prevents a late
+response from updating the unmounted page. It does not guarantee that provider
+work already accepted by the backend has stopped.
+
 ## Run through the API
 
 PowerShell:
