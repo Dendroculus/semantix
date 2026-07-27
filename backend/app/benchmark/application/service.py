@@ -22,6 +22,7 @@ from app.benchmark.domain.models import BenchmarkCase, BenchmarkObservation
 from app.cache.application.service import SemanticCache
 from app.cache.infrastructure.backends.memory import InMemoryCacheBackend
 from app.providers.protocols import EmbeddingGenerator, GenerationProvider
+from app.providers.shared.responses import validate_generation_response
 
 
 def _classification(
@@ -86,7 +87,9 @@ class BenchmarkService:
                 raise RuntimeError("Validated benchmark hit had no response")
             response = lookup.response
         else:
-            response = await self._provider.generate(case.prompt)
+            response = validate_generation_response(
+                await self._provider.generate(case.prompt)
+            )
             await self._cache.store(case.prompt, response, lookup.embedding)
         latency_ms = (perf_counter() - measured_at) * 1_000
         tokens_saved = (

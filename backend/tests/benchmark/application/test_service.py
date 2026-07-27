@@ -1,6 +1,11 @@
 from collections.abc import Sequence
 
+import pytest
+
+from app.benchmark.api.schemas import BenchmarkRunRequest
 from app.benchmark.application.service import BenchmarkService
+from app.core.exceptions import InvalidProviderResponseError
+from app.core.limits import MAX_RESPONSE_LENGTH
 
 
 class Embeddings:
@@ -13,10 +18,15 @@ class Provider:
         return f"response:{prompt}"
 
 
-def test_benchmark_service_exposes_the_default_dataset() -> None:
-    service = BenchmarkService(
+class OversizedProvider:
+    async def generate(self, prompt: str) -> str:
+        return "x" * (MAX_RESPONSE_LENGTH + 1)
+
+
+def benchmark_service(provider: Provider | OversizedProvider) -> BenchmarkService:
+    return BenchmarkService(
         Embeddings(),
-        Provider(),
+        provider,
         max_cache_size=10,
         cache_ttl_seconds=60,
         initial_threshold=0.92,
@@ -24,9 +34,25 @@ def test_benchmark_service_exposes_the_default_dataset() -> None:
         prompt_normalizer=lambda prompt: prompt,
     )
 
+
+def test_benchmark_service_exposes_the_default_dataset() -> None:
+    service = benchmark_service(Provider())
+
     datasets = service.datasets()
 
     assert datasets.datasets
     assert datasets.default_dataset_id in {
         dataset.dataset_id for dataset in datasets.datasets
     }
+
+
+@pytest.mark.asyncio
+async def test_benchmark_rejects_oversized_provider_response() -> None:
+    service = benchmark_service(OversizedProvider())
+
+    with pytest.raises(InvalidProviderResponseError):
+        await service.run(
+            BenchmarkRunRequest(
+                allow_external_provider_calls=True,
+            )
+        )
