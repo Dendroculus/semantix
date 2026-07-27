@@ -119,6 +119,44 @@ jobs:
       - name: Build hardened images
         run: docker compose --env-file .env.production -f docker-compose.prod.yml build
 
+  hardened-windows-checkout:
+    name: Hardened Windows-checkout smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ALLOWED_ORIGINS: '["http://127.0.0.1:18080"]'
+      AUTH_PRINCIPALS: '[{"name":"smoke-admin","token_sha256":"8a44fe85cd94a910179d544c577ac9112eac506ad75b6124b3e7e6fcd242d37d","role":"admin","namespaces":["*"]}]'
+      COMPOSE_PROJECT_NAME: semantix-eol-${{ github.run_id }}
+      POSTGRES_DB: semantix
+      POSTGRES_MIGRATION_PASSWORD: migration-smoke-password
+      POSTGRES_MIGRATION_USER: semantix_migrator
+      POSTGRES_RUNTIME_PASSWORD: runtime-smoke-password
+      POSTGRES_RUNTIME_USER: semantix_runtime
+      SEMANTIX_BIND_ADDRESS: 127.0.0.1
+      SEMANTIX_PORT: "18080"
+      TRUSTED_PROXY_CIDRS: '["172.28.0.0/24"]'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Verify tracked shell scripts use LF
+        run: bash ops/ci/check-shell-eol.sh
+
+      - name: Create an autocrlf checkout
+        shell: bash
+        run: |
+          git -c core.autocrlf=true clone --quiet --no-local \
+            . "$RUNNER_TEMP/semantix-autocrlf"
+          cd "$RUNNER_TEMP/semantix-autocrlf"
+          git ls-files --eol '*.sh'
+          bash ops/ci/check-shell-eol.sh
+
+      - name: Run fresh hardened-stack smoke
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/semantix-autocrlf"
+          bash ops/ci/hardened-smoke.sh
+
   pgvector:
     name: Pgvector integration
     runs-on: ubuntu-latest
@@ -189,6 +227,7 @@ jobs:
       - backend
       - frontend
       - containers
+      - hardened-windows-checkout
       - dependency-review
       - pgvector
     runs-on: ubuntu-latest
@@ -200,11 +239,13 @@ jobs:
           CONTAINERS_RESULT: ${{ needs.containers.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
+          HARDENED_WINDOWS_CHECKOUT_RESULT: ${{ needs.hardened-windows-checkout.result }}
           PGVECTOR_RESULT: ${{ needs.pgvector.result }}
         run: |
           test "$BACKEND_RESULT" = "success"
           test "$FRONTEND_RESULT" = "success"
           test "$CONTAINERS_RESULT" = "success"
+          test "$HARDENED_WINDOWS_CHECKOUT_RESULT" = "success"
           test "$PGVECTOR_RESULT" = "success"
           test "$DEPENDENCY_REVIEW_RESULT" = "success" \
             || test "$DEPENDENCY_REVIEW_RESULT" = "skipped"
