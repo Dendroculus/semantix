@@ -1,11 +1,16 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import {
+  createMemoryRouter,
+  MemoryRouter,
+  RouterProvider,
+} from "react-router-dom";
 import {
   afterEach,
   beforeEach,
@@ -72,6 +77,21 @@ function renderAt(path: string) {
       <App />
     </MemoryRouter>,
   );
+}
+
+function renderWithHistory() {
+  const router = createMemoryRouter(
+    [{ path: "*", element: <App /> }],
+    {
+      initialEntries: ["/", "/cache"],
+      initialIndex: 1,
+    },
+  );
+
+  return {
+    router,
+    ...render(<RouterProvider router={router} />),
+  };
 }
 
 describe("application routing", () => {
@@ -170,29 +190,45 @@ describe("application routing", () => {
   });
 
   it.each([
-    ["/", "Probe the cache", "Monitor"],
-    ["/cache", "Cache inspector", "Cache"],
-    ["/benchmarks", "Benchmark laboratory", "Benchmarks"],
-    ["/observability", "Observability", "Observability"],
-  ])("renders %s with an active navigation link", async (path, heading, link) => {
-    renderAt(path);
+    ["/", "Probe the cache", "Monitor", "Monitor | Semantix"],
+    ["/cache", "Cache inspector", "Cache", "Cache | Semantix"],
+    [
+      "/benchmarks",
+      "Benchmark laboratory",
+      "Benchmarks",
+      "Benchmarks | Semantix",
+    ],
+    [
+      "/observability",
+      "Observability",
+      "Observability",
+      "Observability | Semantix",
+    ],
+  ])(
+    "renders %s with an active navigation link and page title",
+    async (path, heading, link, title) => {
+      renderAt(path);
 
-    expect(
-      screen.getByRole("navigation", { name: "Primary navigation" }),
-    ).toBeTruthy();
-    expect(
-      await screen.findByRole(
-        "heading",
-        { level: 1, name: heading },
-        { timeout: 10_000 },
-      ),
-    ).toBeTruthy();
-    expect(
-      screen
-        .getByRole("link", { name: link })
-        .getAttribute("aria-current"),
-    ).toBe("page");
-  });
+      expect(
+        screen.getByRole("navigation", {
+          name: "Primary navigation",
+        }),
+      ).toBeTruthy();
+      expect(
+        await screen.findByRole(
+          "heading",
+          { level: 1, name: heading },
+          { timeout: 10_000 },
+        ),
+      ).toBeTruthy();
+      expect(
+        screen
+          .getByRole("link", { name: link })
+          .getAttribute("aria-current"),
+      ).toBe("page");
+      expect(document.title).toBe(title);
+    },
+  );
 
   it("renders a useful not-found route", async () => {
     renderAt("/missing");
@@ -208,6 +244,61 @@ describe("application routing", () => {
         .getByRole("link", { name: "Return to Monitor" })
         .getAttribute("href"),
     ).toBe("/");
+    expect(document.title).toBe("Page not found | Semantix");
+  });
+
+  it("does not move focus on initial route rendering", async () => {
+    renderAt("/cache");
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Cache inspector",
+    });
+
+    expect(document.activeElement).not.toBe(
+      screen.getByRole("main"),
+    );
+  });
+
+  it("moves focus to main after link navigation", async () => {
+    renderAt("/");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Probe the cache",
+    });
+
+    const queryInput = screen.getByLabelText("Query text");
+    queryInput.focus();
+    fireEvent.click(screen.getByRole("link", { name: "Cache" }));
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Cache inspector",
+    });
+    expect(document.activeElement).toBe(screen.getByRole("main"));
+  });
+
+  it("preserves focus during browser history navigation", async () => {
+    const { router } = renderWithHistory();
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Cache inspector",
+    });
+
+    const menuButton = screen.getByRole("button", {
+      name: "Open primary menu",
+    });
+    menuButton.focus();
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Probe the cache",
+    });
+
+    expect(document.activeElement).toBe(menuButton);
   });
 
   it("does not load benchmark data until its route mounts", async () => {
