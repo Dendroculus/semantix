@@ -5,23 +5,16 @@ import {
   render,
   screen,
   waitFor,
-} from "@testing-library/react";
+} from '@testing-library/react';
 import {
   createMemoryRouter,
   MemoryRouter,
   RouterProvider,
-} from "react-router-dom";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+} from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import App from "@/App";
-import { useQuery } from "@/features/monitor/hooks/useQuery";
+import App from '@/App';
+import { useQuery } from '@/features/monitor/hooks/useQuery';
 import {
   clearCache,
   deleteCacheEntry,
@@ -29,22 +22,19 @@ import {
   getCacheThreshold,
   listCacheEntries,
   updateCacheThreshold,
-} from "@/features/cache/api/cacheApi";
-import { getBenchmarkDatasets } from "@/features/benchmark/api/benchmarkApi";
-import { getRuntimeMetrics } from "@/features/observability/api/metricsApi";
-import type {
-  CacheEntryMetadata,
-} from "@/features/cache/types";
-import type { QueryResponse } from "@/features/monitor/types";
+} from '@/features/cache/api/cacheApi';
+import { getBenchmarkDatasets } from '@/features/benchmark/api/benchmarkApi';
+import { getRuntimeMetrics } from '@/features/observability/api/metricsApi';
+import type { CacheEntryMetadata } from '@/features/cache/types';
+import type { QueryResponse } from '@/features/monitor/types';
 
-vi.mock("../../src/features/monitor/hooks/useQuery");
-vi.mock("../../src/features/cache/api/cacheApi");
-vi.mock("../../src/features/benchmark/api/benchmarkApi");
-vi.mock("../../src/features/observability/api/metricsApi");
+vi.mock('../../src/features/monitor/hooks/useQuery');
+vi.mock('../../src/features/cache/api/cacheApi');
+vi.mock('../../src/features/benchmark/api/benchmarkApi');
+vi.mock('../../src/features/observability/api/metricsApi');
 
 const queryResponse: QueryResponse = {
-  response:
-    "Semantic caching reuses answers for meaningfully similar prompts.",
+  response: 'Semantic caching reuses answers for meaningfully similar prompts.',
   cache_hit: false,
   similarity_score: 0.88,
   similarity_threshold: 0.9,
@@ -58,12 +48,12 @@ const queryResponse: QueryResponse = {
 };
 
 const cacheEntry: CacheEntryMetadata = {
-  cache_key: "a".repeat(64),
-  namespace: "default",
-  prompt: "Explain semantic caching",
-  response_preview: "A cached explanation.",
-  created_at: "2026-07-17T09:00:00Z",
-  expires_at: "2026-07-17T10:00:00Z",
+  cache_key: 'a'.repeat(64),
+  namespace: 'default',
+  prompt: 'Explain semantic caching',
+  response_preview: 'A cached explanation.',
+  created_at: '2026-07-17T09:00:00Z',
+  expires_at: '2026-07-17T10:00:00Z',
   remaining_ttl_seconds: 3600,
   hit_count: 0,
   last_accessed_at: null,
@@ -80,13 +70,10 @@ function renderAt(path: string) {
 }
 
 function renderWithHistory() {
-  const router = createMemoryRouter(
-    [{ path: "*", element: <App /> }],
-    {
-      initialEntries: ["/", "/cache"],
-      initialIndex: 1,
-    },
-  );
+  const router = createMemoryRouter([{ path: '*', element: <App /> }], {
+    initialEntries: ['/', '/cache'],
+    initialIndex: 1,
+  });
 
   return {
     router,
@@ -94,15 +81,15 @@ function renderWithHistory() {
   };
 }
 
-describe("application routing", () => {
+describe('application routing', () => {
   const submit = vi.fn();
 
   beforeEach(() => {
-    vi.stubGlobal("crypto", {
-      randomUUID: vi.fn(() => "trace-id"),
+    vi.stubGlobal('crypto', {
+      randomUUID: vi.fn(() => 'trace-id'),
     });
     vi.mocked(useQuery).mockReturnValue({
-      state: { status: "idle" },
+      state: { status: 'idle' },
       submit,
     });
     submit.mockResolvedValue(queryResponse);
@@ -142,30 +129,30 @@ describe("application routing", () => {
       data: {
         datasets: [
           {
-            dataset_id: "quick",
-            name: "Quick semantic safety set",
-            description: "Controlled prompts.",
+            dataset_id: 'quick',
+            name: 'Quick semantic safety set',
+            description: 'Controlled prompts.',
             query_count: 8,
             expected_hits: 4,
             expected_misses: 4,
             categories: [
-              "seed",
-              "exact_duplicate",
-              "paraphrase",
-              "unrelated",
-              "typo",
-              "negation",
-              "different_intent",
+              'seed',
+              'exact_duplicate',
+              'paraphrase',
+              'unrelated',
+              'typo',
+              'negation',
+              'different_intent',
             ],
           },
         ],
-        default_dataset_id: "quick",
+        default_dataset_id: 'quick',
       },
     });
     vi.mocked(getRuntimeMetrics).mockResolvedValue({
       ok: true,
       data: {
-        observed_at: "2026-07-19T08:00:00Z",
+        observed_at: '2026-07-19T08:00:00Z',
         uptime_seconds: 120,
         request_count: 0,
         error_count: 0,
@@ -190,282 +177,268 @@ describe("application routing", () => {
   });
 
   it.each([
-    ["/", "Probe the cache", "Monitor", "Monitor | Semantix"],
-    ["/cache", "Cache inspector", "Cache", "Cache | Semantix"],
+    ['/', 'Probe the cache', 'Monitor', 'Monitor | Semantix'],
+    ['/cache', 'Cache inspector', 'Cache', 'Cache | Semantix'],
     [
-      "/benchmarks",
-      "Benchmark laboratory",
-      "Benchmarks",
-      "Benchmarks | Semantix",
+      '/benchmarks',
+      'Benchmark laboratory',
+      'Benchmarks',
+      'Benchmarks | Semantix',
     ],
     [
-      "/observability",
-      "Observability",
-      "Observability",
-      "Observability | Semantix",
+      '/observability',
+      'Observability',
+      'Observability',
+      'Observability | Semantix',
     ],
   ])(
-    "renders %s with an active navigation link and page title",
+    'renders %s with an active navigation link and page title',
     async (path, heading, link, title) => {
       renderAt(path);
 
       expect(
-        screen.getByRole("navigation", {
-          name: "Primary navigation",
+        screen.getByRole('navigation', {
+          name: 'Primary navigation',
         }),
       ).toBeTruthy();
       expect(
         await screen.findByRole(
-          "heading",
+          'heading',
           { level: 1, name: heading },
           { timeout: 10_000 },
         ),
       ).toBeTruthy();
       expect(
-        screen
-          .getByRole("link", { name: link })
-          .getAttribute("aria-current"),
-      ).toBe("page");
+        screen.getByRole('link', { name: link }).getAttribute('aria-current'),
+      ).toBe('page');
       expect(document.title).toBe(title);
     },
+    10_000,
   );
 
-  it("renders a useful not-found route", async () => {
-    renderAt("/missing");
+  it('renders a useful not-found route', async () => {
+    renderAt('/missing');
 
     expect(
-      await screen.findByRole("heading", {
+      await screen.findByRole('heading', {
         level: 1,
-        name: "Signal not found",
+        name: 'Signal not found',
       }),
     ).toBeTruthy();
     expect(
       screen
-        .getByRole("link", { name: "Return to Monitor" })
-        .getAttribute("href"),
-    ).toBe("/");
-    expect(document.title).toBe("Page not found | Semantix");
+        .getByRole('link', { name: 'Return to Monitor' })
+        .getAttribute('href'),
+    ).toBe('/');
+    expect(document.title).toBe('Page not found | Semantix');
   });
 
-  it("does not move focus on initial route rendering", async () => {
-    renderAt("/cache");
+  it('does not move focus on initial route rendering', async () => {
+    renderAt('/cache');
 
-    await screen.findByRole("heading", {
+    await screen.findByRole('heading', {
       level: 1,
-      name: "Cache inspector",
+      name: 'Cache inspector',
     });
 
-    expect(document.activeElement).not.toBe(
-      screen.getByRole("main"),
-    );
+    expect(document.activeElement).not.toBe(screen.getByRole('main'));
   });
 
-  it("moves focus to main after link navigation", async () => {
-    renderAt("/");
-    await screen.findByRole("heading", {
+  it('moves focus to main after link navigation', async () => {
+    renderAt('/');
+    await screen.findByRole('heading', {
       level: 1,
-      name: "Probe the cache",
+      name: 'Probe the cache',
     });
 
-    const queryInput = screen.getByLabelText("Query text");
+    const queryInput = screen.getByLabelText('Query text');
     queryInput.focus();
-    fireEvent.click(screen.getByRole("link", { name: "Cache" }));
+    fireEvent.click(screen.getByRole('link', { name: 'Cache' }));
 
-    await screen.findByRole("heading", {
+    await screen.findByRole('heading', {
       level: 1,
-      name: "Cache inspector",
+      name: 'Cache inspector',
     });
-    expect(document.activeElement).toBe(screen.getByRole("main"));
+    expect(document.activeElement).toBe(screen.getByRole('main'));
   });
 
-  it("preserves focus during browser history navigation", async () => {
+  it('preserves focus during browser history navigation', async () => {
     const { router } = renderWithHistory();
-    await screen.findByRole("heading", {
+    await screen.findByRole('heading', {
       level: 1,
-      name: "Cache inspector",
+      name: 'Cache inspector',
     });
 
-    const menuButton = screen.getByRole("button", {
-      name: "Open primary menu",
+    const menuButton = screen.getByRole('button', {
+      name: 'Open primary menu',
     });
     menuButton.focus();
 
     await act(async () => {
       await router.navigate(-1);
     });
-    await screen.findByRole("heading", {
+    await screen.findByRole('heading', {
       level: 1,
-      name: "Probe the cache",
+      name: 'Probe the cache',
     });
 
     expect(document.activeElement).toBe(menuButton);
   });
 
-  it("does not load benchmark data until its route mounts", async () => {
-    renderAt("/");
+  it('does not load benchmark data until its route mounts', async () => {
+    renderAt('/');
 
     expect(getBenchmarkDatasets).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("link", { name: "Benchmarks" }));
+    fireEvent.click(screen.getByRole('link', { name: 'Benchmarks' }));
 
     expect(
-      await screen.findByRole("heading", {
+      await screen.findByRole('heading', {
         level: 1,
-        name: "Benchmark laboratory",
+        name: 'Benchmark laboratory',
       }),
     ).toBeTruthy();
-    await waitFor(() =>
-      expect(getBenchmarkDatasets).toHaveBeenCalledOnce(),
-    );
+    await waitFor(() => expect(getBenchmarkDatasets).toHaveBeenCalledOnce());
   });
 
-  it("opens the mobile menu and closes it after route navigation", async () => {
-    renderAt("/");
+  it('opens the mobile menu and closes it after route navigation', async () => {
+    renderAt('/');
 
-    const menuButton = screen.getByRole("button", {
-      name: "Open primary menu",
+    const menuButton = screen.getByRole('button', {
+      name: 'Open primary menu',
     });
-    expect(menuButton.getAttribute("aria-expanded")).toBe("false");
+    expect(menuButton.getAttribute('aria-expanded')).toBe('false');
 
     fireEvent.click(menuButton);
     expect(
       screen
-        .getByRole("button", { name: "Close primary menu" })
-        .getAttribute("aria-expanded"),
-    ).toBe("true");
+        .getByRole('button', { name: 'Close primary menu' })
+        .getAttribute('aria-expanded'),
+    ).toBe('true');
 
-    fireEvent.click(screen.getByRole("link", { name: "Cache" }));
+    fireEvent.click(screen.getByRole('link', { name: 'Cache' }));
 
-    await screen.findByRole("heading", {
+    await screen.findByRole('heading', {
       level: 1,
-      name: "Cache inspector",
+      name: 'Cache inspector',
     });
     expect(
       screen
-        .getByRole("button", { name: "Open primary menu" })
-        .getAttribute("aria-expanded"),
-    ).toBe("false");
+        .getByRole('button', { name: 'Open primary menu' })
+        .getAttribute('aria-expanded'),
+    ).toBe('false');
   });
 
-  it("preserves monitor traces and threshold preview during navigation", async () => {
-    renderAt("/");
+  it('preserves monitor traces and threshold preview during navigation', async () => {
+    renderAt('/');
 
-    fireEvent.change(screen.getByLabelText("Query text"), {
+    fireEvent.change(screen.getByLabelText('Query text'), {
       target: { value: cacheEntry.prompt },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Run query" }));
-    await screen.findByText("01 records");
+    fireEvent.click(screen.getByRole('button', { name: 'Run query' }));
+    await screen.findByText('01 records');
 
-    fireEvent.change(screen.getByLabelText("Projection threshold"), {
-      target: { value: "0.8" },
+    fireEvent.change(screen.getByLabelText('Projection threshold'), {
+      target: { value: '0.8' },
     });
 
-    fireEvent.click(screen.getByRole("link", { name: "Cache" }));
-    await screen.findByRole("heading", {
+    fireEvent.click(screen.getByRole('link', { name: 'Cache' }));
+    await screen.findByRole('heading', {
       level: 1,
-      name: "Cache inspector",
+      name: 'Cache inspector',
     });
-    fireEvent.click(screen.getByRole("link", { name: "Monitor" }));
+    fireEvent.click(screen.getByRole('link', { name: 'Monitor' }));
 
-    expect(await screen.findByText("01 records")).toBeTruthy();
+    expect(await screen.findByText('01 records')).toBeTruthy();
     expect(screen.getAllByText(cacheEntry.prompt).length).toBeGreaterThan(0);
     expect(
-      (screen.getByLabelText("Projection threshold") as HTMLInputElement)
-        .value,
-    ).toBe("0.8");
-    expect(screen.getByText("Backend applied 0.90")).toBeTruthy();
+      (screen.getByLabelText('Projection threshold') as HTMLInputElement).value,
+    ).toBe('0.8');
+    expect(screen.getByText('Backend applied 0.90')).toBeTruthy();
   });
 
-  it("restores the server threshold and clears a failed update error", async () => {
+  it('restores the server threshold and clears a failed update error', async () => {
     vi.mocked(updateCacheThreshold).mockResolvedValueOnce({
       ok: false,
       error: {
-        code: "threshold_update_failed",
-        detail: "Threshold rejected.",
+        code: 'threshold_update_failed',
+        detail: 'Threshold rejected.',
         status: 500,
       },
     });
-    renderAt("/");
+    renderAt('/');
 
-    await screen.findByText("Backend applied 0.90");
-    fireEvent.change(screen.getByLabelText("Projection threshold"), {
-      target: { value: "0.8" },
+    await screen.findByText('Backend applied 0.90');
+    fireEvent.change(screen.getByLabelText('Projection threshold'), {
+      target: { value: '0.8' },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Apply to cache" }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Apply to cache' }));
 
-    expect((await screen.findByRole("alert")).textContent).toContain(
-      "THRESHOLD UPDATE FAILED; THE SERVER VALUE WAS RESTORED",
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'THRESHOLD UPDATE FAILED; THE SERVER VALUE WAS RESTORED',
     );
     await waitFor(() =>
       expect(
-        (screen.getByLabelText(
-          "Projection threshold",
-        ) as HTMLInputElement).value,
-      ).toBe("0.9"),
+        (screen.getByLabelText('Projection threshold') as HTMLInputElement)
+          .value,
+      ).toBe('0.9'),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it("refreshes stats after a deletion without clearing monitor traces", async () => {
-    renderAt("/");
+  it('refreshes stats after a deletion without clearing monitor traces', async () => {
+    renderAt('/');
 
-    fireEvent.change(screen.getByLabelText("Query text"), {
+    fireEvent.change(screen.getByLabelText('Query text'), {
       target: { value: cacheEntry.prompt },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Run query" }));
-    await screen.findByText("01 records");
+    fireEvent.click(screen.getByRole('button', { name: 'Run query' }));
+    await screen.findByText('01 records');
 
-    fireEvent.click(screen.getByRole("link", { name: "Cache" }));
+    fireEvent.click(screen.getByRole('link', { name: 'Cache' }));
     await screen.findByText(cacheEntry.prompt);
-    const statsCallsBeforeDelete =
-      vi.mocked(getCacheStats).mock.calls.length;
+    const statsCallsBeforeDelete = vi.mocked(getCacheStats).mock.calls.length;
 
     fireEvent.click(
-      screen.getByRole("button", {
+      screen.getByRole('button', {
         name: `Delete ${cacheEntry.prompt}`,
       }),
     );
     fireEvent.click(
-      screen.getByRole("button", {
+      screen.getByRole('button', {
         name: `Confirm delete ${cacheEntry.prompt}`,
       }),
     );
 
     await waitFor(() =>
-      expect(getCacheStats).toHaveBeenCalledTimes(
-        statsCallsBeforeDelete + 1,
-      ),
+      expect(getCacheStats).toHaveBeenCalledTimes(statsCallsBeforeDelete + 1),
     );
 
-    fireEvent.click(screen.getByRole("link", { name: "Monitor" }));
-    expect(await screen.findByText("01 records")).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: 'Monitor' }));
+    expect(await screen.findByText('01 records')).toBeTruthy();
   });
 
-  it("clears monitor traces after clearing every cache entry", async () => {
-    renderAt("/");
+  it('clears monitor traces after clearing every cache entry', async () => {
+    renderAt('/');
 
-    fireEvent.change(screen.getByLabelText("Query text"), {
+    fireEvent.change(screen.getByLabelText('Query text'), {
       target: { value: cacheEntry.prompt },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Run query" }));
-    await screen.findByText("01 records");
+    fireEvent.click(screen.getByRole('button', { name: 'Run query' }));
+    await screen.findByText('01 records');
 
-    fireEvent.click(screen.getByRole("link", { name: "Cache" }));
+    fireEvent.click(screen.getByRole('link', { name: 'Cache' }));
     await screen.findByText(cacheEntry.prompt);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all entries' }));
     fireEvent.click(
-      screen.getByRole("button", { name: "Clear all entries" }),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Confirm clear cache" }),
+      screen.getByRole('button', { name: 'Confirm clear cache' }),
     );
     await waitFor(() => expect(clearCache).toHaveBeenCalledOnce());
 
-    fireEvent.click(screen.getByRole("link", { name: "Monitor" }));
-    expect(await screen.findByText("00 records")).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: 'Monitor' }));
+    expect(await screen.findByText('00 records')).toBeTruthy();
   });
 });
