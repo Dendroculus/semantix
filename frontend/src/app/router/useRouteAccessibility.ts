@@ -26,7 +26,7 @@ function titleForPath(pathname: string): string {
 }
 
 export function useRouteAccessibility(
-  mainRef: RefObject<HTMLElement>,
+  mainRef: RefObject<HTMLElement | null>,
 ): void {
   const { pathname } = useLocation();
   const navigationType = useNavigationType();

@@ -7,6 +7,8 @@ import {
   type PlotPoint,
 } from './model';
 
+import type { JSX } from "react";
+
 const TOOLTIP_WIDTH = 270;
 const TOOLTIP_HEIGHT = 104;
 const TOOLTIP_GAP = 12;

@@ -6,6 +6,8 @@ import {
   EmptyState,
 } from '@/shared/components/ui';
 
+import type { JSX } from "react";
+
 interface CacheInspectorResultsProps {
   inspector: CacheInspectorController;
 }

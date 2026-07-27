@@ -2,6 +2,8 @@ import { Button } from '@/shared/components/ui';
 import { formatDecimal } from '@/shared/lib/formatters';
 import type { BenchmarkController, BenchmarkForm } from '../hooks/useBenchmark';
 
+import type { JSX } from "react";
+
 interface BenchmarkControlsProps {
   controller: BenchmarkController;
 }

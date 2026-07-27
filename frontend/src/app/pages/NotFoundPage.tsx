@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 
+import type { JSX } from "react";
+
 export function NotFoundPage(): JSX.Element {
   return (
     <section aria-labelledby="not-found-heading" className="py-16">

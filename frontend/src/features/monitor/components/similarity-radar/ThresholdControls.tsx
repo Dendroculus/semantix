@@ -1,6 +1,8 @@
 import { Button } from '@/shared/components/ui';
 import { formatDecimal } from '@/shared/lib/formatters';
 
+import type { JSX } from "react";
+
 interface ThresholdControlsProps {
   appliedThreshold: number;
   isApplyingThreshold: boolean;

@@ -1,22 +1,16 @@
-import {
-  useRef,
-  type RefObject,
-} from "react";
-import { Outlet } from "react-router-dom";
+import { useRef, type RefObject, type JSX } from 'react';
+import { Outlet } from 'react-router-dom';
 
-import { AuthPanel } from "@/features/auth/components/AuthPanel";
-import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useCacheControl } from "@/features/cache/hooks/useCacheControl";
-import { Alert } from "@/shared/components/ui";
-import { Navbar } from "../navigation/Navbar";
-import {
-  AppProviders,
-  WorkspaceProviders,
-} from "../providers/AppProviders";
-import { useRouteAccessibility } from "../router/useRouteAccessibility";
+import { AuthPanel } from '@/features/auth/components/AuthPanel';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useCacheControl } from '@/features/cache/hooks/useCacheControl';
+import { Alert } from '@/shared/components/ui';
+import { Navbar } from '../navigation/Navbar';
+import { AppProviders, WorkspaceProviders } from '../providers/AppProviders';
+import { useRouteAccessibility } from '../router/useRouteAccessibility';
 
 interface WorkspaceProps {
-  readonly mainRef: RefObject<HTMLElement>;
+  readonly mainRef: RefObject<HTMLElement | null>;
 }
 
 function Workspace({ mainRef }: WorkspaceProps): JSX.Element {
@@ -59,7 +53,7 @@ function AppShell(): JSX.Element {
   const { status } = useAuth();
   const mainRef = useRef<HTMLElement>(null);
   const canAccessWorkspace =
-    status === "disabled" || status === "authenticated";
+    status === 'disabled' || status === 'authenticated';
 
   useRouteAccessibility(mainRef);
 

@@ -1,8 +1,4 @@
-import {
-  Component,
-  type ErrorInfo,
-  type ReactNode,
-} from "react";
+import { Component, type ErrorInfo, type ReactNode, type JSX } from "react";
 
 export interface AppErrorReport {
   readonly componentStackAvailable: boolean;

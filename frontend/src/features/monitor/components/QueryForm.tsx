@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type JSX, type SubmitEvent } from 'react';
 
 import { Button } from '@/shared/components/ui';
 import { formatCount } from '@/shared/lib/formatters';
@@ -24,7 +24,7 @@ export function QueryForm({
   const [validationError, setValidationError] = useState<string | null>(null);
 
   async function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
+    event: SubmitEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
 

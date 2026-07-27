@@ -8,6 +8,8 @@ import { BenchmarkResultsSkeleton } from './BenchmarkResultsSkeleton';
 import { BenchmarkRunWarning } from './BenchmarkRunWarning';
 import { BenchmarkSummary } from './BenchmarkSummary';
 
+import type { JSX } from "react";
+
 export function BenchmarkDashboard(): JSX.Element {
   const controller = useBenchmark();
   const {

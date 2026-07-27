@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, type JSX } from "react";
 import { Route, Routes } from "react-router-dom";
 
 import { AppLayout } from "../layouts/AppLayout";

@@ -2,6 +2,8 @@ import { formatSimilarity } from '@/shared/lib/formatters';
 import { cacheDecisionLabel } from '@/shared/domain/similarity';
 import { formatPrompt, type PlotPoint } from './model';
 
+import type { JSX } from "react";
+
 interface SimilarityTraceListProps {
   activePointId: string | null;
   onActivePointChange: (pointId: string | null) => void;

@@ -8,6 +8,8 @@ import {
 import { formatSimilarity } from "@/shared/lib/formatters";
 import { cacheDecisionLabel } from "@/shared/domain/similarity";
 
+import type { JSX } from "react";
+
 interface SimilarityPlotProps {
   activePointId: string | null;
   appliedThreshold: number;

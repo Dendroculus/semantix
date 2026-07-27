@@ -1,17 +1,17 @@
-import { useState } from "react";
+import { useState, type JSX, type SubmitEvent } from 'react';
 
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from '../hooks/useAuth';
 
 export function AuthPanel(): JSX.Element | null {
   const { authenticate, error, logout, session, status } = useAuth();
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (status === "disabled") {
+  if (status === 'disabled') {
     return null;
   }
 
-  if (status === "loading") {
+  if (status === 'loading') {
     return (
       <output
         aria-live="polite"
@@ -22,7 +22,7 @@ export function AuthPanel(): JSX.Element | null {
     );
   }
 
-  if (status === "authenticated" && session !== null) {
+  if (status === 'authenticated' && session !== null) {
     return (
       <section
         aria-labelledby="authenticated-access-heading"
@@ -36,7 +36,8 @@ export function AuthPanel(): JSX.Element | null {
             Authenticated access
           </p>
           <p className="font-data mt-1 text-[10px] text-(--text-soft)">
-            {session.name} Ã‚Â· {session.role} Ã‚Â· {session.namespaces.join(", ")}
+            {session.name} Ã‚Â· {session.role} Ã‚Â·{' '}
+            {session.namespaces.join(', ')}
           </p>
         </div>
         <button
@@ -50,19 +51,22 @@ export function AuthPanel(): JSX.Element | null {
     );
   }
 
-  async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+  async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setIsSubmitting(true);
     const accepted = await authenticate(token);
     setIsSubmitting(false);
     if (accepted) {
-      setToken("");
+      setToken('');
     }
   }
 
   return (
     <section className="mt-4 border border-(--hairline) bg-(--surface) p-4">
-      <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={submit}>
+      <form
+        className="flex flex-col gap-3 sm:flex-row sm:items-end"
+        onSubmit={submit}
+      >
         <label className="min-w-0 flex-1">
           <span className="ui-label text-(--text-faint)">Access token</span>
           <input
@@ -79,7 +83,7 @@ export function AuthPanel(): JSX.Element | null {
           disabled={isSubmitting}
           type="submit"
         >
-          {isSubmitting ? "VerifyingÃ¢â‚¬Â¦" : "Authenticate"}
+          {isSubmitting ? 'VerifyingÃ¢â‚¬Â¦' : 'Authenticate'}
         </button>
       </form>
       {error !== null && (

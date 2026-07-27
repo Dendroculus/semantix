@@ -8,6 +8,8 @@ import { useCacheControl } from "@/features/cache/hooks/useCacheControl";
 import { useMonitor } from "../hooks/useMonitor";
 import { Alert } from "@/shared/components/ui";
 
+import type { JSX } from "react";
+
 export function MonitorPage(): JSX.Element {
   const {
     cacheState,

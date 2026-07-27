@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type JSX } from "react";
 import { NavLink } from "react-router-dom";
 
 import { APP_PATHS, NAV_ITEMS } from "./navigationConfig";

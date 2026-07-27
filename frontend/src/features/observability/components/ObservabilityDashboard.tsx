@@ -11,6 +11,8 @@ import {
 import { MetricsSkeleton } from './MetricsSkeleton';
 import { MetricTile } from './MetricTile';
 
+import type { JSX } from "react";
+
 interface MetricItem {
   description: string;
   label: string;

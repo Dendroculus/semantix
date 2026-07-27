@@ -1,6 +1,8 @@
 import { Button } from '@/shared/components/ui';
 import type { BenchmarkController } from '../hooks/useBenchmark';
 
+import type { JSX } from "react";
+
 interface BenchmarkRunWarningProps {
   controller: BenchmarkController;
 }
