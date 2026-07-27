@@ -73,15 +73,18 @@ export function QueryLog({
           {traces.map((trace) => {
             const isProjectedHit =
               meetsSimilarityThreshold(trace.similarity, threshold);
-            const projectionColor = isProjectedHit
+            const projectionAccentColor = isProjectedHit
               ? 'var(--gold)'
               : 'var(--coral)';
+            const projectionTextColor = isProjectedHit
+              ? 'var(--gold)'
+              : 'var(--coral-text)';
 
             return (
               <div
                 className="font-data grid gap-2 border-b border-l-2 border-[rgba(234,230,221,0.05)] py-4 pr-2 pl-3 text-[11px] transition-colors hover:bg-[rgba(234,230,221,0.025)] min-[760px]:grid-cols-[90px_72px_minmax(180px,1fr)_72px_90px] min-[760px]:gap-4 min-[760px]:border-l-0 min-[760px]:px-0 min-[760px]:py-3"
                 key={trace.id}
-                style={{ borderLeftColor: projectionColor }}
+                style={{ borderLeftColor: projectionAccentColor }}
               >
                 <div className="flex justify-between gap-4 min-[760px]:contents">
                   <time className="text-(--text-faint)">
@@ -99,7 +102,7 @@ export function QueryLog({
                 </span>
 
                 <div className="flex justify-between gap-4 min-[760px]:contents">
-                  <span style={{ color: projectionColor }}>
+                  <span style={{ color: projectionTextColor }}>
                     <MobileLabel>Projection</MobileLabel>
                     {cacheDecisionLabel(isProjectedHit)}
                   </span>

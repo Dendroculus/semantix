@@ -7,10 +7,11 @@
   --gold: #d4a15a;
   --teal: #5b9c94;
   --coral: #c2604a;
+  --coral-text: #d47761;
   --hairline: rgba(234, 230, 221, 0.1);
   --text-soft: rgba(234, 230, 221, 0.78);
-  --text-muted: rgba(234, 230, 221, 0.48);
-  --text-faint: rgba(234, 230, 221, 0.35);
+  --text-muted: rgba(234, 230, 221, 0.65);
+  --text-faint: rgba(234, 230, 221, 0.55);
 
   color: var(--text);
   background: var(--ink);

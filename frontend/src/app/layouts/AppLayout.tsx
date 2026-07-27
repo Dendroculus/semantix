@@ -26,7 +26,7 @@ function Workspace(): JSX.Element {
               Dismiss
             </button>
           }
-          className="font-data mt-5 border-l border-(--coral) pl-4 text-[11px] text-(--coral)"
+          className="font-data mt-5 border-l border-(--coral) pl-4 text-[11px] text-(--coral-text)"
           role="alert"
           tone="error"
         >

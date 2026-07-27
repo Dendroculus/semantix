@@ -69,7 +69,7 @@ export function CacheInspectorResults({
 
       {actionError !== null && (
         <Alert
-          className="font-data mt-5 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3 text-[11px]/5 text-(--coral)"
+          className="font-data mt-5 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3 text-[11px]/5 text-(--coral-text)"
           role="alert"
           tone="error"
         >

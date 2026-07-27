@@ -53,7 +53,7 @@ export const BENCHMARK_RESULT_COLUMNS: readonly BenchmarkResultColumn[] = [
     cellClassName: (result) =>
       result.actual_cache_hit
         ? 'px-3 py-4 text-(--teal)'
-        : 'px-3 py-4 text-(--coral)',
+        : 'px-3 py-4 text-(--coral-text)',
     header: 'Actual',
     id: 'actual',
     render: (result) => cacheDecisionLabel(result.actual_cache_hit),
@@ -73,7 +73,7 @@ export const BENCHMARK_RESULT_COLUMNS: readonly BenchmarkResultColumn[] = [
   {
     cellClassName: (result) =>
       `px-3 py-4 capitalize ${
-        result.correct ? 'text-(--teal)' : 'text-(--coral)'
+        result.correct ? 'text-(--teal)' : 'text-(--coral-text)'
       }`,
     header: 'Outcome',
     id: 'outcome',

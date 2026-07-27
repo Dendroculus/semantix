@@ -10,7 +10,7 @@ interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
 }
 
 const ALERT_TONE_CLASSES: Record<AlertTone, string> = {
-  error: 'text-(--coral)',
+  error: 'text-(--coral-text)',
   warning: 'text-(--gold)',
   info: 'text-(--teal)',
 };
