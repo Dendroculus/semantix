@@ -31,12 +31,7 @@ export default defineConfig([
   /*
    * Generated files, dependency folders, and build output.
    */
-  globalIgnores([
-    '.vite-cache',
-    'coverage',
-    'dist',
-    'node_modules',
-  ]),
+  globalIgnores(['.vite-cache', 'coverage', 'dist', 'node_modules']),
 
   /*
    * JavaScript configuration and tooling files.
@@ -81,19 +76,15 @@ export default defineConfig([
         ecmaFeatures: {
           jsx: true,
         },
-
         /*
-         * Source and test files are resolved through tsconfig.json.
+         * Source, test, and Playwright configuration files are resolved through
+         * tsconfig.json.
          *
-         * Root-level Vite and Vitest configuration files are not included in
-         * that TypeScript project, so they use the default project.
+         * Root-level Vite and Vitest configuration files are not included in that
+         * TypeScript project, so they use the default project.
          */
         projectService: {
-          allowDefaultProject: [
-            'playwright.config.ts',
-            'vite.config.ts',
-            'vitest.config.ts',
-          ],
+          allowDefaultProject: ['vite.config.ts', 'vitest.config.ts'],
         },
 
         tsconfigRootDir: configDirectory,
@@ -346,11 +337,7 @@ export default defineConfig([
    * Vitest globals for test and specification files.
    */
   {
-    files: [
-      'tests/**/*.{ts,tsx}',
-      '**/*.test.{ts,tsx}',
-      '**/*.spec.{ts,tsx}',
-    ],
+    files: ['tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
 
     languageOptions: {
       globals: testGlobals,
