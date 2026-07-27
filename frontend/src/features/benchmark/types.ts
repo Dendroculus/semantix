@@ -102,6 +102,7 @@ export interface BenchmarkRunResponse {
   estimated_cost_per_request_usd: number;
   estimated_cost_per_1k_tokens_usd: number;
   metrics: BenchmarkMetrics;
+  threshold_evaluation_mode: "frozen_candidate_projection";
   threshold_evaluations: ThresholdEvaluation[];
   query_results: BenchmarkQueryResult[];
 }

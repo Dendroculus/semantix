@@ -90,10 +90,12 @@ export function BenchmarkCharts({
         className="font-display text-2xl italic"
         id="benchmark-charts-heading"
       >
-        Threshold evaluation
+        Frozen-candidate projections
       </h3>
       <p className="mt-2 max-w-3xl text-sm/6 text-(--text-muted)">
-        Threshold series reclassify the measured nearest-match scores. Their
+        Alternate thresholds reclassify this run&apos;s measured nearest-match
+        scores without replaying cache writes. Cache contents stay frozen, so
+        quality and provider-savings estimates can differ from a real run. The
         latency line uses this run’s measured average hit and miss latency as
         an estimate; it does not make additional provider calls.
       </p>

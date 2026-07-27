@@ -1,6 +1,9 @@
 import pytest
 
-from app.benchmark.domain.metrics import calculate_metrics, evaluate_thresholds
+from app.benchmark.domain.metrics import (
+    calculate_metrics,
+    evaluate_frozen_candidate_thresholds,
+)
 from app.benchmark.domain.models import BenchmarkObservation
 
 
@@ -46,7 +49,7 @@ def test_threshold_evaluation_reclassifies_scores_without_defaulting_null() -> N
         *observations(),
         BenchmarkObservation(True, False, 120, True, None),
     ]
-    evaluations = evaluate_thresholds(source, [0.90, 0.94])
+    evaluations = evaluate_frozen_candidate_thresholds(source, [0.90, 0.94])
 
     lower, higher = evaluations
     assert lower.threshold == pytest.approx(0.90)
@@ -60,6 +63,36 @@ def test_threshold_evaluation_reclassifies_scores_without_defaulting_null() -> N
     assert higher.false_negative_misses == 2
     assert higher.precision == pytest.approx(1)
     assert higher.recall == pytest.approx(1 / 3)
+
+
+def test_frozen_candidates_can_diverge_from_an_ordered_threshold_replay() -> None:
+    observed_at_095 = [
+        BenchmarkObservation(False, False, 100, True, None),
+        BenchmarkObservation(True, False, 100, True, 0.93),
+        BenchmarkObservation(True, True, 10, False, 0.96),
+    ]
+    frozen = evaluate_frozen_candidate_thresholds(observed_at_095, [0.90])
+
+    candidate_scores: tuple[dict[int, float], ...] = (
+        {},
+        {0: 0.93},
+        {0: 0.80, 1: 0.96},
+    )
+    cached_cases: list[int] = []
+    replayed_hits: list[bool] = []
+    for case_index, scores in enumerate(candidate_scores):
+        nearest = max(
+            (scores[candidate] for candidate in cached_cases),
+            default=None,
+        )
+        cache_hit = nearest is not None and nearest >= 0.90
+        replayed_hits.append(cache_hit)
+        if not cache_hit:
+            cached_cases.append(case_index)
+
+    assert frozen[0].provider_calls_avoided == 2
+    assert replayed_hits == [False, True, False]
+    assert sum(replayed_hits) == 1
 
 
 def test_metrics_report_missing_hit_average_as_null() -> None:

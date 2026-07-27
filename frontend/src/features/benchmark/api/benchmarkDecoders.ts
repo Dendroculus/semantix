@@ -234,6 +234,7 @@ export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
     typeof value.reset_cache_before_run !== 'boolean' ||
     !isNonNegativeNumber(value.estimated_cost_per_request_usd) ||
     !isNonNegativeNumber(value.estimated_cost_per_1k_tokens_usd) ||
+    value.threshold_evaluation_mode !== 'frozen_candidate_projection' ||
     !Array.isArray(value.threshold_evaluations) ||
     value.threshold_evaluations.length < 2 ||
     !Array.isArray(value.query_results) ||
@@ -269,6 +270,7 @@ export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
     estimated_cost_per_request_usd: value.estimated_cost_per_request_usd,
     estimated_cost_per_1k_tokens_usd: value.estimated_cost_per_1k_tokens_usd,
     metrics: decodedMetrics,
+    threshold_evaluation_mode: value.threshold_evaluation_mode,
     threshold_evaluations: thresholdEvaluations,
     query_results: queryResults,
   };

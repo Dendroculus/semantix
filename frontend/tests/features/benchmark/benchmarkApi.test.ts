@@ -60,6 +60,7 @@ describe("benchmark API client", () => {
           reset_cache_before_run: true,
           estimated_cost_per_request_usd: 0,
           estimated_cost_per_1k_tokens_usd: 0,
+          threshold_evaluation_mode: "frozen_candidate_projection",
           metrics: {
             total_queries: 1,
             cache_hits: 0,

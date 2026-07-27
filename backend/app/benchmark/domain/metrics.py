@@ -117,7 +117,7 @@ def calculate_metrics(
     )
 
 
-def evaluate_thresholds(
+def evaluate_frozen_candidate_thresholds(
     observations: Sequence[BenchmarkObservation],
     thresholds: Sequence[float],
 ) -> list[ThresholdEvaluation]:

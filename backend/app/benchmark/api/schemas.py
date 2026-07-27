@@ -22,6 +22,7 @@ BenchmarkOutcome = Literal[
     "false_positive",
     "false_negative",
 ]
+ThresholdEvaluationMode = Literal["frozen_candidate_projection"]
 
 DEFAULT_EVALUATION_THRESHOLDS = [0.70, 0.80, 0.85, 0.90, 0.92, 0.95, 0.98]
 
@@ -143,6 +144,7 @@ class BenchmarkRunResponse(StrictModel):
     estimated_cost_per_request_usd: float = Field(ge=0)
     estimated_cost_per_1k_tokens_usd: float = Field(ge=0)
     metrics: BenchmarkMetrics
+    threshold_evaluation_mode: ThresholdEvaluationMode
     threshold_evaluations: list[ThresholdEvaluation] = Field(min_length=2)
     query_results: list[BenchmarkQueryResult] = Field(min_length=1)
 

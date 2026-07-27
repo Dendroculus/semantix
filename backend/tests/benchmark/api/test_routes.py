@@ -86,6 +86,7 @@ def test_runs_default_benchmark_end_to_end(settings: Settings) -> None:
     assert payload["threshold"] == 0.9
     assert payload["metrics"]["total_queries"] == 16
     assert len(payload["query_results"]) == 16
+    assert payload["threshold_evaluation_mode"] == "frozen_candidate_projection"
     assert len(payload["threshold_evaluations"]) == 3
     assert provider.call_count == payload["metrics"]["provider_calls"] == 2
     assert (
