@@ -117,12 +117,14 @@ def test_enabled_dictionary_failure_stops_application_startup(
         update={"prompt_typo_correction_enabled": True}
     )
 
-    with pytest.raises(
-        RuntimeError,
-        match="bundled SymSpell English frequency dictionary",
+    with (
+        pytest.raises(
+            RuntimeError,
+            match="bundled SymSpell English frequency dictionary",
+        ),
+        TestClient(create_app(enabled_settings)),
     ):
-        with TestClient(create_app(enabled_settings)):
-            pass
+        pass
 
 
 def test_typo_correction_settings_default_to_disabled(

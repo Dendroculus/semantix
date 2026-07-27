@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+
 import pytest
 
 from app.core.exceptions import EmbeddingError

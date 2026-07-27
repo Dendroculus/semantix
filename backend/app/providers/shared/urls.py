@@ -30,7 +30,7 @@ def normalize_ollama_url(value: str) -> str:
     normalized = value.strip().rstrip("/")
     parsed = urlparse(normalized)
     try:
-        parsed.port
+        _ = parsed.port
     except ValueError as exc:
         raise ValueError("OLLAMA_BASE_URL contains an invalid port") from exc
 

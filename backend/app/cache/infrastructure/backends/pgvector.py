@@ -130,33 +130,32 @@ class PgVectorCacheBackend:
             dimensions=self._dimensions,
             description="Stored",
         )
-        async with self._connection() as connection:
-            async with connection.transaction():
-                await connection.execute(
-                    ADVISORY_LOCK,
-                    self._embedding_space,
-                )
-                await self._purge_expired(connection)
-                await connection.execute(
-                    PUT_ENTRY,
-                    self._embedding_space,
-                    self._dimensions,
-                    entry.cache_key,
-                    entry.namespace,
-                    entry.prompt,
-                    entry.response,
-                    vector_literal(embedding),
-                    entry.created_at,
-                    self._ttl_seconds,
-                )
-                overflow_result = await connection.execute(
-                    DELETE_OVERFLOW,
-                    self._embedding_space,
-                    self._max_size,
-                )
-                eviction_count = _deleted_rows(overflow_result)
-                if eviction_count and self._events is not None:
-                    self._events.record_evictions(eviction_count)
+        async with self._connection() as connection, connection.transaction():
+            await connection.execute(
+                ADVISORY_LOCK,
+                self._embedding_space,
+            )
+            await self._purge_expired(connection)
+            await connection.execute(
+                PUT_ENTRY,
+                self._embedding_space,
+                self._dimensions,
+                entry.cache_key,
+                entry.namespace,
+                entry.prompt,
+                entry.response,
+                vector_literal(embedding),
+                entry.created_at,
+                self._ttl_seconds,
+            )
+            overflow_result = await connection.execute(
+                DELETE_OVERFLOW,
+                self._embedding_space,
+                self._max_size,
+            )
+            eviction_count = _deleted_rows(overflow_result)
+            if eviction_count and self._events is not None:
+                self._events.record_evictions(eviction_count)
 
     async def record_hit(
         self,
@@ -164,15 +163,14 @@ class PgVectorCacheBackend:
         *,
         expected_created_at: datetime,
     ) -> bool:
-        async with self._connection() as connection:
-            async with connection.transaction():
-                await self._purge_expired(connection)
-                result = await connection.fetchval(
-                    RECORD_HIT,
-                    self._embedding_space,
-                    cache_key,
-                    expected_created_at,
-                )
+        async with self._connection() as connection, connection.transaction():
+            await self._purge_expired(connection)
+            result = await connection.fetchval(
+                RECORD_HIT,
+                self._embedding_space,
+                cache_key,
+                expected_created_at,
+            )
         return result is not None
 
     async def record_miss(self, namespace: str) -> None:
@@ -249,18 +247,17 @@ class PgVectorCacheBackend:
         return result == "DELETE 1"
 
     async def clear(self, namespace: str | None) -> None:
-        async with self._connection() as connection:
-            async with connection.transaction():
-                await connection.execute(
-                    CLEAR_ENTRIES,
-                    self._embedding_space,
-                    namespace,
-                )
-                await connection.execute(
-                    CLEAR_COUNTERS,
-                    self._embedding_space,
-                    namespace,
-                )
+        async with self._connection() as connection, connection.transaction():
+            await connection.execute(
+                CLEAR_ENTRIES,
+                self._embedding_space,
+                namespace,
+            )
+            await connection.execute(
+                CLEAR_COUNTERS,
+                self._embedding_space,
+                namespace,
+            )
 
     async def stats(self, namespace: str | None) -> CacheStatsResponse:
         async with self._connection() as connection:

@@ -2,9 +2,9 @@ from collections.abc import Sequence
 
 from fastapi.testclient import TestClient
 
+from app.benchmark.application.service import BenchmarkService
 from app.core.config import Settings
 from app.factory import create_app
-from app.benchmark.application.service import BenchmarkService
 from tests.support import TEST_EMBEDDING_DIMENSIONS
 
 

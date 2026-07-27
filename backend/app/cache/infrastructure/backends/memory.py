@@ -3,6 +3,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+
 import numpy as np
 from numpy.typing import NDArray
 
