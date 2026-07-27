@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type JSX } from "react";
 
 import type { QueryTrace } from "@/features/monitor/types";
 import { buildPlotPoints } from "./model";

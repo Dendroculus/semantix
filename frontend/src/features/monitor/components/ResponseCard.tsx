@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, JSX } from 'react';
 import { MarkdownContent } from '@/shared/components/markdown/MarkdownContent';
 import {
   formatCompactDuration,

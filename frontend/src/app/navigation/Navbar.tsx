@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useState, type JSX } from "react";
+import { NavLink } from "react-router";
 
 import { APP_PATHS, NAV_ITEMS } from "./navigationConfig";
 import { SessionUptime } from "./SessionUptime";

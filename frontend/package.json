@@ -17,12 +17,15 @@
     "imports:fix": "node scripts/normalize-imports.mjs --write --strict",
     "imports:check": "node scripts/normalize-imports.mjs --check --strict"
   },
+  "engines": {
+  "node": ">=22.22.0"
+  },
   "dependencies": {
     "katex": "^0.17.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "react-markdown": "10.1.0",
-    "react-router-dom": "^7.18.1",
+    "react-router": "8.3.0",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "4.0.1",
     "remark-math": "^6.0.0"
@@ -34,11 +37,11 @@
     "@tailwindcss/vite": "^4.3.2",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^20.19.43",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.64.0",
     "@typescript-eslint/parser": "^8.64.0",
-    "@vitejs/plugin-react": "4.3.4",
+    "@vitejs/plugin-react": "5.1.4",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "eslint-plugin-better-tailwindcss": "^4.6.1",
@@ -51,7 +54,7 @@
     "jsdom": "^25.0.1",
     "tailwindcss": "^4.3.2",
     "typescript": "^5.7.2",
-    "vite": "^6.0.1",
+    "vite": "7.3.6",
     "vitest": "^4.1.10"
   }
 }

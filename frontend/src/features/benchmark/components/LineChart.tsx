@@ -1,5 +1,7 @@
 import { formatDecimal } from '@/shared/lib/formatters';
 
+import type { JSX } from "react";
+
 interface ChartPoint {
   x: number;
   y: number;

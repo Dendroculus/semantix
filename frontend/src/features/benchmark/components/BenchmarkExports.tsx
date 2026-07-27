@@ -2,6 +2,8 @@ import type { BenchmarkRunResponse } from '../types';
 import { downloadBenchmark } from '../lib/exportBuilders';
 import { Button } from '@/shared/components/ui';
 
+import type { JSX } from "react";
+
 const EXPORT_OPTIONS = [
   { format: 'json', label: 'Export JSON' },
   { format: 'csv', label: 'Export CSV' },

@@ -4,6 +4,8 @@ import {
 } from '@/shared/lib/formatters';
 import type { BenchmarkQueryResult } from '../types';
 
+import type { JSX } from "react";
+
 interface SimilarityDistributionProps {
   results: BenchmarkQueryResult[];
 }

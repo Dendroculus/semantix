@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
+
+import type { JSX } from "react";
 
 export function NotFoundPage(): JSX.Element {
   return (

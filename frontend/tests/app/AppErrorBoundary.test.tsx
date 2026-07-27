@@ -1,7 +1,4 @@
-import {
-  lazy,
-  Suspense,
-} from "react";
+import { lazy, Suspense, type JSX } from "react";
 import {
   fireEvent,
   render,

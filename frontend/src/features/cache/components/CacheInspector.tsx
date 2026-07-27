@@ -5,6 +5,8 @@ import {
   type CacheMutation,
 } from "../hooks/useCacheInspector";
 
+import type { JSX } from "react";
+
 export type { CacheMutation };
 
 interface CacheInspectorProps {

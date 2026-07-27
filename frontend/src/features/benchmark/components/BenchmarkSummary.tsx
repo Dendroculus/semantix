@@ -7,6 +7,8 @@ import {
 } from '@/shared/lib/formatters';
 import type { BenchmarkRunResponse } from '../types';
 
+import type { JSX } from "react";
+
 interface BenchmarkSummaryProps {
   result: BenchmarkRunResponse;
 }

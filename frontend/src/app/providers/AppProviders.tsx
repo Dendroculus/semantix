@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, JSX } from "react";
 
 import { AuthProvider } from "@/features/auth/context/AuthProvider";
 import { CacheControlProvider } from "@/features/cache/context/CacheControlContext";

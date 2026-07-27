@@ -1,6 +1,8 @@
 import type { BenchmarkQueryResult } from '../types';
 import { BENCHMARK_RESULT_COLUMNS } from '../lib/resultColumns';
 
+import type { JSX } from "react";
+
 interface BenchmarkResultsTableProps {
   results: BenchmarkQueryResult[];
 }

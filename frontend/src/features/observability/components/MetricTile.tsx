@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 interface MetricTileProps {
   description: string;
   label: string;

@@ -6,6 +6,8 @@ import { useCacheControl } from "../hooks/useCacheControl";
 import { useMonitor } from "@/features/monitor/hooks/useMonitor";
 import { PageHeader } from "@/shared/components/ui";
 
+import type { JSX } from "react";
+
 export function CachePage(): JSX.Element {
   const { refreshCacheState } = useCacheControl();
   const { clearTraces } = useMonitor();

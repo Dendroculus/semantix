@@ -10,6 +10,8 @@ import {
 } from '@/shared/domain/similarity';
 import type { QueryTrace } from '../types';
 
+import type { JSX } from "react";
+
 interface FieldMetricsProps {
   cacheStats: CacheStatsResponse | null;
   threshold: number;

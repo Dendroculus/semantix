@@ -5,6 +5,8 @@ import {
 } from '../namespace';
 import type { CacheEntrySort } from '../types';
 
+import type { JSX } from "react";
+
 interface CacheInspectorControlsProps {
   canClear: boolean;
   confirmClear: boolean;

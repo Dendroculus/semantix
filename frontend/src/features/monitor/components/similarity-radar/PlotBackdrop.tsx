@@ -9,6 +9,8 @@ import {
 } from "./model";
 import { formatDecimal } from "@/shared/lib/formatters";
 
+import type { JSX } from "react";
+
 interface PlotBackdropProps {
   appliedThreshold: number;
   previewThreshold: number;

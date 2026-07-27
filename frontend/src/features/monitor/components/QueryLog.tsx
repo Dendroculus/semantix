@@ -10,6 +10,8 @@ import {
 import { EmptyState } from '@/shared/components/ui';
 import type { QueryTrace } from '../types';
 
+import type { JSX } from "react";
+
 interface QueryLogProps {
   traces: QueryTrace[];
   threshold: number;

@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode, JSX } from 'react';
 
 type AlertTone = 'error' | 'warning' | 'info';
 
