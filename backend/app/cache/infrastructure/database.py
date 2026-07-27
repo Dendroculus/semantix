@@ -57,15 +57,16 @@ async def create_pool(
     *,
     min_size: int,
     max_size: int,
-    timeout: float,
+    connect_timeout: float,
+    command_timeout: float,
 ) -> Pool:
     try:
         return await asyncpg.create_pool(
             dsn=dsn,
             min_size=min_size,
             max_size=max_size,
-            timeout=timeout,
-            command_timeout=timeout,
+            timeout=connect_timeout,
+            command_timeout=command_timeout,
         )
     except (OSError, TimeoutError, asyncpg.PostgresError) as error:
         raise CacheStorageError(
@@ -78,7 +79,8 @@ async def create_database_pool(settings: Settings) -> Pool:
         settings.database_dsn,
         min_size=settings.database_pool_min_size,
         max_size=settings.database_pool_max_size,
-        timeout=settings.database_connect_timeout_seconds,
+        connect_timeout=settings.database_connect_timeout_seconds,
+        command_timeout=settings.database_command_timeout_seconds,
     )
 
 

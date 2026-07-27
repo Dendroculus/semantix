@@ -114,6 +114,7 @@ class Settings(BaseSettings):
     database_pool_min_size: int = Field(default=1, ge=1, le=50)
     database_pool_max_size: int = Field(default=5, ge=1, le=50)
     database_connect_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
+    database_command_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
     database_migration_mode: DatabaseMigrationMode = "auto"
 
     auth_mode: AuthMode = "disabled"

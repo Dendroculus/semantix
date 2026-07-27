@@ -24,6 +24,7 @@ class MigrationSettings(BaseSettings):
         pattern=r"^[A-Za-z_][A-Za-z0-9_]{0,62}$",
     )
     database_connect_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
+    database_command_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
 
 
 async def run() -> None:
@@ -32,7 +33,8 @@ async def run() -> None:
         settings.migration_database_url.get_secret_value(),
         min_size=1,
         max_size=1,
-        timeout=settings.database_connect_timeout_seconds,
+        connect_timeout=settings.database_connect_timeout_seconds,
+        command_timeout=settings.database_command_timeout_seconds,
     )
     try:
         await apply_migrations(pool)
