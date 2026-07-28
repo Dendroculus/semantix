@@ -174,7 +174,7 @@ Review [Architecture](docs/architecture.md) before making structural changes.
 
 ### Backend
 
-- Target Python 3.11 or newer.
+- Target the tested Python 3.11 through 3.14 range.
 - Add type hints to new public functions and methods.
 - Use existing Pydantic settings and validation patterns.
 - Convert external-provider failures into the project's stable error types.

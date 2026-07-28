@@ -5,7 +5,9 @@ Docker workflow is documented in [Getting started](getting-started.md).
 
 ## Backend
 
-The project targets Python 3.11 or newer; Python 3.11 matches the backend image.
+The supported interpreter range is Python 3.11 through 3.14. The backend image
+uses Python 3.11, the full quality suite runs on 3.11, and the unit suite also
+runs on 3.12, 3.13, and 3.14 in CI.
 
 Windows PowerShell:
 
@@ -36,7 +38,9 @@ providers are the lowest-dependency development configuration.
 
 ## Frontend
 
-Node.js 20 matches the frontend image:
+Use Node.js 22.22.0 or newer within the Node 22 release line. This matches the
+frontend images and CI, and satisfies the runtime requirements of the current
+frontend dependencies:
 
 ```bash
 cd frontend
@@ -67,9 +71,13 @@ npm run lint
 npm run imports:check
 npm run test:coverage
 npm run build
+npm run bundle:check
 ```
 
 `npm run build` includes strict TypeScript validation through `tsc --noEmit`.
+The bundle check reports the largest emitted JavaScript chunk against the
+current raw and gzip budgets. Exceeding a budget emits a CI warning so growth
+is visible without blocking a build.
 The checked-in coverage floors are deliberately below the measured baseline,
 so a small refactor does not make the gate brittle while large regressions
 still fail CI. Browser accessibility and authenticated reverse-proxy coverage

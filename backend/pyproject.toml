@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "semantic-cache-backend"
 version = "0.1.0"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.15"
 dependencies = [
   "asyncpg>=0.31,<0.32",
   "fastapi>=0.115,<1",
