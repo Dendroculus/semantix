@@ -60,6 +60,10 @@ updates:
           - "*"
         update-types:
           - patch
+    ignore:
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: pip
     directory: /backend

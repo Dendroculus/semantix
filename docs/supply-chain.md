@@ -20,7 +20,8 @@ unknown images, digest drift, and approvals that omit a supported platform.
 
 Dependabot checks Docker, GitHub Actions, Python, and npm dependencies every
 Monday at 04:00 UTC. It opens reviewable pull requests and never auto-merges
-them.
+them. Node.js container major upgrades are handled manually so the LTS runtime,
+npm engine declaration, CI, documentation, and approved image pin move together.
 
 For an image update:
 
