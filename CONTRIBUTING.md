@@ -278,6 +278,11 @@ It validates:
 - development and hardened image builds;
 - pgvector integration tests against a disposable service;
 - dependency changes introduced by pull requests.
+- amd64 and arm64 builds for every Dockerfile;
+- approved immutable container image digests;
+- CodeQL and verified-secret scanning;
+- fixable High or Critical production-image vulnerabilities;
+- downloadable SPDX SBOM and Buildx provenance artifacts.
 
 The final required status check is:
 
@@ -286,8 +291,12 @@ Quality gate
 ```
 
 `Quality gate` succeeds only when backend, frontend, container, and pgvector
-checks succeed. Dependency review must also succeed on pull requests. A
-pending, cancelled, or failed required job must block a normal merge.
+checks succeed. Multi-platform builds, CodeQL, secret scanning, image scanning,
+and supply-chain artifact generation must also succeed. Dependency review must
+succeed on pull requests. A pending, cancelled, or failed required job must
+block a normal merge.
+
+See [Supply-chain security](docs/supply-chain.md) for thresholds and cadence.
 
 The repository ruleset requires pull requests and the `Quality gate` check.
 CODEOWNERS identifies review ownership. Ruleset bypass access is reserved for
