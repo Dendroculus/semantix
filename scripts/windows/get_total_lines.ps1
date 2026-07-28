@@ -41,6 +41,10 @@ function Get-ProjectFiles {
     return $Files | Where-Object {
         $_ -and
         -not $IgnoredTracked.Contains($_) -and
+        [System.IO.Path]::GetFileName($_) -notin @(
+            "package.json"
+            "package-lock.json"
+        ) -and
         (Test-Path -LiteralPath (Join-Path $RepositoryRoot $_) -PathType Leaf)
     }
 }
@@ -153,47 +157,66 @@ $ExtensionTotals = $Records |
 $TotalLines = ($Records | Measure-Object Lines -Sum).Sum
 $LargestExtension = $ExtensionTotals | Select-Object -First 1
 
-Write-Output "Semantix project line report"
+Write-Output ("=" * 72)
+Write-Output "SEMANTIX PROJECT LINE REPORT"
+Write-Output ("=" * 72)
 Write-Output "Scope: Git-tracked and unignored text files"
+Write-Output "Excluded: binary files, package.json, and package-lock.json"
 Write-Output "Files: $(Format-Count -Value $Records.Count)"
 Write-Output "Lines: $(Format-Count -Value $TotalLines)"
-Write-Output ""
-Write-Output "Lines by extension"
-
-foreach ($Extension in $ExtensionTotals) {
-    $LineLabel = if ($Extension.Lines -eq 1) { "line" } else { "lines" }
-    $FileLabel = if ($Extension.Files -eq 1) { "file" } else { "files" }
-    Write-Output (
-        "{0}: {1} {2} ({3} {4})" -f
-        $Extension.Extension,
-        (Format-Count -Value $Extension.Lines),
-        $LineLabel,
-        (Format-Count -Value $Extension.Files),
-        $FileLabel
-    )
-}
-
-Write-Output ""
 Write-Output (
-    "Most lines: {0} ({1} lines)" -f
+    "Largest extension: {0} ({1} lines)" -f
     $LargestExtension.Extension,
     (Format-Count -Value $LargestExtension.Lines)
 )
+Write-Output ""
+Write-Output "EXTENSION SUMMARY"
+Write-Output ("-" * 72)
+
+$SummaryRows = $ExtensionTotals | ForEach-Object {
+    [pscustomobject]@{
+        Extension = $_.Extension
+        Files = $_.Files
+        Lines = $_.Lines
+        Share = "{0:P1}" -f ($_.Lines / $TotalLines)
+    }
+}
+
+Write-Output (
+    $SummaryRows |
+        Format-Table `
+            Extension,
+            @{ Label = "Files"; Expression = { $_.Files }; FormatString = "N0"; Alignment = "Right" },
+            @{ Label = "Lines"; Expression = { $_.Lines }; FormatString = "N0"; Alignment = "Right" },
+            @{ Label = "Share"; Expression = { $_.Share }; Alignment = "Right" } `
+            -AutoSize |
+        Out-String -Width 4096
+).Trim()
 
 foreach ($Extension in $ExtensionTotals | Sort-Object Extension) {
+    $FileLabel = if ($Extension.Files -eq 1) { "file" } else { "files" }
     Write-Output ""
     Write-Output (
-        "{0} files - {1} lines" -f
-        $Extension.Extension,
+        "[{0}] {1} {2} | {3} lines" -f
+        $Extension.Extension.ToUpperInvariant(),
+        (Format-Count -Value $Extension.Files),
+        $FileLabel,
         (Format-Count -Value $Extension.Lines)
     )
+    Write-Output ("-" * 72)
 
     $Rows = $Records |
         Where-Object Extension -eq $Extension.Extension |
         Sort-Object `
             @{ Expression = "Lines"; Descending = $true },
-            @{ Expression = "File"; Descending = $false } |
-        Select-Object Lines, File
+            @{ Expression = "File"; Descending = $false }
 
-    Write-Output ($Rows | Format-Table -AutoSize | Out-String -Width 4096).TrimEnd()
+    Write-Output (
+        $Rows |
+            Format-Table `
+                @{ Label = "Lines"; Expression = { $_.Lines }; FormatString = "N0"; Alignment = "Right" },
+                File `
+                -AutoSize |
+            Out-String -Width 4096
+    ).Trim()
 }

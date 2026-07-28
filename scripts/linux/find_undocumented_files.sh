@@ -26,7 +26,7 @@ is_documentation_candidate() {
   esac
 
   case "$name" in
-    __init__.py|package-lock.json|uv.lock)
+    __init__.py|package.json|package-lock.json|uv.lock)
       return 1
       ;;
   esac
@@ -74,9 +74,12 @@ for candidate in "${candidates[@]}"; do
   fi
 done
 
-printf 'Semantix documentation coverage report\n'
+printf '%s\n' '========================================================================'
+printf 'SEMANTIX DOCUMENTATION COVERAGE REPORT\n'
+printf '%s\n' '========================================================================'
 printf 'Definition: documented means the exact repository-relative path appears in Markdown.\n'
-printf 'Excluded: tests, package markers, lockfiles, ignored files, dependencies, and build output.\n'
+printf 'Excluded: tests, package markers, package manifests, lockfiles, ignored files,\n'
+printf '          dependencies, and build output.\n'
 printf 'Scanned files: %s\n' "${#candidates[@]}"
 printf 'Undocumented files: %s\n' "${#undocumented[@]}"
 
@@ -94,7 +97,12 @@ while IFS= read -r extension; do
     [[ "$current_extension" == "$extension" ]] && count=$((count + 1))
   done
 
-  printf '\n%s - %s undocumented files\n' "$extension" "$count"
+  upper_extension="$(printf '%s' "$extension" | tr '[:lower:]' '[:upper:]')"
+  file_label="files"
+  (( count == 1 )) && file_label="file"
+  printf '\n[%s] %s undocumented %s\n' \
+    "$upper_extension" "$count" "$file_label"
+  printf '%s\n' '------------------------------------------------------------------------'
   printf '%s\n' "${undocumented[@]}" |
     while IFS= read -r path; do
       name="${path##*/}"

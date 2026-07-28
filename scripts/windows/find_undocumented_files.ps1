@@ -82,7 +82,7 @@ function Test-DocumentationCandidate {
         $NormalizedPath -like "frontend/tests/*" -or
         $NormalizedPath -like ".github/ISSUE_TEMPLATE/*" -or
         $Name -eq "__init__.py" -or
-        $Name -in @("package-lock.json", "uv.lock")
+        $Name -in @("package.json", "package-lock.json", "uv.lock")
     ) {
         return $false
     }
@@ -119,9 +119,12 @@ $Undocumented = $Candidates | Where-Object {
     ) -lt 0
 }
 
-Write-Output "Semantix documentation coverage report"
+Write-Output ("=" * 72)
+Write-Output "SEMANTIX DOCUMENTATION COVERAGE REPORT"
+Write-Output ("=" * 72)
 Write-Output "Definition: documented means the exact repository-relative path appears in Markdown."
-Write-Output "Excluded: tests, package markers, lockfiles, ignored files, dependencies, and build output."
+Write-Output "Excluded: tests, package markers, package manifests, lockfiles, ignored files,"
+Write-Output "          dependencies, and build output."
 Write-Output "Scanned files: $($Candidates.Count)"
 Write-Output "Undocumented files: $($Undocumented.Count)"
 
@@ -139,8 +142,10 @@ $Groups = $Undocumented |
     Sort-Object Name
 
 foreach ($Group in $Groups) {
+    $FileLabel = if ($Group.Count -eq 1) { "file" } else { "files" }
     Write-Output ""
-    Write-Output "$($Group.Name) - $($Group.Count) undocumented files"
+    Write-Output "[$($Group.Name.ToUpperInvariant())] $($Group.Count) undocumented $FileLabel"
+    Write-Output ("-" * 72)
     foreach ($File in $Group.Group) {
         Write-Output "  $File"
     }

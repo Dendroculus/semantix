@@ -42,6 +42,12 @@ done < <(
 
 while IFS= read -r -d '' relative_path; do
   [[ -z "${ignored_tracked[$relative_path]+present}" ]] || continue
+  case "${relative_path##*/}" in
+    package.json|package-lock.json)
+      continue
+      ;;
+  esac
+
   absolute_path="$repo_root/$relative_path"
   [[ -f "$absolute_path" ]] || continue
   is_text_file "$absolute_path" || continue
@@ -77,19 +83,25 @@ for extension in "${!extension_lines[@]}"; do
   fi
 done
 
-printf 'Semantix project line report\n'
+printf '%s\n' '========================================================================'
+printf 'SEMANTIX PROJECT LINE REPORT\n'
+printf '%s\n' '========================================================================'
 printf 'Scope: Git-tracked and unignored text files\n'
+printf 'Excluded: binary files, package.json, and package-lock.json\n'
 printf 'Files: %s\n' "${#records[@]}"
-printf 'Lines: %s\n\n' "$total_lines"
-printf 'Lines by extension\n'
+printf 'Lines: %s\n' "$total_lines"
+printf 'Largest extension: %s (%s lines)\n\n' \
+  "$largest_extension" "$largest_lines"
+printf 'EXTENSION SUMMARY\n'
+printf '%s\n' '------------------------------------------------------------------------'
+printf '%-14s %8s %12s %8s\n' "Extension" "Files" "Lines" "Share"
+printf '%-14s %8s %12s %8s\n' "---------" "-----" "-----" "-----"
 
 while IFS=$'\t' read -r lines files extension; do
-  line_label="lines"
-  file_label="files"
-  (( lines == 1 )) && line_label="line"
-  (( files == 1 )) && file_label="file"
-  printf '%s: %s %s (%s %s)\n' \
-    "$extension" "$lines" "$line_label" "$files" "$file_label"
+  share="$(awk -v lines="$lines" -v total="$total_lines" \
+    'BEGIN { printf "%.1f%%", (lines / total) * 100 }')"
+  printf '%-14s %8s %12s %8s\n' \
+    "$extension" "$files" "$lines" "$share"
 done < <(
   for extension in "${!extension_lines[@]}"; do
     printf '%s\t%s\t%s\n' \
@@ -99,11 +111,16 @@ done < <(
   done | sort -t $'\t' -k1,1nr -k3,3
 )
 
-printf '\nMost lines: %s (%s lines)\n' "$largest_extension" "$largest_lines"
-
 while IFS= read -r extension; do
-  printf '\n%s files - %s lines\n' \
-    "$extension" "${extension_lines[$extension]}"
+  upper_extension="$(printf '%s' "$extension" | tr '[:lower:]' '[:upper:]')"
+  file_label="files"
+  (( extension_files["$extension"] == 1 )) && file_label="file"
+  printf '\n[%s] %s %s | %s lines\n' \
+    "$upper_extension" \
+    "${extension_files[$extension]}" \
+    "$file_label" \
+    "${extension_lines[$extension]}"
+  printf '%s\n' '------------------------------------------------------------------------'
   printf '%8s  %s\n' "Lines" "File"
   printf '%8s  %s\n' "-----" "----"
 
@@ -113,4 +130,4 @@ while IFS= read -r extension; do
     while IFS=$'\t' read -r lines path; do
       printf '%8s  %s\n' "$lines" "$path"
     done
-done < <(printf '%s\n' "${!extension_lines[@]}" | sort)
+  done < <(printf '%s\n' "${!extension_lines[@]}" | sort)

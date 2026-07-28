@@ -72,7 +72,7 @@ bash scripts/linux/get_total_lines.sh
 
 The report shows total files and lines, totals for every extension, the
 extension with the most lines, and a file-by-file table within each extension.
-Binary files are skipped.
+Binary files, `package.json`, and `package-lock.json` files are skipped.
 
 Find production and configuration files that are not referenced by exact
 repository-relative path in any Markdown document:
@@ -90,10 +90,10 @@ bash scripts/linux/find_undocumented_files.sh
 ```
 
 The documentation report intentionally excludes tests, Python package markers,
-dependency lockfiles, ignored files, installed dependencies, and build output.
-It is an informational maintenance report rather than a CI gate: a reported
-file may be adequately explained through its owning feature or package even
-when its exact path is not mentioned.
+package manifests, dependency lockfiles, ignored files, installed dependencies,
+and build output. It is an informational maintenance report rather than a CI
+gate: a reported file may be adequately explained through its owning feature or
+package even when its exact path is not mentioned.
 
 ## Quality checks
 
