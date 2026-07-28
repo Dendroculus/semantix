@@ -3,7 +3,7 @@
 Semantix pins every Dockerfile base image and Compose service image to an
 immutable multi-architecture manifest digest while retaining its readable tag.
 The approved source of truth is
-[`ops/supply-chain/approved-images.json`](../ops/supply-chain/approved-images.json).
+[`ops/supply-chain/approved-images.json`](../../ops/supply-chain/approved-images.json).
 
 ## Supported container platforms
 
@@ -73,7 +73,8 @@ secrets, or privileged registry credentials.
 ### Scoped scanner exception
 
 The production backend removes installer/build packages and the unused OpenSSL
-the resulting image and suppresses only `CVE-2026-15308` for the exact
+binary from the resulting image and suppresses only `CVE-2026-15308` for the
+exact
 `python` binary version `3.14.6`. Grype reports a fix in Python 3.15, which is
 not a compatible maintenance update for the supported Python 3.14 runtime.
 Changing the Python patch version makes the exception stop matching and

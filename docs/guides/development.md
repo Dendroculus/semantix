@@ -87,7 +87,8 @@ services.
 
 Pgvector integration tests are opt-in and use
 `PGVECTOR_TEST_DATABASE_URL`; see [pgvector](pgvector.md). Load testing has
-separate safety acknowledgements; see [Load testing](load-testing.md).
+separate safety acknowledgements; see
+[Load testing](../operations/load-testing.md).
 
 ## Architecture rules
 
@@ -102,7 +103,8 @@ separate safety acknowledgements; see [Load testing](load-testing.md).
   frameworks.
 - Preserve strict typing; do not use `Any` to bypass contracts.
 
-See [Architecture](architecture.md) for current ownership boundaries.
+See [Architecture](../reference/architecture.md) for current ownership
+boundaries.
 
 ## Contributing
 

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/React-19.2.7-61DAFB?logo=react&logoColor=white" alt="React 19.2.7">
+  <img src="https://img.shields.io/badge/React-19.2.8-61DAFB?logo=react&logoColor=white" alt="React 19.2.8">
   <img src="https://img.shields.io/badge/Vite-7.3.6-646CFF?logo=vite&logoColor=white" alt="Vite 7.3.6">
   <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/Python-3.11%E2%80%933.14-3776AB?logo=python&logoColor=white" alt="Python 3.11 through 3.14">
@@ -68,7 +68,7 @@ Search the active namespace and embedding space
 
 Semantix returns a cached response only when the nearest compatible entry meets
 the active similarity threshold. See
-[Cache policies](docs/cache-policies.md) for the complete rules.
+[Cache policies](docs/guides/cache-policies.md) for the complete rules.
 
 ## 🚀 Quick start
 
@@ -118,8 +118,8 @@ trusted local development. Do not use the development configuration for a
 public deployment.
 
 To use Hugging Face, OpenAI, Anthropic, Gemini, or Ollama, see
-[Providers](docs/providers.md). For every environment option, see
-[Getting started](docs/getting-started.md) and `backend/.env.example`.
+[Providers](docs/guides/providers.md). For every environment option, see
+[Getting started](docs/guides/getting-started.md) and `backend/.env.example`.
 
 ### 3. Start the complete development stack
 
@@ -171,7 +171,8 @@ Embedding and generation providers are selected independently.
 | Mock | Yes | Yes | Not required |
 
 Only settings required by the selected capabilities are validated. See
-[Providers](docs/providers.md) for configuration examples and networking notes.
+[Providers](docs/guides/providers.md) for configuration examples and networking
+notes.
 
 ## 🛡️ Development and hardened deployment
 
@@ -188,8 +189,8 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up --build 
 ```
 
 Do not start it until every placeholder has been replaced. See
-[Hardened deployment](docs/deployment.md) for token generation, trusted proxies,
-database roles, TLS, and validation.
+[Hardened deployment](docs/operations/deployment.md) for token generation,
+trusted proxies, database roles, TLS, and validation.
 
 ## 📊 Measured benchmark
 
@@ -202,7 +203,7 @@ Hugging Face providers, typo normalization, an empty isolated cache, and a
 | **4 of 8 (50%)** | **330.3 ms** | **3772.7 ms** | **1.0 / 1.0 / 1.0** |
 
 This is one dated measurement, not a performance guarantee. See
-[Benchmarking](docs/benchmarking.md) for the dataset, run details, and
+[Benchmarking](docs/guides/benchmarking.md) for the dataset, run details, and
 limitations.
 
 ## ✅ Quality checks
@@ -298,8 +299,8 @@ npm run test
 npm run build
 ```
 
-See [Development](docs/development.md) for local toolchains, architecture rules,
-and contribution steps.
+See [Development](docs/guides/development.md) for local toolchains, architecture
+rules, and contribution steps.
 
 ## 🗂️ Project structure
 
@@ -317,7 +318,7 @@ semantix/
 ```
 
 The backend and frontend use feature-first ownership. See
-[Architecture](docs/architecture.md) for the runtime flow and package
+[Architecture](docs/reference/architecture.md) for the runtime flow and package
 boundaries.
 
 ## ⚠️ Important limitations
@@ -335,19 +336,14 @@ boundaries.
 
 | Guide | Use it for |
 |---|---|
-| [Getting started](docs/getting-started.md) | Full setup, environment files, Docker workflows, and troubleshooting |
-| [Providers](docs/providers.md) | Hugging Face, OpenAI, Anthropic, Gemini, Ollama, and mock configuration |
-| [pgvector](docs/pgvector.md) | Persistent storage, ports, migrations, and database verification |
-| [Hardened deployment](docs/deployment.md) | Authentication, roles, proxies, TLS, request limits, and database permissions |
-| [Operations and recovery](docs/operations.md) | Credential rotation, backup, restore, cache rebuild, rollback, and incident response |
-| [API](docs/api.md) | Endpoints, requests, responses, and error contracts |
-| [Cache policies](docs/cache-policies.md) | Threshold, TTL, LRU, namespaces, privacy, and coalescing |
-| [Benchmarking](docs/benchmarking.md) | Datasets, metrics, safeguards, and exports |
-| [Architecture](docs/architecture.md) | Runtime flow, feature ownership, and boundaries |
-| [Prompt normalization](docs/prompt-typo-normalization.md) | Optional typo correction behavior and limitations |
-| [Load testing](docs/load-testing.md) | Safe k6 scenarios and runtime observability |
-| [Development](docs/development.md) | Local toolchains, quality checks, and contributing |
-| [Supply-chain security](docs/supply-chain.md) | Image pins, security scans, SBOM/provenance artifacts, and dependency updates |
+The [documentation index](docs/README.md) groups the full guides by purpose.
+
+| Start here | Use it for |
+|---|---|
+| [Getting started](docs/guides/getting-started.md) | Local setup, environment files, and Docker workflows |
+| [Providers](docs/guides/providers.md) | Hosted, local, and mock provider configuration |
+| [Architecture](docs/reference/architecture.md) | Runtime flow, feature ownership, and package boundaries |
+| [Hardened deployment](docs/operations/deployment.md) | Authentication, TLS, database roles, and production validation |
 
 ## 🤝 Contributors
 
