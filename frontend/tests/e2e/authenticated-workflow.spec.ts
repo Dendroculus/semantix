@@ -4,7 +4,13 @@ import {
   test,
 } from "@playwright/test";
 
-const TOKEN = process.env.SEMANTIX_E2E_TOKEN ?? "phase-a-smoke-token";
+const TOKEN = process.env.SEMANTIX_E2E_TOKEN;
+
+if (!TOKEN) {
+  throw new Error(
+    "SEMANTIX_E2E_TOKEN is required for authenticated E2E tests.",
+  );
+}
 
 test("authenticated keyboard workflow crosses Nginx and FastAPI", async ({
   page,

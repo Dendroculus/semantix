@@ -20,6 +20,7 @@ export POSTGRES_RUNTIME_USER="${POSTGRES_RUNTIME_USER:-semantix_runtime}"
 export POSTGRES_RUNTIME_PASSWORD="${POSTGRES_RUNTIME_PASSWORD:-$(generate_secret)}"
 
 smoke_token="${SMOKE_AUTH_TOKEN:-$(generate_secret)}"
+export SEMANTIX_E2E_TOKEN="$smoke_token"
 token_sha256="$(
   "$python_command" -c \
     'import hashlib, sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest())' \

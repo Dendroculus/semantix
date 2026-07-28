@@ -42,6 +42,7 @@ else {
     New-SmokeSecret
 }
 $TokenHash = Get-Sha256 -Value $SmokeToken
+$env:SEMANTIX_E2E_TOKEN = $SmokeToken
 $env:AUTH_PRINCIPALS = @(
     @{
         name = "smoke-admin"
