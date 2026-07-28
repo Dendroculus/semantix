@@ -8,13 +8,19 @@ updates:
       day: monday
       time: "04:00"
       timezone: Etc/UTC
-    open-pull-requests-limit: 5
+    rebase-strategy: disabled
+    open-pull-requests-limit: 1
     groups:
-      github-actions-patches:
+      github-actions-routine:
         patterns:
           - "*"
         update-types:
+          - minor
           - patch
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: docker
     directory: /
@@ -23,13 +29,8 @@ updates:
       day: monday
       time: "04:00"
       timezone: Etc/UTC
-    open-pull-requests-limit: 5
-    groups:
-      compose-image-patches:
-        patterns:
-          - "*"
-        update-types:
-          - patch
+    rebase-strategy: disabled
+    open-pull-requests-limit: 0
 
   - package-ecosystem: docker
     directory: /backend
@@ -38,18 +39,8 @@ updates:
       day: monday
       time: "04:00"
       timezone: Etc/UTC
-    open-pull-requests-limit: 5
-    groups:
-      backend-image-patches:
-        patterns:
-          - "*"
-        update-types:
-          - patch
-    ignore:
-      - dependency-name: python
-        update-types:
-          - version-update:semver-minor
-          - version-update:semver-major
+    rebase-strategy: disabled
+    open-pull-requests-limit: 0
 
   - package-ecosystem: docker
     directory: /frontend
@@ -58,17 +49,8 @@ updates:
       day: monday
       time: "04:00"
       timezone: Etc/UTC
-    open-pull-requests-limit: 5
-    groups:
-      frontend-image-patches:
-        patterns:
-          - "*"
-        update-types:
-          - patch
-    ignore:
-      - dependency-name: node
-        update-types:
-          - version-update:semver-major
+    rebase-strategy: disabled
+    open-pull-requests-limit: 0
 
   - package-ecosystem: pip
     directory: /backend
@@ -77,20 +59,27 @@ updates:
       day: monday
       time: "04:00"
       timezone: Etc/UTC
-    open-pull-requests-limit: 5
+    rebase-strategy: disabled
+    open-pull-requests-limit: 2
     groups:
-      backend-production-patches:
+      backend-production-routine:
         dependency-type: production
         patterns:
           - "*"
         update-types:
+          - minor
           - patch
-      backend-development-patches:
+      backend-development-routine:
         dependency-type: development
         patterns:
           - "*"
         update-types:
+          - minor
           - patch
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: npm
     directory: /frontend
@@ -99,17 +88,24 @@ updates:
       day: monday
       time: "04:00"
       timezone: Etc/UTC
-    open-pull-requests-limit: 5
+    rebase-strategy: disabled
+    open-pull-requests-limit: 2
     groups:
-      frontend-production-patches:
+      frontend-production-routine:
         dependency-type: production
         patterns:
           - "*"
         update-types:
+          - minor
           - patch
-      frontend-development-patches:
+      frontend-development-routine:
         dependency-type: development
         patterns:
           - "*"
         update-types:
+          - minor
           - patch
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
