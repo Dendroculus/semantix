@@ -1,0 +1,7 @@
+ignore:
+  - vulnerability: CVE-2026-15308
+    reason: No compatible fix is published for the supported CPython 3.14 line.
+    package:
+      name: python
+      version: 3.14.6
+      type: binary

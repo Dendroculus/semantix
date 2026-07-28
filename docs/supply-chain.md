@@ -58,11 +58,14 @@ results. Other new jobs remain read-only. GitHub downgrades write permissions
 for pull requests from forks; no scanner uses `pull_request_target`, repository
 secrets, or privileged registry credentials.
 
-### Scanner validation
+### Scoped scanner exception
 
 The production backend removes installer/build packages and the unused OpenSSL
-command-line binary after constructing its virtual environment. Grype scans
-the resulting image without repository-level vulnerability suppressions.
+the resulting image and suppresses only `CVE-2026-15308` for the exact
+`python` binary version `3.14.6`. Grype reports a fix in Python 3.15, which is
+not a compatible maintenance update for the supported Python 3.14 runtime.
+Changing the Python patch version makes the exception stop matching and
+requires a fresh review.
 
 Scanner changes must be exercised in a throwaway fork or non-default branch.
 Use only a scanner-provided synthetic fixture, never a live credential. Confirm

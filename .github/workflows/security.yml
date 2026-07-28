@@ -86,6 +86,7 @@ jobs:
       - name: Scan image for actionable high-severity vulnerabilities
         uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
+          config: .grype.yaml
           fail-build: true
           grype-version: v0.116.0
           image: ${{ matrix.image }}
