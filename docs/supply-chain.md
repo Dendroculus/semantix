@@ -20,8 +20,20 @@ unknown images, digest drift, and approvals that omit a supported platform.
 
 Dependabot checks Docker, GitHub Actions, Python, and npm dependencies every
 Monday at 04:00 UTC. It opens reviewable pull requests and never auto-merges
-them. Node.js container major upgrades are handled manually so the LTS runtime,
-npm engine declaration, CI, documentation, and approved image pin move together.
+them. Routine minor and patch updates are grouped by ecosystem and dependency
+type. Version-update queues are capped at one GitHub Actions pull request and
+two pull requests for each language package ecosystem.
+
+Major upgrades are handled manually so runtime declarations, CI, documentation,
+and compatibility checks move together. Routine Docker version pull requests
+are disabled because image updates must also change the reviewed multi-platform
+digest in the approved-image manifest. Dependabot security updates remain
+enabled and are reviewed as soon as they are published.
+
+Automatic Dependabot rebases are disabled to avoid rerunning the full quality
+workflow after every unrelated merge. Update a dependency branch once, after
+its preceding changes are merged, by commenting `@dependabot rebase` on the
+pull request before final review.
 
 For an image update:
 
