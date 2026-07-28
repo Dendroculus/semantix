@@ -277,6 +277,22 @@ The smoke entry points generate ephemeral database passwords and authentication
 tokens for each run unless the corresponding environment variables are already
 set. Credentials are not stored in the scripts.
 
+Repository-wide developer reports are available through paired platform
+helpers:
+
+```powershell
+.\scripts\windows\get_total_lines.ps1
+.\scripts\windows\find_undocumented_files.ps1
+```
+
+```bash
+bash scripts/linux/get_total_lines.sh
+bash scripts/linux/find_undocumented_files.sh
+```
+
+They inspect Git-tracked and unignored project files, so ignored dependencies,
+caches, virtual environments, and build output are excluded automatically.
+
 Backend:
 
 ```bash
@@ -309,8 +325,13 @@ semantix/
 ├── backend/
 ├── frontend/
 ├── ops/
+│   ├── ci/
+│   ├── load-testing/
 │   ├── postgres/
-│   └── load-tests/
+│   └── supply-chain/
+├── scripts/
+│   ├── linux/
+│   └── windows/
 ├── docs/
 ├── docker-compose.dev.yml
 ├── docker-compose.prod.yml
