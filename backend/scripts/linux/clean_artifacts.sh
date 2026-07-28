@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-backend_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+backend_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 find "$backend_root" -type d \( \
   -name "__pycache__" -o \

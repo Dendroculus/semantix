@@ -217,13 +217,13 @@ From the repository root:
 Windows PowerShell:
 
 ```powershell
-. .\backend\scripts\enable_cache.ps1
+. .\backend\scripts\windows\enable_cache.ps1
 ```
 
 Linux or macOS:
 
 ```bash
-source backend/scripts/enable_cache.sh
+source backend/scripts/linux/enable_cache.sh
 ```
 
 When already inside `backend/`:
@@ -231,13 +231,13 @@ When already inside `backend/`:
 Windows PowerShell:
 
 ```powershell
-. .\scripts\enable_cache.ps1
+. .\scripts\windows\enable_cache.ps1
 ```
 
 Linux or macOS:
 
 ```bash
-source scripts/enable_cache.sh
+source scripts/linux/enable_cache.sh
 ```
 
 The leading dot in PowerShell and `source` in Bash are required so
@@ -247,14 +247,34 @@ pytest use their cache paths from `backend/pyproject.toml`.
 To remove generated caches and editable-install metadata:
 
 ```powershell
-.\backend\scripts\clean_artifacts.ps1
+.\backend\scripts\windows\clean_artifacts.ps1
 ```
 
 For Linux or macOS:
 
 ```bash
-bash backend/scripts/clean_artifacts.sh
+bash backend/scripts/linux/clean_artifacts.sh
 ```
+
+Platform-specific automation lives in `windows/` and `linux/` directories.
+Shared Compose overlays remain beside those directories under `ops/ci/`.
+For example, the development health smoke has matching entry points:
+
+Windows PowerShell:
+
+```powershell
+.\ops\ci\windows\dev-healthcheck-smoke.ps1
+```
+
+Linux or macOS:
+
+```bash
+bash ops/ci/linux/dev-healthcheck-smoke.sh
+```
+
+The smoke entry points generate ephemeral database passwords and authentication
+tokens for each run unless the corresponding environment variables are already
+set. Credentials are not stored in the scripts.
 
 Backend:
 

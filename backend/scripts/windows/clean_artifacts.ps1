@@ -1,4 +1,4 @@
-$BackendRoot = Split-Path -Parent $PSScriptRoot
+$BackendRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Names = @(
     "__pycache__"
     ".ruff_cache"

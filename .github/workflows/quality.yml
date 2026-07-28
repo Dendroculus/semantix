@@ -121,7 +121,7 @@ jobs:
 
       - name: Verify development health gates
         shell: bash
-        run: bash ops/ci/dev-healthcheck-smoke.sh
+        run: bash ops/ci/linux/dev-healthcheck-smoke.sh
 
   hardened-windows-checkout:
     name: Hardened Windows-checkout smoke
@@ -129,12 +129,9 @@ jobs:
     timeout-minutes: 20
     env:
       ALLOWED_ORIGINS: '["http://127.0.0.1:18080"]'
-      AUTH_PRINCIPALS: '[{"name":"smoke-admin","token_sha256":"8a44fe85cd94a910179d544c577ac9112eac506ad75b6124b3e7e6fcd242d37d","role":"admin","namespaces":["*"]}]'
       COMPOSE_PROJECT_NAME: semantix-eol-${{ github.run_id }}
       POSTGRES_DB: semantix
-      POSTGRES_MIGRATION_PASSWORD: "migration-${{ github.run_id }}-${{ github.run_attempt }}"
       POSTGRES_MIGRATION_USER: semantix_migrator
-      POSTGRES_RUNTIME_PASSWORD: "runtime-${{ github.run_id }}-${{ github.run_attempt }}"
       POSTGRES_RUNTIME_USER: semantix_runtime
       SEMANTIX_BIND_ADDRESS: 127.0.0.1
       SEMANTIX_PORT: "18080"
@@ -149,7 +146,9 @@ jobs:
           node-version: "20"
 
       - name: Verify tracked shell scripts use LF
-        run: bash ops/ci/check-shell-eol.sh
+        run: |
+          bash ops/ci/linux/check-shell-eol.sh
+          pwsh -File ops/ci/windows/check-shell-eol.ps1
 
       - name: Create an autocrlf checkout
         shell: bash
@@ -158,7 +157,8 @@ jobs:
             . "$RUNNER_TEMP/semantix-autocrlf"
           cd "$RUNNER_TEMP/semantix-autocrlf"
           git ls-files --eol '*.sh'
-          bash ops/ci/check-shell-eol.sh
+          bash ops/ci/linux/check-shell-eol.sh
+          pwsh -File ops/ci/windows/check-shell-eol.ps1
 
       - name: Install browser test dependencies
         shell: bash
@@ -171,7 +171,7 @@ jobs:
         shell: bash
         run: |
           cd "$RUNNER_TEMP/semantix-autocrlf"
-          bash ops/ci/hardened-smoke.sh npm --prefix frontend run test:e2e
+          bash ops/ci/linux/hardened-smoke.sh npm --prefix frontend run test:e2e
 
   pgvector:
     name: Pgvector integration

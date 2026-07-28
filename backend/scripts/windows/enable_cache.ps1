@@ -1,4 +1,4 @@
-$BackendRoot = Split-Path -Parent $PSScriptRoot
+$BackendRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $CacheRoot = Join-Path $BackendRoot ".cache"
 
 $env:PYTHONPYCACHEPREFIX = Join-Path $CacheRoot "python"

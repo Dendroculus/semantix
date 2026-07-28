@@ -2,11 +2,11 @@
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   echo "Source this script instead:"
-  echo "  source scripts/enable_cache.sh"
+  echo "  source scripts/linux/enable_cache.sh"
   exit 1
 fi
 
-backend_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+backend_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cache_root="$backend_root/.cache"
 
 export PYTHONPYCACHEPREFIX="$cache_root/python"

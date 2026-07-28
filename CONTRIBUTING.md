@@ -92,7 +92,7 @@ create the locked development environment:
 cd backend
 uv sync --locked --extra dev
 .\.venv\Scripts\Activate.ps1
-. .\scripts\enable_cache.ps1
+. .\scripts\windows\enable_cache.ps1
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -107,7 +107,7 @@ recreate scattered `__pycache__` directories.
 To remove backend caches and editable-install metadata:
 
 ```powershell
-.\scripts\clean_artifacts.ps1
+.\scripts\windows\clean_artifacts.ps1
 ```
 
 ### Local frontend workflow
@@ -224,7 +224,7 @@ Run the checks affected by your change before pushing.
 ```powershell
 cd backend
 .\.venv\Scripts\Activate.ps1
-. .\scripts\enable_cache.ps1
+. .\scripts\windows\enable_cache.ps1
 uv run --locked pytest -m "not pgvector" --cov=app
 uv run --locked ruff check .
 uv run --locked ruff format --check .
