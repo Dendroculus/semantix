@@ -1,59 +1,7 @@
 ignore:
-  # Grype treats cross-minor and prerelease CPython fixes as actionable for
-  # Python 3.11. Keep every exception tied to the reviewed runtime version so
-  # the next patch update requires a fresh assessment.
   - vulnerability: CVE-2026-15308
-    reason: No compatible fix is published for the supported CPython 3.11 line.
+    reason: No compatible fix is published for the supported CPython 3.14 line.
     package:
       name: python
-      version: 3.11.15
-      type: binary
-
-  - vulnerability: CVE-2026-3298
-    reason: No compatible fix is published for the supported CPython 3.11 line.
-    package:
-      name: python
-      version: 3.11.15
-      type: binary
-
-  - vulnerability: CVE-2026-3644
-    reason: No compatible fix is published for the supported CPython 3.11 line.
-    package:
-      name: python
-      version: 3.11.15
-      type: binary
-
-  - vulnerability: CVE-2026-4224
-    reason: No compatible fix is published for the supported CPython 3.11 line.
-    package:
-      name: python
-      version: 3.11.15
-      type: binary
-
-  - vulnerability: CVE-2026-4786
-    reason: No compatible fix is published for the supported CPython 3.11 line.
-    package:
-      name: python
-      version: 3.11.15
-      type: binary
-
-  - vulnerability: CVE-2026-6100
-    reason: No compatible fix is published for the supported CPython 3.11 line.
-    package:
-      name: python
-      version: 3.11.15
-      type: binary
-
-  - vulnerability: CVE-2026-7210
-    reason: No compatible fix is published for the supported CPython 3.11 line.
-    package:
-      name: python
-      version: 3.11.15
-      type: binary
-
-  - vulnerability: CVE-2026-9669
-    reason: No compatible fix is published for the supported CPython 3.11 line.
-    package:
-      name: python
-      version: 3.11.15
+      version: 3.14.6
       type: binary

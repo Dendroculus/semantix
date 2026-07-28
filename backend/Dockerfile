@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:0.11.32@sha256:df4cae8f3a96d175e2e5f992e597550000edbe78fdc2594d5cd8de1a217f504c AS uv
 
-FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93 AS builder
+FROM python:3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6 AS builder
 
 COPY --from=uv /uv /uvx /bin/
 
@@ -15,7 +15,7 @@ RUN uv sync --locked --no-dev --no-install-project
 COPY app ./app
 RUN uv sync --locked --no-dev --no-editable
 
-FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93 AS runtime
+FROM python:3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6 AS runtime
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -25,9 +25,10 @@ WORKDIR /app
 
 RUN addgroup --system app \
     && adduser --system --ingroup app app \
-    && rm -rf /usr/local/lib/python3.11/site-packages/pip* \
-        /usr/local/lib/python3.11/site-packages/setuptools* \
-        /usr/local/lib/python3.11/site-packages/wheel* \
+    && SYSTEM_SITE_PACKAGES="$(python -c 'import site; print(site.getsitepackages()[0])')" \
+    && rm -rf "$SYSTEM_SITE_PACKAGES"/pip* \
+        "$SYSTEM_SITE_PACKAGES"/setuptools* \
+        "$SYSTEM_SITE_PACKAGES"/wheel* \
     && rm -f /usr/local/bin/pip* /usr/bin/openssl
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
