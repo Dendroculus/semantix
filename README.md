@@ -346,6 +346,7 @@ boundaries.
 | [Prompt normalization](docs/prompt-typo-normalization.md) | Optional typo correction behavior and limitations |
 | [Load testing](docs/load-testing.md) | Safe k6 scenarios and runtime observability |
 | [Development](docs/development.md) | Local toolchains, quality checks, and contributing |
+| [Supply-chain security](docs/supply-chain.md) | Image pins, security scans, SBOM/provenance artifacts, and dependency updates |
 
 ## 🤝 Contributors
 

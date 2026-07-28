@@ -1,0 +1,158 @@
+name: Security
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - javascript-typescript
+          - python
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          build-mode: none
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Analyze source
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Scan committed changes for verified secrets
+        uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # v3.96.0
+        with:
+          extra_args: --results=verified
+          version: "3.96.0"
+
+  image-scan:
+    name: Image scan (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            context: backend
+            dockerfile: backend/Dockerfile
+            image: semantix-ci-backend:scan
+          - name: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+            image: semantix-ci-frontend:scan
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Build production image
+        run: >-
+          docker build
+          --file "${{ matrix.dockerfile }}"
+          --tag "${{ matrix.image }}"
+          "${{ matrix.context }}"
+
+      - name: Scan image for actionable high-severity vulnerabilities
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
+        with:
+          fail-build: true
+          grype-version: v0.116.0
+          image: ${{ matrix.image }}
+          only-fixed: true
+          output-format: table
+          severity-cutoff: high
+
+  supply-chain-artifacts:
+    name: SBOM and build provenance
+    needs:
+      - image-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      BUILDX_METADATA_PROVENANCE: max
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Create supply-chain artifact directory
+        run: mkdir supply-chain
+
+      - name: Build backend with provenance metadata
+        run: >-
+          docker buildx build
+          --file backend/Dockerfile
+          --load
+          --metadata-file supply-chain/backend.provenance.json
+          --tag semantix-sbom-backend:ci
+          backend
+
+      - name: Build frontend with provenance metadata
+        run: >-
+          docker buildx build
+          --file frontend/Dockerfile
+          --load
+          --metadata-file supply-chain/frontend.provenance.json
+          --tag semantix-sbom-frontend:ci
+          frontend
+
+      - name: Generate backend SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: semantix-sbom-backend:ci
+          output-file: supply-chain/backend.spdx.json
+          syft-version: v1.49.0
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Generate frontend SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: semantix-sbom-frontend:ci
+          output-file: supply-chain/frontend.spdx.json
+          syft-version: v1.49.0
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload SBOM and provenance artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: error
+          name: semantix-supply-chain-${{ github.sha }}
+          path: supply-chain/*.json
+          retention-days: 14
