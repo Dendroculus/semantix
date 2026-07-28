@@ -106,6 +106,14 @@ class InMemoryCacheBackend:
         )
         async with self._lock:
             self._purge()
+            latest_created_at = max(
+                (item.entry.created_at for item in self._items.values()),
+                default=None,
+            )
+            if latest_created_at is not None and entry.created_at <= latest_created_at:
+                entry = entry.model_copy(
+                    update={"created_at": latest_created_at + timedelta(microseconds=1)}
+                )
             stored_at = datetime.now(UTC)
             expires_at_monotonic = None
             expires_at = None

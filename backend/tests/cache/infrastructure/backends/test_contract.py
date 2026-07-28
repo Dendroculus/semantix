@@ -2,7 +2,6 @@ import asyncio
 import os
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -217,6 +216,10 @@ async def test_expiry_and_lru_capacity(
             "beta",
             "beta response",
             vector_index=1,
+        ).model_copy(
+            update={
+                "created_at": alpha.created_at,
+            }
         )
         await backend.put(alpha)
         await backend.put(beta)
@@ -393,7 +396,6 @@ async def test_record_hit_rejects_an_overwritten_candidate(
         replacement = original.model_copy(
             update={
                 "response": "new response",
-                "created_at": original.created_at + timedelta(seconds=1),
             }
         )
         await backend.put(original)
@@ -403,12 +405,18 @@ async def test_record_hit_rejects_an_overwritten_candidate(
         )
         assert candidate is not None
         await backend.put(replacement)
+        current_candidate = await backend.find_nearest(
+            unit_vector(),
+            namespace=DEFAULT_CACHE_NAMESPACE,
+        )
+        assert current_candidate is not None
+        assert current_candidate.entry.response == "new response"
 
         assert not await backend.record_hit(
             candidate.entry.cache_key,
             expected_created_at=candidate.entry.created_at,
         )
         assert await backend.record_hit(
-            replacement.cache_key,
-            expected_created_at=replacement.created_at,
+            current_candidate.entry.cache_key,
+            expected_created_at=current_candidate.entry.created_at,
         )
