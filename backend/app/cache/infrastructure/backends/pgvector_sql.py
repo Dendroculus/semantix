@@ -36,7 +36,7 @@ INSERT INTO semantix.cache_entries (
     created_at,
     expires_at
 )
-VALUES (
+SELECT
     $1,
     $2,
     $3,
@@ -44,12 +44,21 @@ VALUES (
     $5,
     $6,
     $7::vector,
-    $8,
+    GREATEST(
+        $8,
+        COALESCE(
+            (
+                SELECT MAX(created_at) + INTERVAL '1 microsecond'
+                FROM semantix.cache_entries
+                WHERE embedding_space = $1
+            ),
+            $8
+        )
+    ),
     CASE
         WHEN $9::double precision IS NULL THEN NULL
         ELSE CURRENT_TIMESTAMP + ($9 * INTERVAL '1 second')
     END
-)
 ON CONFLICT (embedding_space, cache_key) DO UPDATE SET
     embedding_dimensions = EXCLUDED.embedding_dimensions,
     namespace = EXCLUDED.namespace,
