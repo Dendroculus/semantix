@@ -2,7 +2,7 @@ name: semantix-prod
 
 services:
   postgres:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:pg17@sha256:d2ef61f42ef767baa5a1475393303cc235bcd92febd9d7014eddb48b41f3bad0
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_MIGRATION_USER:?Set POSTGRES_MIGRATION_USER}

@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:0.11.32@sha256:df4cae8f3a96d175e2e5f992e597550000edbe78fdc2594d5cd8de1a217f504c AS uv
 
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93
 
 COPY --from=uv /uv /uvx /bin/
 
