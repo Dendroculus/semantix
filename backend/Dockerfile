@@ -25,9 +25,10 @@ WORKDIR /app
 
 RUN addgroup --system app \
     && adduser --system --ingroup app app \
-    && rm -rf /usr/local/lib/python3.11/site-packages/pip* \
-        /usr/local/lib/python3.11/site-packages/setuptools* \
-        /usr/local/lib/python3.11/site-packages/wheel* \
+    && SYSTEM_SITE_PACKAGES="$(python -c 'import site; print(site.getsitepackages()[0])')" \
+    && rm -rf "$SYSTEM_SITE_PACKAGES"/pip* \
+        "$SYSTEM_SITE_PACKAGES"/setuptools* \
+        "$SYSTEM_SITE_PACKAGES"/wheel* \
     && rm -f /usr/local/bin/pip* /usr/bin/openssl
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv

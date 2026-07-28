@@ -6,8 +6,8 @@ Docker workflow is documented in [Getting started](getting-started.md).
 ## Backend
 
 The supported interpreter range is Python 3.11 through 3.14. The backend image
-uses Python 3.11, the full quality suite runs on 3.11, and the unit suite also
-runs on 3.12, 3.13, and 3.14 in CI.
+uses Python 3.14, the full quality suite runs on 3.14, and the compatibility
+suite also runs on 3.11, 3.12, and 3.13 in CI.
 
 Windows PowerShell:
 

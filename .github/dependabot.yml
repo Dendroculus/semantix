@@ -45,6 +45,11 @@ updates:
           - "*"
         update-types:
           - patch
+    ignore:
+      - dependency-name: python
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
 
   - package-ecosystem: docker
     directory: /frontend
