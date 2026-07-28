@@ -38,7 +38,7 @@ providers are the lowest-dependency development configuration.
 
 ## Frontend
 
-Use Node.js 22.22.0 or newer within the Node 22 release line. This matches the
+Use Node.js 24.0.0 or newer within the Node 24 release line. This matches the
 frontend images and CI, and satisfies the runtime requirements of the current
 frontend dependencies:
 
