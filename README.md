@@ -334,8 +334,6 @@ boundaries.
 
 ## 📚 Documentation
 
-| Guide | Use it for |
-|---|---|
 The [documentation index](docs/README.md) groups the full guides by purpose.
 
 | Start here | Use it for |
