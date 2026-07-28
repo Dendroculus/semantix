@@ -38,7 +38,8 @@ Only `prompt` is required. `cache_enabled=false` overrides both granular flags.
 writes enabled refreshes the entry from the provider; disabling writes still
 permits an eligible cached response.
 
-See [Cache policies](cache-policies.md) for precedence and namespace rules.
+See [Cache policies](../guides/cache-policies.md) for precedence and namespace
+rules.
 
 ## Query response evidence
 
@@ -113,4 +114,4 @@ completed query latencies. Validation and rate-limit failures occur before the
 query application service and are not included in its request/error counters.
 
 For load-testing semantics and the distinction between caller decisions and
-actual cache lookups, see [Load testing](load-testing.md).
+actual cache lookups, see [Load testing](../operations/load-testing.md).

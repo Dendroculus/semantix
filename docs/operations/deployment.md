@@ -130,7 +130,7 @@ DATABASE_MIGRATION_MODE=auto
 Never pass the migration DSN to the production backend service.
 
 Changing Compose password variables does not update roles in an existing
-volume. Follow [Operations and recovery](operations.md) for credential rotation,
+volume. Follow [Operations and recovery](recovery.md) for credential rotation,
 backup, restore, destructive rebuild, migration rollback, and incident response.
 
 ## Static server behavior

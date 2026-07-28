@@ -143,7 +143,9 @@ The frontend gateway binds to `127.0.0.1:8080` by default. Terminate TLS with a 
 
 The hardened stack uses the separate `semantix-prod` Compose project and does not reuse the development PostgreSQL volume.
 
-See [Hardened deployment](deployment.md) for token hashing, role configuration, proxy trust, database privileges, readiness behavior, and validation.
+See [Hardened deployment](../operations/deployment.md) for token hashing, role
+configuration, proxy trust, database privileges, readiness behavior, and
+validation.
 
 ## Health checks
 

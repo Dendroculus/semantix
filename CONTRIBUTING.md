@@ -12,9 +12,9 @@ Before contributing, please read:
 
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Security Policy](SECURITY.md)
-- [Architecture](docs/architecture.md)
-- [Development Guide](docs/development.md)
-- [Cache Policies](docs/cache-policies.md)
+- [Architecture](docs/reference/architecture.md)
+- [Development Guide](docs/guides/development.md)
+- [Cache Policies](docs/guides/cache-policies.md)
 
 ## Ways to contribute
 
@@ -81,7 +81,7 @@ docker compose -f docker-compose.dev.yml --profile pgvector down
 ```
 
 Use the hardened stack only when validating production-oriented configuration.
-See [Hardened deployment](docs/deployment.md) before starting it.
+See [Hardened deployment](docs/operations/deployment.md) before starting it.
 
 ### Local backend workflow
 
@@ -118,8 +118,8 @@ npm ci
 npm run dev
 ```
 
-See [Getting Started](docs/getting-started.md) and
-[Development](docs/development.md) for complete setup details.
+See [Getting Started](docs/guides/getting-started.md) and
+[Development](docs/guides/development.md) for complete setup details.
 
 ## Branches
 
@@ -168,7 +168,8 @@ Semantix follows feature-first ownership.
 - Do not expose prompts, full responses, provider URLs, model names, or secrets
   through aggregate telemetry.
 
-Review [Architecture](docs/architecture.md) before making structural changes.
+Review [Architecture](docs/reference/architecture.md) before making structural
+changes.
 
 ## Coding expectations
 
@@ -296,7 +297,8 @@ and supply-chain artifact generation must also succeed. Dependency review must
 succeed on pull requests. A pending, cancelled, or failed required job must
 block a normal merge.
 
-See [Supply-chain security](docs/supply-chain.md) for thresholds and cadence.
+See [Supply-chain security](docs/operations/supply-chain.md) for thresholds and
+cadence.
 
 The repository ruleset requires pull requests and the `Quality gate` check.
 CODEOWNERS identifies review ownership. Ruleset bypass access is reserved for
