@@ -58,6 +58,45 @@ jobs:
       - name: Run backend unit tests with coverage
         run: uv run --no-sync pytest -m "not pgvector" --cov=app
 
+  backend-compatibility:
+    name: Backend compatibility (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      AUTH_MODE: disabled
+      CACHE_BACKEND: memory
+      PYTHONPYCACHEPREFIX: /tmp/semantix-cache/python
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.12"
+          - "3.13"
+          - "3.14"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          version: "0.11.32"
+
+      - name: Sync locked backend dependencies
+        run: uv sync --locked --extra dev --python "${{ matrix.python-version }}"
+
+      - name: Run backend compatibility tests
+        run: uv run --no-sync --python "${{ matrix.python-version }}" pytest -m "not pgvector"
+
   frontend:
     name: Frontend quality
     runs-on: ubuntu-latest
@@ -72,7 +111,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -90,6 +129,9 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Report frontend bundle budget
+        run: npm run bundle:check
 
   containers:
     name: Container validation
@@ -146,7 +188,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Verify tracked shell scripts use LF
         run: |
@@ -309,6 +351,7 @@ jobs:
     if: ${{ always() }}
     needs:
       - backend
+      - backend-compatibility
       - frontend
       - containers
       - container-platforms
@@ -321,6 +364,7 @@ jobs:
     steps:
       - name: Verify required jobs
         env:
+          BACKEND_COMPATIBILITY_RESULT: ${{ needs.backend-compatibility.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           CONTAINERS_RESULT: ${{ needs.containers.result }}
           CONTAINER_PLATFORMS_RESULT: ${{ needs.container-platforms.result }}
@@ -331,6 +375,7 @@ jobs:
           SECURITY_RESULT: ${{ needs.security.result }}
         run: |
           test "$BACKEND_RESULT" = "success"
+          test "$BACKEND_COMPATIBILITY_RESULT" = "success"
           test "$FRONTEND_RESULT" = "success"
           test "$CONTAINERS_RESULT" = "success"
           test "$CONTAINER_PLATFORMS_RESULT" = "success"

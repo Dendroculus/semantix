@@ -3,9 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.22.0 <23"
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
+    "bundle:check": "node scripts/check-bundle-budget.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
@@ -16,9 +20,6 @@
     "imports:preview": "node scripts/normalize-imports.mjs",
     "imports:fix": "node scripts/normalize-imports.mjs --write --strict",
     "imports:check": "node scripts/normalize-imports.mjs --check --strict"
-  },
-  "engines": {
-  "node": ">=22.22.0"
   },
   "dependencies": {
     "katex": "^0.17.0",

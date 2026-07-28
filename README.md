@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white" alt="React 18">
-  <img src="https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white" alt="Vite 6">
+  <img src="https://img.shields.io/badge/React-19.2.7-61DAFB?logo=react&logoColor=white" alt="React 19.2.7">
+  <img src="https://img.shields.io/badge/Vite-7.3.6-646CFF?logo=vite&logoColor=white" alt="Vite 7.3.6">
   <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11 or newer">
+  <img src="https://img.shields.io/badge/Python-3.11%E2%80%933.14-3776AB?logo=python&logoColor=white" alt="Python 3.11 through 3.14">
   <img src="https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL with pgvector">
 </p>
 
@@ -339,6 +339,7 @@ boundaries.
 | [Providers](docs/providers.md) | Hugging Face, OpenAI, Anthropic, Gemini, Ollama, and mock configuration |
 | [pgvector](docs/pgvector.md) | Persistent storage, ports, migrations, and database verification |
 | [Hardened deployment](docs/deployment.md) | Authentication, roles, proxies, TLS, request limits, and database permissions |
+| [Operations and recovery](docs/operations.md) | Credential rotation, backup, restore, cache rebuild, rollback, and incident response |
 | [API](docs/api.md) | Endpoints, requests, responses, and error contracts |
 | [Cache policies](docs/cache-policies.md) | Threshold, TTL, LRU, namespaces, privacy, and coalescing |
 | [Benchmarking](docs/benchmarking.md) | Datasets, metrics, safeguards, and exports |
