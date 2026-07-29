@@ -7,7 +7,7 @@ from app.cache.application.service import SemanticCache
 from app.middleware.rate_limit import app_rate_limit, limiter
 from app.observability.metrics import RuntimeMetrics
 from app.observability.schemas import MetricsResponse
-from app.security.auth import ViewerPrincipal
+from app.security.auth import GlobalAdminPrincipal
 
 router = APIRouter(prefix="/api/v1", tags=["observability"])
 MetricsDependency = Annotated[RuntimeMetrics, Depends(get_runtime_metrics)]
@@ -20,7 +20,7 @@ async def metrics(
     request: Request,
     runtime_metrics: MetricsDependency,
     cache: CacheDependency,
-    principal: ViewerPrincipal,
+    principal: GlobalAdminPrincipal,
 ) -> MetricsResponse:
     cache_stats = await cache.stats()
     return MetricsResponse.from_snapshot(
