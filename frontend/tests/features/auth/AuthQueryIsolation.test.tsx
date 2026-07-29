@@ -40,6 +40,12 @@ function ProtectedDataProbe(): JSX.Element {
   return (
     <>
       <output aria-label="Authentication status">{auth.status}</output>
+      <output aria-label="Authentication error">
+        {auth.error ?? "none"}
+      </output>
+      <output aria-label="Authentication lock">
+        {auth.lockedUntil ?? "none"}
+      </output>
       <output aria-label="Protected metrics">
         {protectedQuery.data ?? "empty"}
       </output>
@@ -154,5 +160,51 @@ describe("authentication query isolation", () => {
     expect(
       queryClient.getQueryData(runtimeMetricsKeys.live()),
     ).toBeUndefined();
+  });
+
+  it("clears protected data and records backend lockout expiration", async () => {
+    vi.mocked(getAuthConfig).mockResolvedValue({
+      ok: true,
+      data: { authentication_required: true },
+    });
+    vi.mocked(getAuthSession).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "authentication_temporarily_locked",
+        detail:
+          "Too many failed authentication attempts. Please try again later.",
+        retryAfterSeconds: 30,
+        status: 429,
+      },
+    });
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(runtimeMetricsKeys.live(), "private metrics");
+    const beforeAuthentication = Date.now();
+
+    render(
+      <QueryTestProvider client={queryClient}>
+        <AuthProvider>
+          <ProtectedDataProbe />
+        </AuthProvider>
+      </QueryTestProvider>,
+    );
+    await screen.findByText("unauthenticated");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Authenticate test identity",
+      }),
+    );
+
+    await screen.findByText("Too many failed authentication attempts.");
+    expect(screen.getByLabelText("Protected metrics").textContent).toBe(
+      "empty",
+    );
+    const lockedUntil = Number(
+      screen.getByLabelText("Authentication lock").textContent,
+    );
+    expect(lockedUntil).toBeGreaterThanOrEqual(
+      beforeAuthentication + 30_000,
+    );
   });
 });

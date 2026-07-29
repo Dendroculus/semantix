@@ -66,4 +66,75 @@ describe("authenticated HTTP requests", () => {
 
     expect(headers.has("Authorization")).toBe(false);
   });
+
+  it("exposes a valid Retry-After response header on API errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: "authentication_temporarily_locked",
+              detail:
+                "Too many failed authentication attempts. Please try again later.",
+            }),
+            {
+              status: 429,
+              headers: {
+                "Content-Type": "application/json",
+                "Retry-After": "30",
+              },
+            },
+          ),
+      ),
+    );
+
+    const result = await request<Payload>(
+      "/api/v1/auth/session",
+      (value) => value as Payload,
+      { method: "GET" },
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "authentication_temporarily_locked",
+        detail:
+          "Too many failed authentication attempts. Please try again later.",
+        retryAfterSeconds: 30,
+        status: 429,
+      },
+    });
+  });
+
+  it("ignores a malformed Retry-After response header", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: "authentication_temporarily_locked",
+              detail:
+                "Too many failed authentication attempts. Please try again later.",
+            }),
+            {
+              status: 429,
+              headers: { "Retry-After": "later" },
+            },
+          ),
+      ),
+    );
+
+    const result = await request<Payload>(
+      "/api/v1/auth/session",
+      (value) => value as Payload,
+      { method: "GET" },
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.retryAfterSeconds).toBeUndefined();
+    }
+  });
 });

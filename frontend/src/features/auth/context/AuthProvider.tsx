@@ -17,6 +17,9 @@ import type {
   AuthStatus,
 } from "./AuthContext";
 
+const DEFAULT_LOCKOUT_SECONDS = 30;
+const LOCKOUT_ERROR = "Too many failed authentication attempts.";
+
 interface AuthProviderProps {
   children: ReactNode;
 }
@@ -28,6 +31,7 @@ export function AuthProvider({
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [session, setSession] = useState<AuthSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
 
   const clearProtectedQueries = useCallback((): void => {
     queryClient.removeQueries({
@@ -54,11 +58,30 @@ export function AuthProvider({
         clearProtectedQueries();
         setSession(null);
         setStatus("unauthenticated");
-        setError(response.error.detail ?? "The access token was rejected.");
+
+        if (
+          response.error.code === "authentication_temporarily_locked"
+        ) {
+          const retryAfter =
+            response.error.retryAfterSeconds ?? DEFAULT_LOCKOUT_SECONDS;
+          setLockedUntil(Date.now() + retryAfter * 1_000);
+          setError(LOCKOUT_ERROR);
+          return false;
+        }
+
+        setLockedUntil(null);
+        setError(
+          response.error.code === "authentication_required"
+            ? "The access token was rejected."
+            : (response.error.detail ??
+                "Authentication could not be completed."),
+        );
         return false;
       }
 
       clearProtectedQueries();
+      setLockedUntil(null);
+      setError(null);
       setSession(response.data);
       setStatus("authenticated");
       return true;
@@ -71,6 +94,7 @@ export function AuthProvider({
     clearProtectedQueries();
     setSession(null);
     setError(null);
+    setLockedUntil(null);
     setStatus("unauthenticated");
   }, [clearProtectedQueries]);
 
@@ -94,6 +118,7 @@ export function AuthProvider({
 
       if (!config.data.authentication_required) {
         clearProtectedQueries();
+        setLockedUntil(null);
         setStatus("disabled");
         return;
       }
@@ -116,8 +141,15 @@ export function AuthProvider({
   }, [authenticate, clearProtectedQueries]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ authenticate, error, logout, session, status }),
-    [authenticate, error, logout, session, status],
+    () => ({
+      authenticate,
+      error,
+      lockedUntil,
+      logout,
+      session,
+      status,
+    }),
+    [authenticate, error, lockedUntil, logout, session, status],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

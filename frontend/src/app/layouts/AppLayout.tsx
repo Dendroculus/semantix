@@ -67,25 +67,22 @@ function AppShell(): JSX.Element {
       </a>
       <div className="mx-auto max-w-6xl">
         <Navbar />
-        <AuthPanel />
 
         {canAccessWorkspace ? (
-          <WorkspaceProviders>
-            <Workspace mainRef={mainRef} />
-          </WorkspaceProviders>
+          <>
+            <AuthPanel />
+            <WorkspaceProviders>
+              <Workspace mainRef={mainRef} />
+            </WorkspaceProviders>
+          </>
         ) : (
           <main
-            className="py-10 sm:py-12"
+            className="py-8 sm:py-10"
             id="main-content"
             ref={mainRef}
             tabIndex={-1}
           >
-            <output
-              aria-live="polite"
-              className="font-data text-[11px] text-(--text-muted)"
-            >
-              Authenticate to load Semantix workspaces.
-            </output>
+            <AuthPanel />
           </main>
         )}
       </div>

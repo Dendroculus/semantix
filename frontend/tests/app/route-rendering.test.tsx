@@ -87,6 +87,7 @@ function useAuthenticatedPrincipal(
   vi.mocked(useAuth).mockReturnValue({
     authenticate: vi.fn(async () => true),
     error: null,
+    lockedUntil: null,
     logout: vi.fn(),
     session: {
       name: `${role}-principal`,
@@ -248,6 +249,29 @@ describe('application routing', () => {
         .getAttribute('href'),
     ).toBe('/');
     expect(document.title).toBe('Page not found | Semantix');
+  });
+
+  it('uses one stable authentication gate instead of an empty workspace', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error: null,
+      lockedUntil: null,
+      logout: vi.fn(),
+      session: null,
+      status: 'unauthenticated',
+    });
+
+    renderAt('/');
+
+    const gateHeading = screen.getByRole('heading', {
+      level: 1,
+      name: 'Authentication required',
+    });
+    expect(gateHeading.closest('main')?.id).toBe('main-content');
+    expect(
+      screen.queryByText('Authenticate to load Semantix workspaces.'),
+    ).toBeNull();
+    expect(screen.queryByText('Probe the cache')).toBeNull();
   });
 
   it.each<AuthRole>(['viewer', 'operator', 'admin'])(
