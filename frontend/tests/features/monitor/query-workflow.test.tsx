@@ -127,6 +127,25 @@ describe("dashboard correctness", () => {
     expect(container.querySelectorAll('[data-testid="similarity-point"]')).toHaveLength(0);
   });
 
+  it("shows a cache-readings skeleton while initial workspace data loads", async () => {
+    vi.mocked(getCacheStats).mockReturnValue(
+      new Promise(() => undefined),
+    );
+    vi.mocked(getCacheThreshold).mockReturnValue(
+      new Promise(() => undefined),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByLabelText("Loading cache readings"),
+    ).toBeTruthy();
+  });
+
   it("reserves response space while a query is running", async () => {
     vi.mocked(useQuery).mockReturnValue({
       state: { status: "loading" },

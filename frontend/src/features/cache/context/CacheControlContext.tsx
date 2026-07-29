@@ -29,6 +29,8 @@ export function CacheControlProvider({
     useState<CacheControlReadState>({ status: "loading" });
   const [previewThreshold, setPreviewThreshold] =
     useState<number | null>(null);
+  const [isRefreshingCacheState, setIsRefreshingCacheState] =
+    useState(false);
   const [controlError, setControlError] = useState<string | null>(null);
   const [isApplyingThreshold, setIsApplyingThreshold] = useState(false);
   const activeRefresh = useRef<AbortController | null>(null);
@@ -50,8 +52,11 @@ export function CacheControlProvider({
       activeRefresh.current?.abort();
       activeRefresh.current = controller;
 
-      if (!hasConfirmedState.current) {
+      if (hasConfirmedState.current) {
+        setIsRefreshingCacheState(true);
+      } else {
         setCacheState({ status: "loading" });
+        setIsRefreshingCacheState(false);
       }
 
       const [statsResult, thresholdResult] = await Promise.all([
@@ -68,6 +73,7 @@ export function CacheControlProvider({
       }
 
       activeRefresh.current = null;
+      setIsRefreshingCacheState(false);
       const shouldSyncPreview =
         syncPreview || !hasConfirmedState.current;
 
@@ -131,6 +137,7 @@ export function CacheControlProvider({
       activeRefresh.current?.abort();
       activeRefresh.current = null;
       isApplying.current = true;
+      setIsRefreshingCacheState(false);
       setIsApplyingThreshold(true);
 
       try {
@@ -181,6 +188,7 @@ export function CacheControlProvider({
       commitThreshold,
       controlError,
       isApplyingThreshold,
+      isRefreshingCacheState,
       previewThreshold,
       refreshCacheState,
       setPreviewThreshold,
@@ -191,6 +199,7 @@ export function CacheControlProvider({
       commitThreshold,
       controlError,
       isApplyingThreshold,
+      isRefreshingCacheState,
       previewThreshold,
       refreshCacheState,
     ],

@@ -22,6 +22,9 @@ import {
   getBenchmarkDatasets,
   runBenchmark,
 } from '@/features/benchmark/api/benchmarkApi';
+import { BENCHMARK_DATASET_STALE_TIME_MS } from '@/features/benchmark/hooks/useBenchmark';
+import { benchmarkDatasetKeys } from '@/shared/query/queryKeys';
+import { deferred } from '../support';
 import {
   benchmarkDataset as dataset,
   benchmarkResult as result,
@@ -197,6 +200,50 @@ describe('BenchmarkDashboard', () => {
       screen.queryByLabelText('Loading benchmark results'),
     ).toBeNull();
     expect(screen.queryByLabelText('Benchmark dataset')).toBeNull();
+  });
+
+  it('keeps cached datasets visible during a background refresh', async () => {
+    const cachedCatalog = {
+      datasets: [
+        {
+          ...dataset,
+          categories: [...dataset.categories],
+        },
+      ],
+      default_dataset_id: 'quick' as const,
+    };
+    queryClient.setQueryData(
+      benchmarkDatasetKeys.catalog(),
+      cachedCatalog,
+      {
+        updatedAt: Date.now() - BENCHMARK_DATASET_STALE_TIME_MS - 1,
+      },
+    );
+    const refresh =
+      deferred<Awaited<ReturnType<typeof getBenchmarkDatasets>>>();
+    vi.mocked(getBenchmarkDatasets).mockReturnValue(refresh.promise);
+
+    renderDashboard();
+
+    expect(screen.getByLabelText('Benchmark dataset')).toBeTruthy();
+    expect(
+      screen.queryByLabelText('Loading benchmark datasets'),
+    ).toBeNull();
+    expect(screen.getByText('Refreshing dataset catalog')).toBeTruthy();
+    await waitFor(() => expect(getBenchmarkDatasets).toHaveBeenCalledOnce());
+
+    await act(async () => {
+      refresh.resolve({
+        ok: true,
+        data: cachedCatalog,
+      });
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText('Refreshing dataset catalog'),
+      ).toBeNull();
+    });
   });
 
   it('builds complete JSON and CSV exports', () => {

@@ -1,3 +1,4 @@
+import { CacheReadingsSkeleton } from "../components/CacheReadingsSkeleton";
 import { FieldMetrics } from "../components/FieldMetrics";
 import { QueryForm } from "../components/QueryForm";
 import { QueryLog } from "../components/QueryLog";
@@ -15,6 +16,7 @@ export function MonitorPage(): JSX.Element {
     cacheState,
     commitThreshold,
     isApplyingThreshold,
+    isRefreshingCacheState,
     previewThreshold,
     setPreviewThreshold,
   } = useCacheControl();
@@ -54,14 +56,7 @@ export function MonitorPage(): JSX.Element {
         )}
       </section>
 
-      {cacheState.status === "loading" && (
-        <output
-          aria-live="polite"
-          className="font-data block border-y border-(--hairline) py-8 text-[11px] text-(--text-muted)"
-        >
-          Loading cache statistics and threshold.
-        </output>
-      )}
+      {cacheState.status === "loading" && <CacheReadingsSkeleton />}
 
       {cacheState.status === "error" && (
         <Alert
@@ -78,6 +73,15 @@ export function MonitorPage(): JSX.Element {
 
       {cacheState.status === "ready" && previewThreshold !== null && (
         <>
+          {isRefreshingCacheState && (
+            <output
+              aria-live="polite"
+              className="ui-label mb-5 block text-(--gold)"
+            >
+              Refreshing cache readings
+            </output>
+          )}
+
           <div className="grid grid-cols-1 gap-14 min-[760px]:grid-cols-[minmax(280px,3fr)_minmax(0,2fr)]">
             <FieldMetrics
               cacheStats={cacheState.data.cacheStats}

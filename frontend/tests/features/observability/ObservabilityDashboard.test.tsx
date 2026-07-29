@@ -154,6 +154,8 @@ describe("ObservabilityDashboard", () => {
 
     await waitFor(() => expect(button.disabled).toBe(true));
     fireEvent.click(button);
+    expect(screen.getByText("25.5 ms")).toBeTruthy();
+    expect(screen.getByText("Refreshing runtime metrics")).toBeTruthy();
     expect(getRuntimeMetrics).toHaveBeenCalledTimes(2);
 
     await act(async () => {
@@ -161,6 +163,9 @@ describe("ObservabilityDashboard", () => {
         ok: true,
         data: { ...metrics, request_count: 13 },
       });
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("Refreshing runtime metrics")).toBeNull();
     });
   });
 

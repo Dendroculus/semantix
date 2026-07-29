@@ -15,6 +15,7 @@ export function BenchmarkDashboard(): JSX.Element {
   const controller = useBenchmark();
   const {
     datasetsLoading,
+    datasetsRefreshing,
     error,
     isRunning,
     result,
@@ -39,6 +40,15 @@ export function BenchmarkDashboard(): JSX.Element {
         <BenchmarkDatasetSkeleton />
       ) : (
         <BenchmarkControls controller={controller} />
+      )}
+
+      {datasetsRefreshing && (
+        <output
+          aria-live="polite"
+          className="ui-label mt-3 block text-(--gold)"
+        >
+          Refreshing dataset catalog
+        </output>
       )}
 
       {selectedDataset !== null && (

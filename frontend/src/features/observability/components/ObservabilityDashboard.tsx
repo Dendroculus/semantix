@@ -200,6 +200,15 @@ export function ObservabilityDashboard(): JSX.Element {
               <span>
                 Samples: {formatCount(state.data.latency_sample_size)}
               </span>
+
+              {isRefreshing && (
+                <output
+                  aria-live="polite"
+                  className="ui-label text-(--gold)"
+                >
+                  Refreshing runtime metrics
+                </output>
+              )}
             </div>
 
             {metricGroups.map((group) => (

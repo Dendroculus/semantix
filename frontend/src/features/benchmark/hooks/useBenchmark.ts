@@ -38,6 +38,7 @@ export interface BenchmarkForm {
 export interface BenchmarkController {
   datasets: BenchmarkDatasetSummary[];
   datasetsLoading: boolean;
+  datasetsRefreshing: boolean;
   error: string | null;
   form: BenchmarkForm;
   isRunning: boolean;
@@ -163,6 +164,8 @@ export function useBenchmark(): BenchmarkController {
   return {
     datasets,
     datasetsLoading,
+    datasetsRefreshing:
+      datasetQuery.data !== undefined && datasetQuery.isFetching,
     error: error ?? datasetError,
     form,
     isRunning,
