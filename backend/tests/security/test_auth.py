@@ -66,6 +66,16 @@ def test_auth_config_is_public_and_does_not_disclose_principals() -> None:
     assert "reader" not in response.text
 
 
+def test_auth_config_is_not_subject_to_the_application_rate_limit() -> None:
+    with TestClient(create_app(settings())) as client:
+        responses = [client.get("/api/v1/auth/config") for _ in range(25)]
+
+    assert all(response.status_code == 200 for response in responses)
+    assert all(
+        response.json() == {"authentication_required": True} for response in responses
+    )
+
+
 def test_protected_routes_require_a_valid_token() -> None:
     with TestClient(create_app(settings())) as client:
         response = client.get("/api/v1/cache/stats")

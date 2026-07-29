@@ -23,6 +23,7 @@ describe("AuthPanel", () => {
       error: null,
       lockedUntil: null,
       logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
       session: null,
       status: "disabled",
     });
@@ -32,12 +33,13 @@ describe("AuthPanel", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("keeps a stable authentication gate while access policy loads", () => {
+  it("shows only a stable access-policy state while loading", () => {
     vi.mocked(useAuth).mockReturnValue({
       authenticate: vi.fn(async () => false),
       error: null,
       lockedUntil: null,
       logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
       session: null,
       status: "loading",
     });
@@ -45,12 +47,38 @@ describe("AuthPanel", () => {
     render(<AuthPanel />);
 
     expect(
-      screen.getByRole("heading", { name: "Authentication required" }),
+      screen.getByRole("heading", {
+        name: "Confirming workspace access",
+      }),
     ).toBeTruthy();
     expect(screen.getByText("Checking access policy…")).toBeTruthy();
-    expect(
-      (screen.getByLabelText("Access token") as HTMLInputElement).disabled,
-    ).toBe(true);
+    expect(screen.queryByLabelText("Access token")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Authenticate" })).toBeNull();
+  });
+
+  it("shows a policy error with Retry and no token form", () => {
+    const retryAccessPolicy = vi.fn();
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error:
+        "Access policy unavailable. Semantix could not determine the current " +
+        "authentication policy. Please wait a moment and try again.",
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy,
+      session: null,
+      status: "error",
+    });
+
+    render(<AuthPanel />);
+
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Access policy unavailable. Semantix could not determine the current " +
+        "authentication policy. Please wait a moment and try again.",
+    );
+    expect(screen.queryByLabelText("Access token")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(retryAccessPolicy).toHaveBeenCalledOnce();
   });
 
   it("shows principal, role, scope, and sign-out in the access bar", () => {
@@ -60,6 +88,7 @@ describe("AuthPanel", () => {
       error: null,
       lockedUntil: null,
       logout,
+      retryAccessPolicy: vi.fn(),
       session: {
         name: "Ada",
         role: "admin",
@@ -86,6 +115,7 @@ describe("AuthPanel", () => {
       error: null,
       lockedUntil: null,
       logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
       session: null,
       status: "unauthenticated",
     });
@@ -100,6 +130,7 @@ describe("AuthPanel", () => {
       error: "The access token was rejected.",
       lockedUntil: null,
       logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
       session: null,
       status: "unauthenticated",
     });
@@ -125,6 +156,7 @@ describe("AuthPanel", () => {
       error: "Too many failed authentication attempts.",
       lockedUntil: Date.now() + 30_000,
       logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
       session: null,
       status: "unauthenticated",
     });
@@ -165,6 +197,7 @@ describe("AuthPanel", () => {
       error: null,
       lockedUntil: null,
       logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
       session: null,
       status: "unauthenticated",
     });

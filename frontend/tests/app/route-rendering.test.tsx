@@ -89,6 +89,7 @@ function useAuthenticatedPrincipal(
     error: null,
     lockedUntil: null,
     logout: vi.fn(),
+    retryAccessPolicy: vi.fn(),
     session: {
       name: `${role}-principal`,
       role,
@@ -257,6 +258,7 @@ describe('application routing', () => {
       error: null,
       lockedUntil: null,
       logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
       session: null,
       status: 'unauthenticated',
     });
@@ -272,6 +274,23 @@ describe('application routing', () => {
       screen.queryByText('Authenticate to load Semantix workspaces.'),
     ).toBeNull();
     expect(screen.queryByText('Probe the cache')).toBeNull();
+  });
+
+  it('loads the workspace directly when authentication is disabled', async () => {
+    renderAt('/');
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Probe the cache',
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('heading', {
+        name: 'Authentication required',
+      }),
+    ).toBeNull();
+    expect(screen.queryByLabelText('Access token')).toBeNull();
   });
 
   it.each<AuthRole>(['viewer', 'operator', 'admin'])(

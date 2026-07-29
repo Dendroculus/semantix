@@ -14,7 +14,6 @@ router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
 
 @router.get("/config", response_model=AuthConfigResponse)
-@limiter.limit(app_rate_limit)
 async def auth_config(request: Request) -> AuthConfigResponse:
     return AuthConfigResponse(
         authentication_required=request.app.state.settings.auth_mode == "token"

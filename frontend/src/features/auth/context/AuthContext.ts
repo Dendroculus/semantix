@@ -14,6 +14,7 @@ export interface AuthContextValue {
   error: string | null;
   lockedUntil: number | null;
   logout: () => void;
+  retryAccessPolicy: () => void;
   session: AuthSession | null;
   status: AuthStatus;
 }

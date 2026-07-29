@@ -7,6 +7,10 @@ import {
 
 import { useAuth } from "../hooks/useAuth";
 
+const ACCESS_POLICY_ERROR =
+  "Access policy unavailable. Semantix could not determine the current " +
+  "authentication policy. Please wait a moment and try again.";
+
 function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
@@ -21,6 +25,7 @@ export function AuthPanel(): JSX.Element | null {
     error,
     lockedUntil,
     logout,
+    retryAccessPolicy,
     session,
     status,
   } = useAuth();
@@ -46,6 +51,58 @@ export function AuthPanel(): JSX.Element | null {
 
   if (status === "disabled") {
     return null;
+  }
+
+  if (status === "loading" || status === "error") {
+    const isLoading = status === "loading";
+    return (
+      <section
+        aria-labelledby="access-policy-heading"
+        className="mx-auto flex min-h-96 max-w-xl items-center py-2"
+      >
+        <div className="relative w-full overflow-hidden border border-(--hairline) border-l-2 border-l-(--gold) bg-(--surface) px-5 py-7 sm:px-8 sm:py-9">
+          <div
+            aria-hidden="true"
+            className="absolute right-0 top-0 h-px w-24 bg-(--gold)"
+          />
+          <p className="ui-label text-(--gold)">Access policy</p>
+          <h1
+            className="font-display mt-3 text-3xl italic text-(--text)"
+            id="access-policy-heading"
+          >
+            {isLoading
+              ? "Confirming workspace access"
+              : "Workspace access paused"}
+          </h1>
+          <div className="min-h-24 pt-4">
+            {isLoading ? (
+              <output
+                aria-live="polite"
+                className="font-data text-[10px] text-(--text-muted)"
+              >
+                Checking access policy…
+              </output>
+            ) : (
+              <>
+                <p
+                  className="max-w-md text-sm/6 text-(--text-muted)"
+                  role="alert"
+                >
+                  {error ?? ACCESS_POLICY_ERROR}
+                </p>
+                <button
+                  className="ui-label mt-5 min-h-11 border border-(--gold) bg-(--gold) px-5 py-2.5 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
+                  type="button"
+                  onClick={retryAccessPolicy}
+                >
+                  Retry
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+    );
   }
 
   if (status === "authenticated" && session !== null) {
@@ -103,10 +160,7 @@ export function AuthPanel(): JSX.Element | null {
       ? 0
       : Math.max(0, Math.ceil((lockedUntil - currentTime) / 1_000));
   const isLocked = remainingSeconds > 0;
-  const isLoading = status === "loading";
-  const isUnavailable = status === "error";
-  const controlsDisabled =
-    isLoading || isUnavailable || isLocked || isSubmitting;
+  const controlsDisabled = isLocked || isSubmitting;
 
   async function submit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -167,14 +221,6 @@ export function AuthPanel(): JSX.Element | null {
         </form>
 
         <div className="min-h-16 pt-4">
-          {isLoading && (
-            <output
-              aria-live="polite"
-              className="font-data text-[10px] text-(--text-muted)"
-            >
-              Checking access policy…
-            </output>
-          )}
           {error !== null &&
             (lockedUntil === null || isLocked) && (
               <div className="font-data text-[10px]/5 text-(--coral-text)">

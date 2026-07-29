@@ -55,6 +55,9 @@ function ProtectedDataProbe(): JSX.Element {
       <button type="button" onClick={auth.logout}>
         Logout test identity
       </button>
+      <button type="button" onClick={auth.retryAccessPolicy}>
+        Retry access policy
+      </button>
     </>
   );
 }
@@ -160,6 +163,48 @@ describe("authentication query isolation", () => {
     expect(
       queryClient.getQueryData(runtimeMetricsKeys.live()),
     ).toBeUndefined();
+  });
+
+  it("distinguishes policy failure and retries the configuration request", async () => {
+    vi.mocked(getAuthConfig)
+      .mockResolvedValueOnce({
+        ok: false,
+        error: {
+          code: "rate_limit_exceeded",
+          detail: "Too many requests. Please try again later.",
+          status: 429,
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: { authentication_required: false },
+      });
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(runtimeMetricsKeys.live(), "private metrics");
+
+    render(
+      <QueryTestProvider client={queryClient}>
+        <AuthProvider>
+          <ProtectedDataProbe />
+        </AuthProvider>
+      </QueryTestProvider>,
+    );
+
+    await screen.findByText("error");
+    expect(screen.getByLabelText("Authentication error").textContent).toBe(
+      "Access policy unavailable. Semantix could not determine the current " +
+        "authentication policy. Please wait a moment and try again.",
+    );
+    expect(screen.getByLabelText("Protected metrics").textContent).toBe(
+      "empty",
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry access policy" }),
+    );
+
+    await screen.findByText("disabled");
+    expect(getAuthConfig).toHaveBeenCalledTimes(2);
   });
 
   it("clears protected data and records backend lockout expiration", async () => {
