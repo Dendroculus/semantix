@@ -168,6 +168,12 @@ describe('BenchmarkDashboard', () => {
     await reviewAndConfirm();
 
     expect(screen.getByLabelText('Loading benchmark results')).toBeTruthy();
+    expect(
+      document.querySelectorAll('[data-skeleton-result-metric]'),
+    ).toHaveLength(14);
+    expect(
+      document.querySelectorAll('[data-skeleton-result-chart]'),
+    ).toHaveLength(5);
     await act(async () => {
       resolveRun?.({
         ok: false,
@@ -199,6 +205,9 @@ describe('BenchmarkDashboard', () => {
     expect(
       screen.queryByLabelText('Loading benchmark results'),
     ).toBeNull();
+    expect(
+      document.querySelectorAll('[data-skeleton-control]'),
+    ).toHaveLength(6);
     expect(screen.queryByLabelText('Benchmark dataset')).toBeNull();
   });
 

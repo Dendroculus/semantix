@@ -15,10 +15,13 @@ export function MetricsSkeleton(): JSX.Element {
             {Array.from({ length: tileCount }, (_, tileIndex) => (
               <div
                 key={tileIndex}
-                className="h-28 min-w-0 basis-56 grow bg-(--surface) p-5"
+                className="h-32 min-w-0 basis-56 grow bg-(--surface) p-5"
+                data-skeleton-runtime-metric
               >
                 <div className="h-2.5 w-20 rounded-sm bg-white/8" />
-                <div className="mt-5 h-7 w-28 rounded-sm bg-white/10" />
+                <div className="mt-4 h-7 w-28 rounded-sm bg-white/10" />
+                <div className="mt-4 h-2.5 w-full rounded-sm bg-white/6" />
+                <div className="mt-2 h-2.5 w-4/5 rounded-sm bg-white/6" />
               </div>
             ))}
           </div>

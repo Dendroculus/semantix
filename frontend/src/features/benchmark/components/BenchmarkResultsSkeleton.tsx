@@ -1,4 +1,8 @@
 import type { JSX } from "react";
+
+const RESULT_METRICS = Array.from({ length: 14 }, (_, index) => index);
+const RESULT_CHARTS = Array.from({ length: 5 }, (_, index) => index);
+
 export function BenchmarkResultsSkeleton(): JSX.Element {
   return (
     <output
@@ -10,9 +14,10 @@ export function BenchmarkResultsSkeleton(): JSX.Element {
         Running controlled query sequence
       </span>
       <span className="mt-5 grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4">
-        {[0, 1, 2, 3, 4, 5, 6, 7].map((item) => (
+        {RESULT_METRICS.map((item) => (
           <span
             className="border-t border-(--hairline) pt-3"
+            data-skeleton-result-metric
             key={item}
           >
             <span className="block h-2 w-20 bg-[rgba(234,230,221,0.05)]" />
@@ -21,9 +26,10 @@ export function BenchmarkResultsSkeleton(): JSX.Element {
         ))}
       </span>
       <span className="mt-10 grid gap-8 md:grid-cols-2">
-        {[0, 1].map((item) => (
+        {RESULT_CHARTS.map((item) => (
           <span
             className="border-t border-(--hairline) pt-4"
+            data-skeleton-result-chart
             key={item}
           >
             <span className="block h-2 w-44 bg-[rgba(234,230,221,0.05)]" />

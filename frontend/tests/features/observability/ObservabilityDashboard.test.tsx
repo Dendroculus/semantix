@@ -73,6 +73,9 @@ describe("ObservabilityDashboard", () => {
     expect(
       screen.getByLabelText("Loading runtime metrics"),
     ).toBeTruthy();
+    expect(
+      document.querySelectorAll("[data-skeleton-runtime-metric]"),
+    ).toHaveLength(12);
 
     await act(async () => {
       resolveMetrics?.({ ok: true, data: metrics });

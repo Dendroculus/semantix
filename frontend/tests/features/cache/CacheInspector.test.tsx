@@ -121,6 +121,9 @@ describe("CacheInspector", () => {
     renderInspector();
 
     expect(screen.getByLabelText("Loading cache entries")).toBeTruthy();
+    expect(
+      document.querySelectorAll("[data-skeleton-entry-metric]"),
+    ).toHaveLength(12);
   });
 
   it("renders markdown and math in response previews", async () => {

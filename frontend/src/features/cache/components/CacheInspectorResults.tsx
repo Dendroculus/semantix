@@ -59,9 +59,10 @@ export function CacheInspectorResults({
               <span className="mt-3 block h-3 w-full bg-[rgba(234,230,221,0.05)]" />
               <span className="mt-2 block h-3 w-4/5 bg-[rgba(234,230,221,0.05)]" />
               <span className="mt-5 grid grid-cols-2 gap-4 min-[720px]:grid-cols-3">
-                {[0, 1, 2].map((metric) => (
+                {[0, 1, 2, 3, 4, 5].map((metric) => (
                   <span
                     className="h-8 bg-[rgba(234,230,221,0.04)]"
+                    data-skeleton-entry-metric
                     key={metric}
                   />
                 ))}

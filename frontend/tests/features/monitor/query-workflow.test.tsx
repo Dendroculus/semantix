@@ -144,6 +144,12 @@ describe("dashboard correctness", () => {
     expect(
       await screen.findByLabelText("Loading cache readings"),
     ).toBeTruthy();
+    expect(
+      document.querySelectorAll("[data-skeleton-reading]"),
+    ).toHaveLength(6);
+    expect(
+      document.querySelector("[data-skeleton-similarity-plot]"),
+    ).toBeTruthy();
   });
 
   it("reserves response space while a query is running", async () => {
@@ -161,6 +167,9 @@ describe("dashboard correctness", () => {
     expect(
       await screen.findByLabelText("Loading query response"),
     ).toBeTruthy();
+    expect(
+      document.querySelectorAll("[data-skeleton-evidence-metric]"),
+    ).toHaveLength(7);
   });
 
   it("preserves an API null similarity when adding an application trace", async () => {
