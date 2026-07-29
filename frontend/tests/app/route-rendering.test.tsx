@@ -276,6 +276,30 @@ describe('application routing', () => {
     expect(screen.queryByText('Probe the cache')).toBeNull();
   });
 
+  it('shows the destination skeleton without authentication UI while policy loads', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error: null,
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
+      session: null,
+      status: 'loading',
+    });
+
+    const { container } = renderAt('/benchmarks');
+
+    expect(screen.getByLabelText('Loading workspace')).toBeTruthy();
+    expect(
+      container.querySelector('[data-workspace-skeleton="benchmark"]'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Confirming workspace access')).toBeNull();
+    expect(
+      screen.queryByRole('heading', { name: 'Authentication required' }),
+    ).toBeNull();
+    expect(screen.queryByLabelText('Access token')).toBeNull();
+  });
+
   it('loads the workspace directly when authentication is disabled', async () => {
     renderAt('/');
 

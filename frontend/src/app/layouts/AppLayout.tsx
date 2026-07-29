@@ -7,6 +7,7 @@ import { useCacheControl } from '@/features/cache/hooks/useCacheControl';
 import { Alert } from '@/shared/components/ui';
 import { Navbar } from '../navigation/Navbar';
 import { AppProviders, WorkspaceProviders } from '../providers/AppProviders';
+import { RouteLoader } from '../router/RouteLoader';
 import { useRouteAccessibility } from '../router/useRouteAccessibility';
 
 interface WorkspaceProps {
@@ -57,6 +58,40 @@ function AppShell(): JSX.Element {
 
   useRouteAccessibility(mainRef);
 
+  let content: JSX.Element;
+  if (status === 'loading') {
+    content = (
+      <main
+        className="py-8 sm:py-10"
+        id="main-content"
+        ref={mainRef}
+        tabIndex={-1}
+      >
+        <RouteLoader />
+      </main>
+    );
+  } else if (canAccessWorkspace) {
+    content = (
+      <>
+        <AuthPanel />
+        <WorkspaceProviders>
+          <Workspace mainRef={mainRef} />
+        </WorkspaceProviders>
+      </>
+    );
+  } else {
+    content = (
+      <main
+        className="py-8 sm:py-10"
+        id="main-content"
+        ref={mainRef}
+        tabIndex={-1}
+      >
+        <AuthPanel />
+      </main>
+    );
+  }
+
   return (
     <div className="min-h-screen overflow-x-clip bg-(--ink) px-4 text-(--text) sm:px-8">
       <a
@@ -67,24 +102,7 @@ function AppShell(): JSX.Element {
       </a>
       <div className="mx-auto max-w-6xl">
         <Navbar />
-
-        {canAccessWorkspace ? (
-          <>
-            <AuthPanel />
-            <WorkspaceProviders>
-              <Workspace mainRef={mainRef} />
-            </WorkspaceProviders>
-          </>
-        ) : (
-          <main
-            className="py-8 sm:py-10"
-            id="main-content"
-            ref={mainRef}
-            tabIndex={-1}
-          >
-            <AuthPanel />
-          </main>
-        )}
+        {content}
       </div>
     </div>
   );

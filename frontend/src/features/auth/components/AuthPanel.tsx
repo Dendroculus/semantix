@@ -49,12 +49,11 @@ export function AuthPanel(): JSX.Element | null {
     return () => window.clearInterval(timer);
   }, [lockedUntil]);
 
-  if (status === "disabled") {
+  if (status === "disabled" || status === "loading") {
     return null;
   }
 
-  if (status === "loading" || status === "error") {
-    const isLoading = status === "loading";
+  if (status === "error") {
     return (
       <section
         aria-labelledby="access-policy-heading"
@@ -70,35 +69,22 @@ export function AuthPanel(): JSX.Element | null {
             className="font-display mt-3 text-3xl italic text-(--text)"
             id="access-policy-heading"
           >
-            {isLoading
-              ? "Confirming workspace access"
-              : "Workspace access paused"}
+            Workspace access paused
           </h1>
           <div className="min-h-24 pt-4">
-            {isLoading ? (
-              <output
-                aria-live="polite"
-                className="font-data text-[10px] text-(--text-muted)"
-              >
-                Checking access policy…
-              </output>
-            ) : (
-              <>
-                <p
-                  className="max-w-md text-sm/6 text-(--text-muted)"
-                  role="alert"
-                >
-                  {error ?? ACCESS_POLICY_ERROR}
-                </p>
-                <button
-                  className="ui-label mt-5 min-h-11 border border-(--gold) bg-(--gold) px-5 py-2.5 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
-                  type="button"
-                  onClick={retryAccessPolicy}
-                >
-                  Retry
-                </button>
-              </>
-            )}
+            <p
+              className="max-w-md text-sm/6 text-(--text-muted)"
+              role="alert"
+            >
+              {error ?? ACCESS_POLICY_ERROR}
+            </p>
+            <button
+              className="ui-label mt-5 min-h-11 border border-(--gold) bg-(--gold) px-5 py-2.5 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
+              type="button"
+              onClick={retryAccessPolicy}
+            >
+              Retry
+            </button>
           </div>
         </div>
       </section>

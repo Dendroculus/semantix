@@ -33,7 +33,7 @@ describe("AuthPanel", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("shows only a stable access-policy state while loading", () => {
+  it("renders no authentication UI while the access policy is loading", () => {
     vi.mocked(useAuth).mockReturnValue({
       authenticate: vi.fn(async () => false),
       error: null,
@@ -44,16 +44,9 @@ describe("AuthPanel", () => {
       status: "loading",
     });
 
-    render(<AuthPanel />);
+    const { container } = render(<AuthPanel />);
 
-    expect(
-      screen.getByRole("heading", {
-        name: "Confirming workspace access",
-      }),
-    ).toBeTruthy();
-    expect(screen.getByText("Checking access policy…")).toBeTruthy();
-    expect(screen.queryByLabelText("Access token")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Authenticate" })).toBeNull();
+    expect(container.firstChild).toBeNull();
   });
 
   it("shows a policy error with Retry and no token form", () => {
