@@ -24,6 +24,19 @@ export function MonitorPage(): JSX.Element {
 
   return (
     <>
+      {cacheState.status === "error" && (
+        <Alert
+          className="mb-8 border-y border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-5"
+          role="alert"
+          title="Cache controls unavailable"
+          tone="error"
+        >
+          <p className="font-data mt-1 text-[11px]/5 text-(--text-soft)">
+            {cacheState.error}
+          </p>
+        </Alert>
+      )}
+
       <section className="mb-12 border-b border-(--hairline) pb-10">
         <QueryForm
           isLoading={queryState.status === "loading"}
@@ -58,19 +71,6 @@ export function MonitorPage(): JSX.Element {
 
       {cacheState.status === "loading" && <CacheReadingsSkeleton />}
 
-      {cacheState.status === "error" && (
-        <Alert
-          className="border-y border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-5"
-          role="alert"
-          title="Cache controls unavailable"
-          tone="error"
-        >
-          <p className="font-data mt-1 text-[11px]/5 text-(--text-soft)">
-            {cacheState.error}
-          </p>
-        </Alert>
-      )}
-
       {cacheState.status === "ready" && previewThreshold !== null && (
         <>
           {isRefreshingCacheState && (
@@ -88,6 +88,7 @@ export function MonitorPage(): JSX.Element {
               threshold={previewThreshold}
               traces={traces}
             />
+
             <SimilarityRadar
               appliedThreshold={cacheState.data.appliedThreshold}
               isApplyingThreshold={isApplyingThreshold}
