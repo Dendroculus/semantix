@@ -13,7 +13,9 @@ from tenacity import (
     wait_random_exponential,
 )
 
-from app.core.config import get_settings
+from app.core.config import (
+    DEFAULT_PROVIDER_MAX_RESPONSE_BYTES as _DEFAULT_PROVIDER_MAX_RESPONSE_BYTES,
+)
 from app.core.exceptions import (
     InvalidProviderResponseError,
     ProviderAuthenticationError,
@@ -22,6 +24,7 @@ from app.core.exceptions import (
 )
 
 RetryFactory = Callable[[], AsyncRetrying]
+DEFAULT_PROVIDER_MAX_RESPONSE_BYTES = _DEFAULT_PROVIDER_MAX_RESPONSE_BYTES
 _STREAM_CHUNK_BYTES = 64 * 1024
 
 
@@ -58,8 +61,8 @@ async def post_json(
     headers: Mapping[str, str],
     body: dict[str, object],
     retry_factory: RetryFactory,
+    max_response_bytes: int = DEFAULT_PROVIDER_MAX_RESPONSE_BYTES,
 ) -> object:
-    max_response_bytes = get_settings().provider_max_response_bytes
     async for attempt in retry_factory():
         with attempt:
             return await _post_once(
@@ -81,11 +84,13 @@ async def _post_once(
     body: dict[str, object],
     max_response_bytes: int,
 ) -> object:
+    request_headers = httpx.Headers(headers)
+    request_headers["Accept-Encoding"] = "identity"
     try:
         async with client.stream(
             "POST",
             endpoint,
-            headers=headers,
+            headers=request_headers,
             json=body,
         ) as response:
             if (
@@ -131,6 +136,16 @@ async def _read_response_body(
     *,
     max_response_bytes: int,
 ) -> bytes:
+    content_encoding = response.headers.get("Content-Encoding")
+    if (
+        content_encoding is not None
+        and content_encoding.strip()
+        and content_encoding.strip().casefold() != "identity"
+    ):
+        raise InvalidProviderResponseError(
+            "Provider returned an encoded response",
+        )
+
     declared_length = _declared_content_length(response)
     if declared_length is not None and declared_length > max_response_bytes:
         raise _ProviderResponseTooLargeError(

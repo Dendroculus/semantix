@@ -5,6 +5,7 @@ import httpx
 
 from app.core.exceptions import InvalidProviderResponseError
 from app.providers.shared.transport import (
+    DEFAULT_PROVIDER_MAX_RESPONSE_BYTES,
     RetryFactory,
     create_retry_factory,
     post_json,
@@ -32,6 +33,7 @@ class GeminiProvider:
         embedding_dimensions: int | None,
         max_new_tokens: int,
         retry_factory: RetryFactory = DEFAULT_RETRY_FACTORY,
+        max_response_bytes: int = DEFAULT_PROVIDER_MAX_RESPONSE_BYTES,
     ) -> None:
         self._client = client
         self._api_key = api_key
@@ -45,6 +47,7 @@ class GeminiProvider:
         self._embedding_dimensions = embedding_dimensions
         self._max_new_tokens = max_new_tokens
         self._retry_factory = retry_factory
+        self._max_response_bytes = max_response_bytes
 
     async def create_embedding(
         self,
@@ -74,6 +77,7 @@ class GeminiProvider:
                 },
             },
             retry_factory=self._retry_factory,
+            max_response_bytes=self._max_response_bytes,
         )
         if not isinstance(payload, dict):
             raise InvalidProviderResponseError(
@@ -123,6 +127,7 @@ class GeminiProvider:
                 },
             },
             retry_factory=self._retry_factory,
+            max_response_bytes=self._max_response_bytes,
         )
         if not isinstance(payload, dict):
             raise InvalidProviderResponseError(

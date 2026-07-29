@@ -70,6 +70,7 @@ def create_generation_provider(
                     "ANTHROPIC_GENERATION_MODEL",
                 ),
                 max_new_tokens=settings.generation_max_new_tokens,
+                max_response_bytes=settings.provider_max_response_bytes,
             )
         case "gemini":
             return _create_gemini(client, settings)
@@ -132,6 +133,7 @@ def _create_huggingface(
         generation_model=settings.hf_generation_model,
         embedding_dimensions=settings.hf_embedding_dimensions,
         max_new_tokens=settings.generation_max_new_tokens,
+        max_response_bytes=settings.provider_max_response_bytes,
     )
 
 
@@ -147,6 +149,7 @@ def _create_openai(
         generation_model=settings.openai_generation_model,
         embedding_dimensions=settings.openai_embedding_dimensions,
         max_new_tokens=settings.generation_max_new_tokens,
+        max_response_bytes=settings.provider_max_response_bytes,
     )
 
 
@@ -162,6 +165,7 @@ def _create_gemini(
         generation_model=settings.gemini_generation_model,
         embedding_dimensions=settings.gemini_embedding_dimensions,
         max_new_tokens=settings.generation_max_new_tokens,
+        max_response_bytes=settings.provider_max_response_bytes,
     )
 
 
@@ -176,6 +180,7 @@ def _create_ollama(
         generation_model=settings.ollama_generation_model,
         embedding_dimensions=settings.ollama_embedding_dimensions,
         max_new_tokens=settings.generation_max_new_tokens,
+        max_response_bytes=settings.provider_max_response_bytes,
     )
 
 
