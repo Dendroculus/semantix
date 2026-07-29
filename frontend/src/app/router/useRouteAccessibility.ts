@@ -41,7 +41,12 @@ export function useRouteAccessibility(
     previousPathname.current = pathname;
 
     if (pathChanged && navigationType === "PUSH") {
-      mainRef.current?.focus();
+      mainRef.current?.focus({ preventScroll: true });
+      window.scrollTo({
+        behavior: "auto",
+        left: 0,
+        top: 0,
+      });
     }
   }, [mainRef, navigationType, pathname]);
 }

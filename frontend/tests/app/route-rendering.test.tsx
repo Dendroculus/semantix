@@ -104,6 +104,7 @@ describe('application routing', () => {
     vi.stubGlobal('crypto', {
       randomUUID: vi.fn(() => 'trace-id'),
     });
+    vi.stubGlobal('scrollTo', vi.fn());
     vi.mocked(useQuery).mockReturnValue({
       state: { status: 'idle' },
       submit,
@@ -303,6 +304,8 @@ describe('application routing', () => {
     });
 
     const queryInput = screen.getByLabelText('Query text');
+    const main = screen.getByRole('main');
+    const focus = vi.spyOn(main, 'focus');
     queryInput.focus();
     fireEvent.click(screen.getByRole('link', { name: 'Cache' }));
 
@@ -310,7 +313,14 @@ describe('application routing', () => {
       level: 1,
       name: 'Cache inspector',
     });
-    expect(document.activeElement).toBe(screen.getByRole('main'));
+    expect(document.activeElement).toBe(main);
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(window.scrollTo).toHaveBeenCalledOnce();
+    expect(window.scrollTo).toHaveBeenCalledWith({
+      behavior: 'auto',
+      left: 0,
+      top: 0,
+    });
   });
 
   it('preserves focus during browser history navigation', async () => {
@@ -334,6 +344,7 @@ describe('application routing', () => {
     });
 
     expect(document.activeElement).toBe(menuButton);
+    expect(window.scrollTo).not.toHaveBeenCalled();
   });
 
   it('does not load benchmark data until its route mounts', async () => {
