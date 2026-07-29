@@ -58,11 +58,14 @@ Keep the original tokens in a secret manager. Rotating a token means generating 
 
 | Role | Allowed operations |
 |---|---|
-| `viewer` | Read permitted cache metadata, threshold state, benchmark datasets, and runtime metrics |
+| `viewer` | Read permitted cache metadata, threshold state, and benchmark datasets |
 | `operator` | All viewer operations plus provider-backed queries and benchmark runs |
 | `admin` | All operator operations plus cache deletion, namespace clear, and administration |
 
-Updating the global similarity threshold requires an `admin` principal with `namespaces:["*"]`.
+Updating the global similarity threshold and reading process-wide runtime
+metrics require an `admin` principal with `namespaces:["*"]`. A namespace
+administrator remains limited to its authorized cache operations and receives
+`403 Forbidden` from `/api/v1/metrics`.
 
 ## Namespace authorization
 
