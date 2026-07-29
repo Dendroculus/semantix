@@ -1,6 +1,9 @@
 import { useState, type JSX } from "react";
 import { NavLink } from "react-router";
 
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { canAccessGlobalMetrics } from "@/features/auth/permissions";
+
 import { APP_PATHS, NAV_ITEMS } from "./navigationConfig";
 import { SessionUptime } from "./SessionUptime";
 
@@ -14,6 +17,11 @@ function navClass(isActive: boolean): string {
 
 export function Navbar(): JSX.Element {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { session, status } = useAuth();
+  const canViewMetrics = canAccessGlobalMetrics(status, session);
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => item.to !== APP_PATHS.observability || canViewMetrics,
+  );
 
   return (
     <header className="sticky top-0 z-30 border-b border-(--hairline) bg-(--ink) py-4">
@@ -31,7 +39,7 @@ export function Navbar(): JSX.Element {
           id="primary-navigation"
         >
           <div className="flex flex-col md:flex-row md:items-center md:gap-1">
-            {NAV_ITEMS.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 end={item.to === APP_PATHS.monitor}
                 key={item.to}
