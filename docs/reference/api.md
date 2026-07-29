@@ -17,7 +17,7 @@ Application errors use a stable object containing `error` and `detail`.
 | `DELETE` | `/api/v1/cache` | Clear all entries or one namespace |
 | `GET` | `/api/v1/benchmarks/datasets` | List controlled benchmark datasets |
 | `POST` | `/api/v1/benchmarks/run` | Run an isolated benchmark |
-| `GET` | `/api/v1/metrics` | Read process-local aggregate metrics |
+| `GET` | `/api/v1/metrics` | Read process-local aggregate metrics (global admin only) |
 | `GET` | `/health` | Read application and provider-type health |
 
 ## Query request
@@ -88,7 +88,15 @@ parameter returns global statistics or clears the active embedding space.
 
 ## Runtime metrics
 
-`GET /api/v1/metrics` returns aggregate process-local values:
+`GET /api/v1/metrics` returns aggregate process-local values. With token
+authentication enabled, it requires an `admin` principal with
+`namespaces:["*"]`. Scoped viewers, operators, and namespace administrators
+receive `403 Forbidden`. Authentication-disabled local development retains
+access through its implicit global administrator.
+
+These counters are global to the backend process and are not namespace
+scoped. Namespace users should use `GET /api/v1/cache/stats`, which applies
+their authorized namespace scope.
 
 ```json
 {

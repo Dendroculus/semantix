@@ -11,6 +11,8 @@ import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from '@/App';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import type { AuthRole } from '@/features/auth/types';
 import { useQuery } from '@/features/monitor/hooks/useQuery';
 import {
   clearCache,
@@ -76,6 +78,23 @@ function renderWithHistory() {
     router,
     ...render(<RouterProvider router={router} />),
   };
+}
+
+function useAuthenticatedPrincipal(
+  role: AuthRole,
+  namespaces: string[],
+): void {
+  vi.mocked(useAuth).mockReturnValue({
+    authenticate: vi.fn(async () => true),
+    error: null,
+    logout: vi.fn(),
+    session: {
+      name: `${role}-principal`,
+      role,
+      namespaces,
+    },
+    status: 'authenticated',
+  });
 }
 
 describe('application routing', () => {
@@ -228,6 +247,41 @@ describe('application routing', () => {
         .getAttribute('href'),
     ).toBe('/');
     expect(document.title).toBe('Page not found | Semantix');
+  });
+
+  it.each<AuthRole>(['viewer', 'operator', 'admin'])(
+    'hides metrics and denies a direct route for a scoped %s',
+    async (role) => {
+      useAuthenticatedPrincipal(role, ['tenant-alpha']);
+
+      renderAt('/observability');
+
+      expect(
+        screen.queryByRole('link', { name: 'Observability' }),
+      ).toBeNull();
+      expect(
+        await screen.findByRole('heading', {
+          level: 1,
+          name: 'Global administrator access required',
+        }),
+      ).toBeTruthy();
+      expect(getRuntimeMetrics).not.toHaveBeenCalled();
+    },
+  );
+
+  it('allows a global administrator to navigate directly to metrics', async () => {
+    useAuthenticatedPrincipal('admin', ['*']);
+
+    renderAt('/observability');
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Observability',
+      }),
+    ).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Observability' })).toBeTruthy();
+    await waitFor(() => expect(getRuntimeMetrics).toHaveBeenCalledOnce());
   });
 
   it('does not move focus on initial route rendering', async () => {

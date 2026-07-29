@@ -116,10 +116,22 @@ The backend exposes:
 GET /api/v1/metrics
 ```
 
-Inspect it from PowerShell:
+The built-in local load-test workflow assumes authentication is disabled. In
+a token-authenticated deployment, this process-wide endpoint requires a global
+administrator token; namespace-scoped principals receive `403 Forbidden`.
+
+Inspect it from PowerShell in local development:
 
 ```powershell
 Invoke-RestMethod http://localhost:8000/api/v1/metrics |
+  ConvertTo-Json
+```
+
+For a token-authenticated deployment:
+
+```powershell
+$Headers = @{ Authorization = "Bearer $GlobalAdminToken" }
+Invoke-RestMethod http://localhost:8000/api/v1/metrics -Headers $Headers |
   ConvertTo-Json
 ```
 

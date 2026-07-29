@@ -1,0 +1,17 @@
+import type { AuthContextValue } from "./context/AuthContext";
+import type { AuthSession } from "./types";
+
+export function canAccessGlobalMetrics(
+  status: AuthContextValue["status"],
+  session: AuthSession | null,
+): boolean {
+  if (status === "disabled") {
+    return true;
+  }
+
+  return (
+    status === "authenticated" &&
+    session?.role === "admin" &&
+    session.namespaces.includes("*")
+  );
+}
