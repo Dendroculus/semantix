@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import type { ReactNode } from "react";
 
@@ -6,6 +7,7 @@ import {
   getAuthToken,
   setAuthToken,
 } from "@/shared/api/authToken";
+import { isProtectedQueryKey } from "@/shared/query/queryKeys";
 
 import { getAuthConfig, getAuthSession } from "../api/authApi";
 import type { AuthSession } from "../types";
@@ -22,42 +24,55 @@ interface AuthProviderProps {
 export function AuthProvider({
   children,
 }: Readonly<AuthProviderProps>): JSX.Element {
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [session, setSession] = useState<AuthSession | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const authenticate = useCallback(async (token: string): Promise<boolean> => {
-    const normalized = token.trim();
+  const clearProtectedQueries = useCallback((): void => {
+    queryClient.removeQueries({
+      predicate: (query) => isProtectedQueryKey(query.queryKey),
+    });
+  }, [queryClient]);
 
-    if (normalized === "") {
-      setError("Enter an access token.");
-      return false;
-    }
+  const authenticate = useCallback(
+    async (token: string): Promise<boolean> => {
+      const normalized = token.trim();
 
-    setAuthToken(normalized);
-    setError(null);
+      if (normalized === "") {
+        setError("Enter an access token.");
+        return false;
+      }
 
-    const response = await getAuthSession();
+      setAuthToken(normalized);
+      setError(null);
 
-    if (!response.ok) {
-      clearAuthToken();
-      setSession(null);
-      setStatus("unauthenticated");
-      setError(response.error.detail ?? "The access token was rejected.");
-      return false;
-    }
+      const response = await getAuthSession();
 
-    setSession(response.data);
-    setStatus("authenticated");
-    return true;
-  }, []);
+      if (!response.ok) {
+        clearAuthToken();
+        clearProtectedQueries();
+        setSession(null);
+        setStatus("unauthenticated");
+        setError(response.error.detail ?? "The access token was rejected.");
+        return false;
+      }
+
+      clearProtectedQueries();
+      setSession(response.data);
+      setStatus("authenticated");
+      return true;
+    },
+    [clearProtectedQueries],
+  );
 
   const logout = useCallback((): void => {
     clearAuthToken();
+    clearProtectedQueries();
     setSession(null);
     setError(null);
     setStatus("unauthenticated");
-  }, []);
+  }, [clearProtectedQueries]);
 
   useEffect(() => {
     let active = true;
@@ -78,6 +93,7 @@ export function AuthProvider({
       }
 
       if (!config.data.authentication_required) {
+        clearProtectedQueries();
         setStatus("disabled");
         return;
       }
@@ -97,7 +113,7 @@ export function AuthProvider({
     return () => {
       active = false;
     };
-  }, [authenticate]);
+  }, [authenticate, clearProtectedQueries]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ authenticate, error, logout, session, status }),

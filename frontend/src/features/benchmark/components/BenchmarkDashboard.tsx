@@ -2,6 +2,7 @@ import { Alert, EmptyState, PageHeader } from '@/shared/components/ui';
 import { useBenchmark } from '../hooks/useBenchmark';
 import { BenchmarkCharts } from './BenchmarkCharts';
 import { BenchmarkControls } from './BenchmarkControls';
+import { BenchmarkDatasetSkeleton } from './BenchmarkDatasetSkeleton';
 import { BenchmarkExports } from './BenchmarkExports';
 import { BenchmarkResultsTable } from './BenchmarkResultsTable';
 import { BenchmarkResultsSkeleton } from './BenchmarkResultsSkeleton';
@@ -34,7 +35,11 @@ export function BenchmarkDashboard(): JSX.Element {
         title="Benchmark laboratory"
       />
 
-      <BenchmarkControls controller={controller} />
+      {datasetsLoading ? (
+        <BenchmarkDatasetSkeleton />
+      ) : (
+        <BenchmarkControls controller={controller} />
+      )}
 
       {selectedDataset !== null && (
         <p className="font-data mt-3 text-[10px]/5 text-(--text-faint)">

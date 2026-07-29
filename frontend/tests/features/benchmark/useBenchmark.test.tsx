@@ -1,6 +1,10 @@
+import type { QueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { QueryTestProvider } from "../QueryTestProvider";
+import { createTestQueryClient } from "../queryClient";
 import {
   getBenchmarkDatasets,
   runBenchmark,
@@ -11,8 +15,21 @@ import { benchmarkDataset, benchmarkResult } from "./support";
 
 vi.mock("@/features/benchmark/api/benchmarkApi");
 
+function renderBenchmarkHook(client: QueryClient) {
+  return renderHook(() => useBenchmark(), {
+    wrapper: ({ children }: Readonly<{ children: ReactNode }>) => (
+      <QueryTestProvider client={client}>
+        {children}
+      </QueryTestProvider>
+    ),
+  });
+}
+
 describe("useBenchmark", () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
+    queryClient = createTestQueryClient();
     vi.mocked(getBenchmarkDatasets).mockResolvedValue({
       ok: true,
       data: {
@@ -34,7 +51,7 @@ describe("useBenchmark", () => {
     vi.mocked(runBenchmark)
       .mockReturnValueOnce(olderRun.promise)
       .mockReturnValueOnce(newerRun.promise);
-    const { result } = renderHook(() => useBenchmark());
+    const { result } = renderBenchmarkHook(queryClient);
 
     await waitFor(() => expect(result.current.datasetsLoading).toBe(false));
 
@@ -76,7 +93,7 @@ describe("useBenchmark", () => {
     const pendingRun =
       deferred<Awaited<ReturnType<typeof runBenchmark>>>();
     vi.mocked(runBenchmark).mockReturnValue(pendingRun.promise);
-    const { result, unmount } = renderHook(() => useBenchmark());
+    const { result, unmount } = renderBenchmarkHook(queryClient);
 
     await waitFor(() => expect(result.current.datasetsLoading).toBe(false));
 
@@ -94,5 +111,21 @@ describe("useBenchmark", () => {
       data: benchmarkResult,
     });
     await completion;
+  });
+
+  it("reuses a fresh dataset catalog when the hook remounts", async () => {
+    const first = renderBenchmarkHook(queryClient);
+    await waitFor(() =>
+      expect(first.result.current.datasetsLoading).toBe(false),
+    );
+    expect(getBenchmarkDatasets).toHaveBeenCalledOnce();
+    first.unmount();
+
+    const second = renderBenchmarkHook(queryClient);
+    expect(second.result.current.datasets).toEqual([benchmarkDataset]);
+    expect(second.result.current.datasetsLoading).toBe(false);
+    expect(getBenchmarkDatasets).toHaveBeenCalledOnce();
+
+    second.unmount();
   });
 });

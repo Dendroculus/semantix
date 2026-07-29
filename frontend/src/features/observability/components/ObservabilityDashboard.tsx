@@ -47,7 +47,7 @@ function MetricGroup({
 }
 
 export function ObservabilityDashboard(): JSX.Element {
-  const { isRefreshing, state, refresh } = useRuntimeMetrics();
+  const { isRefreshing, refreshError, state, refresh } = useRuntimeMetrics();
 
   const metricGroups: MetricGroupProps[] =
     state.status === 'ready'
@@ -166,6 +166,19 @@ export function ObservabilityDashboard(): JSX.Element {
             <p className="mt-3 text-sm text-(--text-muted)">
               {state.error.detail ??
                 'The runtime metrics endpoint could not be reached.'}
+            </p>
+          </Alert>
+        )}
+
+        {state.status === 'ready' && refreshError !== null && (
+          <Alert
+            className="mb-6 border border-(--hairline) bg-(--surface) p-4"
+            title="Metrics refresh failed"
+            tone="error"
+          >
+            <p className="mt-2 text-sm text-(--text-muted)">
+              {refreshError.detail ??
+                'Cached metrics remain visible while the endpoint recovers.'}
             </p>
           </Alert>
         )}

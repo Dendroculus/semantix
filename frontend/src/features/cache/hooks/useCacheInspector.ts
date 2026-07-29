@@ -1,4 +1,11 @@
-import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+
+import {
+  apiErrorFromUnknown,
+  dataFromApiResult,
+} from "@/shared/query/apiResult";
+import { cacheEntryKeys } from "@/shared/query/queryKeys";
 
 import {
   clearCache,
@@ -15,7 +22,7 @@ const PAGE_SIZE = 10;
 export type CacheMutation = "delete" | "clear";
 
 interface UseCacheInspectorOptions {
-  onMutation: (mutation: CacheMutation) => void;
+  onMutation: (mutation: CacheMutation) => void | Promise<void>;
 }
 
 export interface CacheInspectorController {
@@ -31,7 +38,9 @@ export interface CacheInspectorController {
   isClearing: boolean;
   isLoading: boolean;
   isMutating: boolean;
+  isRefreshing: boolean;
   loadError: string | null;
+  refreshError: string | null;
   mutation: string | null;
   namespace: string;
   nextPage: () => void;
@@ -49,71 +58,82 @@ export interface CacheInspectorController {
   visibleStart: number;
 }
 
+function errorDetail(error: unknown, fallback: string): string {
+  return apiErrorFromUnknown(error).detail ?? fallback;
+}
+
 export function useCacheInspector({
   onMutation,
 }: Readonly<UseCacheInspectorOptions>): CacheInspectorController {
-  const [data, setData] =
-    useState<CacheEntryListResponse | null>(null);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [namespace, setNamespace] = useState("");
   const [sort, setSort] =
     useState<CacheEntrySort>("newest");
   const [offset, setOffset] = useState(0);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] =
     useState<string | null>(null);
   const [pendingDelete, setPendingDelete] =
     useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [mutation, setMutation] = useState<string | null>(null);
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const params = {
+    offset,
+    limit: PAGE_SIZE,
+    namespace: namespace.trim(),
+    search: search.trim(),
+    sort,
+  };
+  const entriesQuery = useQuery({
+    queryKey: cacheEntryKeys.list(params),
+    queryFn: async ({ signal }) =>
+      dataFromApiResult(await listCacheEntries(params, signal)),
+    staleTime: 20 * 1_000,
+    gcTime: 5 * 60 * 1_000,
+  });
+  const deleteMutation = useMutation({
+    mutationFn: async (cacheKey: string) =>
+      dataFromApiResult(await deleteCacheEntry(cacheKey)),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: cacheEntryKeys.lists(),
+      }),
+  });
+  const clearMutation = useMutation({
+    mutationFn: async (selectedNamespace: string | undefined) =>
+      dataFromApiResult(await clearCache(selectedNamespace)),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: cacheEntryKeys.all,
+      }),
+  });
 
-    async function load(): Promise<void> {
-      setIsLoading(true);
-      setLoadError(null);
-
-      const result = await listCacheEntries(
-        {
-          offset,
-          limit: PAGE_SIZE,
-          namespace,
-          search,
-          sort,
-        },
-        controller.signal,
-      );
-
-      if (controller.signal.aborted) {
-        return;
-      }
-
-      if (result.ok) {
-        setData(result.data);
-      } else {
-        setLoadError(
-          result.error.detail ??
-            "Cache inspector data could not be loaded.",
-        );
-      }
-
-      setIsLoading(false);
-    }
-
-    void load();
-    return () => controller.abort();
-  }, [namespace, offset, reloadKey, search, sort]);
-
-  function refreshFromStart(): void {
-    setOffset(0);
-    setReloadKey((current) => current + 1);
+  const data = entriesQuery.data ?? null;
+  const loadError =
+    data === null && entriesQuery.isError
+      ? errorDetail(
+          entriesQuery.error,
+          "Cache inspector data could not be loaded.",
+        )
+      : null;
+  const refreshError =
+    data !== null && entriesQuery.isError
+      ? errorDetail(
+          entriesQuery.error,
+          "Cache inspector data could not be refreshed.",
+        )
+      : null;
+  let mutation: string | null = null;
+  if (clearMutation.isPending) {
+    mutation = "clear";
+  } else if (deleteMutation.isPending) {
+    mutation = deleteMutation.variables ?? null;
   }
 
   function refresh(): void {
-    setReloadKey((current) => current + 1);
+    if (!entriesQuery.isFetching) {
+      entriesQuery.refetch({ cancelRefetch: false });
+    }
   }
 
   function updateSearch(nextSearch: string): void {
@@ -156,45 +176,37 @@ export function useCacheInspector({
   async function confirmDeleteEntry(
     cacheKey: string,
   ): Promise<void> {
-    setMutation(cacheKey);
     setActionError(null);
 
-    const result = await deleteCacheEntry(cacheKey);
-    setMutation(null);
-
-    if (!result.ok) {
+    try {
+      await deleteMutation.mutateAsync(cacheKey);
+      setPendingDelete(null);
+      setOffset(0);
+      await onMutation("delete");
+    } catch (error: unknown) {
       setActionError(
-        result.error.detail ?? "The cache entry was not deleted.",
+        errorDetail(error, "The cache entry was not deleted."),
       );
-      return;
     }
-
-    setPendingDelete(null);
-    refreshFromStart();
-    onMutation("delete");
   }
 
   async function confirmClearCache(): Promise<void> {
-    setMutation("clear");
     setActionError(null);
 
     const selectedNamespace = namespace.trim();
-    const result = await clearCache(
-      selectedNamespace === "" ? undefined : selectedNamespace,
-    );
-    setMutation(null);
-
-    if (!result.ok) {
-      setActionError(
-        result.error.detail ?? "The cache was not cleared.",
+    try {
+      await clearMutation.mutateAsync(
+        selectedNamespace === "" ? undefined : selectedNamespace,
       );
-      return;
+      setConfirmClear(false);
+      setPendingDelete(null);
+      setOffset(0);
+      await onMutation("clear");
+    } catch (error: unknown) {
+      setActionError(
+        errorDetail(error, "The cache was not cleared."),
+      );
     }
-
-    setConfirmClear(false);
-    setPendingDelete(null);
-    refreshFromStart();
-    onMutation("clear");
   }
 
   const visibleStart =
@@ -215,9 +227,11 @@ export function useCacheInspector({
     hasNext: data?.has_more ?? false,
     hasPrevious: data !== null && data.offset > 0,
     isClearing: mutation === "clear",
-    isLoading,
+    isLoading: data === null && entriesQuery.isPending,
     isMutating: mutation !== null,
+    isRefreshing: data !== null && entriesQuery.isFetching,
     loadError,
+    refreshError,
     mutation,
     namespace,
     nextPage: () => setOffset((current) => current + PAGE_SIZE),

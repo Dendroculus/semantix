@@ -7,9 +7,13 @@ import {
   within,
   waitFor,
 } from '@testing-library/react';
+import type { QueryClient } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BenchmarkDashboard } from '@/features/benchmark/components/BenchmarkDashboard';
+import { QueryTestProvider } from '../QueryTestProvider';
+import { createTestQueryClient } from '../queryClient';
 import {
   buildBenchmarkCsv,
   buildBenchmarkJson,
@@ -43,8 +47,21 @@ async function reviewAndConfirm(): Promise<void> {
   });
 }
 
+let queryClient: QueryClient;
+
+function renderDashboard() {
+  return render(<BenchmarkDashboard />, {
+    wrapper: ({ children }: Readonly<{ children: ReactNode }>) => (
+      <QueryTestProvider client={queryClient}>
+        {children}
+      </QueryTestProvider>
+    ),
+  });
+}
+
 describe('BenchmarkDashboard', () => {
   beforeEach(() => {
+    queryClient = createTestQueryClient();
     vi.mocked(getBenchmarkDatasets).mockResolvedValue({
       ok: true,
       data: {
@@ -66,7 +83,7 @@ describe('BenchmarkDashboard', () => {
   });
 
   it('warns before provider calls and submits the selected threshold', async () => {
-    render(<BenchmarkDashboard />);
+    renderDashboard();
     await screen.findByRole('button', { name: 'Review benchmark run' });
 
     fireEvent.change(screen.getByLabelText('Benchmark threshold'), {
@@ -105,7 +122,7 @@ describe('BenchmarkDashboard', () => {
   });
 
   it('renders metrics, charts, and per-query evidence', async () => {
-    render(<BenchmarkDashboard />);
+    renderDashboard();
     await reviewAndConfirm();
 
     expect(await screen.findByText('Measured run')).toBeTruthy();
@@ -144,7 +161,7 @@ describe('BenchmarkDashboard', () => {
         resolveRun = resolve;
       }),
     );
-    render(<BenchmarkDashboard />);
+    renderDashboard();
     await reviewAndConfirm();
 
     expect(screen.getByLabelText('Loading benchmark results')).toBeTruthy();
@@ -164,6 +181,22 @@ describe('BenchmarkDashboard', () => {
     expect((await screen.findByRole('alert')).textContent).toContain(
       'Provider unavailable',
     );
+  });
+
+  it('uses an accessible dataset skeleton only for initial catalog loading', () => {
+    vi.mocked(getBenchmarkDatasets).mockReturnValue(
+      new Promise(() => undefined),
+    );
+
+    renderDashboard();
+
+    expect(
+      screen.getByLabelText('Loading benchmark datasets'),
+    ).toBeTruthy();
+    expect(
+      screen.queryByLabelText('Loading benchmark results'),
+    ).toBeNull();
+    expect(screen.queryByLabelText('Benchmark dataset')).toBeNull();
   });
 
   it('builds complete JSON and CSV exports', () => {

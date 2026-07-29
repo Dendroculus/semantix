@@ -23,12 +23,14 @@ export function CacheInspectorResults({
     hasNext,
     hasPrevious,
     isLoading,
+    isRefreshing,
     loadError,
     mutation,
     nextPage,
     pendingDelete,
     previousPage,
     refresh,
+    refreshError,
     requestDelete,
     search,
     visibleEnd,
@@ -76,6 +78,16 @@ export function CacheInspectorResults({
           tone="error"
         >
           {actionError}
+        </Alert>
+      )}
+
+      {refreshError !== null && (
+        <Alert
+          className="font-data mt-5 border-l border-(--coral) pl-4 text-[11px]/5 text-(--coral-text)"
+          aria-live="polite"
+          tone="error"
+        >
+          {refreshError} Cached entries remain visible.
         </Alert>
       )}
 
@@ -136,7 +148,7 @@ export function CacheInspectorResults({
           <div className="flex gap-5">
             <Button
               className="ui-label min-h-9 text-(--teal) focus-visible:outline-(--teal) disabled:text-(--text-faint)"
-              disabled={!hasPrevious || isLoading}
+              disabled={!hasPrevious || isLoading || isRefreshing}
               variant="link"
               onClick={previousPage}
             >
@@ -144,7 +156,7 @@ export function CacheInspectorResults({
             </Button>
             <Button
               className="ui-label min-h-9 text-(--teal) focus-visible:outline-(--teal) disabled:text-(--text-faint)"
-              disabled={!hasNext || isLoading}
+              disabled={!hasNext || isLoading || isRefreshing}
               variant="link"
               onClick={nextPage}
             >

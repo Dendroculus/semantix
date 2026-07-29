@@ -22,6 +22,7 @@
     "imports:check": "node scripts/normalize-imports.mjs --check --strict"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
     "katex": "^0.18.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",

@@ -1,3 +1,4 @@
+import type { QueryClient } from "@tanstack/react-query";
 import {
   cleanup,
   fireEvent,
@@ -5,8 +6,11 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { QueryTestProvider } from "../QueryTestProvider";
+import { createTestQueryClient } from "../queryClient";
 import { CacheInspector } from "@/features/cache/components/CacheInspector";
 import {
   clearCache,
@@ -17,6 +21,9 @@ import type {
   CacheEntryListParams,
   CacheEntryMetadata,
 } from "@/features/cache/types";
+import { benchmarkDatasetKeys, cacheEntryKeys } from "@/shared/query/queryKeys";
+import { deferred } from "../support";
+
 
 vi.mock("../../../src/features/cache/api/cacheApi");
 
@@ -64,8 +71,21 @@ function successfulPage(
   };
 }
 
+let queryClient: QueryClient;
+
+function renderInspector(onMutation = vi.fn()) {
+  return render(<CacheInspector onMutation={onMutation} />, {
+    wrapper: ({ children }: Readonly<{ children: ReactNode }>) => (
+      <QueryTestProvider client={queryClient}>
+        {children}
+      </QueryTestProvider>
+    ),
+  });
+}
+
 describe("CacheInspector", () => {
   beforeEach(() => {
+    queryClient = createTestQueryClient();
     vi.mocked(listCacheEntries).mockImplementation(async (params) =>
       successfulPage([], params),
     );
@@ -85,7 +105,7 @@ describe("CacheInspector", () => {
   });
 
   it("renders the empty state", async () => {
-    render(<CacheInspector onMutation={vi.fn()} />);
+    renderInspector();
 
     expect(await screen.findByText("The cache is empty.")).toBeTruthy();
     expect(
@@ -98,7 +118,7 @@ describe("CacheInspector", () => {
       new Promise(() => undefined),
     );
 
-    render(<CacheInspector onMutation={vi.fn()} />);
+    renderInspector();
 
     expect(screen.getByLabelText("Loading cache entries")).toBeTruthy();
   });
@@ -119,9 +139,7 @@ describe("CacheInspector", () => {
       successfulPage([formattedEntry], params),
     );
 
-    const { container } = render(
-      <CacheInspector onMutation={vi.fn()} />,
-    );
+    const { container } = renderInspector();
 
     const strongText = await screen.findByText("Formatted preview");
     expect(strongText.tagName).toBe("STRONG");
@@ -137,7 +155,7 @@ describe("CacheInspector", () => {
       return successfulPage(items, params);
     });
 
-    render(<CacheInspector onMutation={vi.fn()} />);
+    renderInspector();
     expect(await screen.findByText(betaEntry.prompt)).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Search cached prompts"), {
@@ -173,7 +191,7 @@ describe("CacheInspector", () => {
       return { ok: true, data: { cleared: true } };
     });
 
-    render(<CacheInspector onMutation={vi.fn()} />);
+    renderInspector();
     await screen.findByText(alphaEntry.prompt);
 
     fireEvent.change(screen.getByLabelText("Namespace"), {
@@ -206,7 +224,7 @@ describe("CacheInspector", () => {
     vi.mocked(listCacheEntries).mockImplementation(async (params) =>
       successfulPage([alphaEntry, betaEntry], params),
     );
-    render(<CacheInspector onMutation={vi.fn()} />);
+    renderInspector();
     await screen.findByText(alphaEntry.prompt);
 
     const sortSelect = screen.getByLabelText("Sort cache entries");
@@ -241,7 +259,7 @@ describe("CacheInspector", () => {
       };
     });
     const onMutation = vi.fn();
-    render(<CacheInspector onMutation={onMutation} />);
+    renderInspector(onMutation);
     await screen.findByText(alphaEntry.prompt);
 
     fireEvent.click(
@@ -280,7 +298,7 @@ describe("CacheInspector", () => {
       return { ok: true, data: { cleared: true } };
     });
     const onMutation = vi.fn();
-    render(<CacheInspector onMutation={onMutation} />);
+    renderInspector(onMutation);
     await screen.findByText(alphaEntry.prompt);
 
     fireEvent.click(
@@ -303,5 +321,136 @@ describe("CacheInspector", () => {
     expect(
       vi.mocked(listCacheEntries).mock.calls.length,
     ).toBeGreaterThan(1);
+  });
+
+  it("reuses a fresh cache-entry page when the inspector remounts", async () => {
+    vi.mocked(listCacheEntries).mockImplementation(async (params) =>
+      successfulPage([alphaEntry], params),
+    );
+
+    const first = renderInspector();
+    await screen.findByText(alphaEntry.prompt);
+    expect(listCacheEntries).toHaveBeenCalledOnce();
+    first.unmount();
+
+    const second = renderInspector();
+    expect(screen.getByText(alphaEntry.prompt)).toBeTruthy();
+    expect(
+      screen.queryByLabelText("Loading cache entries"),
+    ).toBeNull();
+    expect(listCacheEntries).toHaveBeenCalledOnce();
+    second.unmount();
+  });
+
+  it("keeps stale entries visible during one background refresh", async () => {
+    const params: CacheEntryListParams = {
+      offset: 0,
+      limit: 10,
+      namespace: "",
+      search: "",
+      sort: "newest",
+    };
+    queryClient.setQueryData(
+      cacheEntryKeys.list(params),
+      successfulPage([alphaEntry], params).data,
+      { updatedAt: Date.now() - 20_001 },
+    );
+    const refresh =
+      deferred<Awaited<ReturnType<typeof listCacheEntries>>>();
+    vi.mocked(listCacheEntries).mockReturnValue(refresh.promise);
+
+    renderInspector();
+
+    expect(screen.getByText(alphaEntry.prompt)).toBeTruthy();
+    expect(
+      screen.queryByLabelText("Loading cache entries"),
+    ).toBeNull();
+    await waitFor(() => expect(listCacheEntries).toHaveBeenCalledOnce());
+    expect(
+      screen.getByRole("button", { name: "Refreshing" })
+        .getAttribute("aria-busy"),
+    ).toBe("true");
+
+    refresh.resolve(successfulPage([betaEntry], params));
+    expect(await screen.findByText(betaEntry.prompt)).toBeTruthy();
+  });
+
+  it("aborts an entry-list request when its last consumer unmounts", async () => {
+    const request =
+      deferred<Awaited<ReturnType<typeof listCacheEntries>>>();
+    vi.mocked(listCacheEntries).mockReturnValue(request.promise);
+
+    const inspector = renderInspector();
+    await waitFor(() => expect(listCacheEntries).toHaveBeenCalledOnce());
+    const signal = vi.mocked(listCacheEntries).mock.calls[0]?.[1];
+
+    inspector.unmount();
+
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it("invalidates entry lists after deletion without touching datasets", async () => {
+    const otherParams: CacheEntryListParams = {
+      offset: 10,
+      limit: 10,
+      namespace: "tenant-alpha",
+      search: "semantic",
+      sort: "oldest",
+    };
+    const otherKey = cacheEntryKeys.list(otherParams);
+    const datasetKey = benchmarkDatasetKeys.catalog();
+    queryClient.setQueryData(
+      otherKey,
+      successfulPage([alphaEntry], otherParams).data,
+    );
+    queryClient.setQueryData(datasetKey, { catalog: "unchanged" });
+    vi.mocked(listCacheEntries).mockImplementation(async (params) =>
+      successfulPage([alphaEntry], params),
+    );
+
+    renderInspector();
+    await screen.findByText(alphaEntry.prompt);
+    fireEvent.click(
+      screen.getByRole("button", { name: `Delete ${alphaEntry.prompt}` }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Confirm delete ${alphaEntry.prompt}`,
+      }),
+    );
+
+    await waitFor(() => expect(deleteCacheEntry).toHaveBeenCalledOnce());
+    expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(datasetKey)?.isInvalidated).toBe(false);
+  });
+
+  it("invalidates every entry list after a cache clear", async () => {
+    const otherParams: CacheEntryListParams = {
+      offset: 10,
+      limit: 10,
+      namespace: "tenant-beta",
+      search: "",
+      sort: "most_hit",
+    };
+    const otherKey = cacheEntryKeys.list(otherParams);
+    queryClient.setQueryData(
+      otherKey,
+      successfulPage([betaEntry], otherParams).data,
+    );
+    vi.mocked(listCacheEntries).mockImplementation(async (params) =>
+      successfulPage([alphaEntry], params),
+    );
+
+    renderInspector();
+    await screen.findByText(alphaEntry.prompt);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear all entries" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Confirm clear cache" }),
+    );
+
+    await waitFor(() => expect(clearCache).toHaveBeenCalledOnce());
+    expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(true);
   });
 });
