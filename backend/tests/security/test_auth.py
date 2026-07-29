@@ -16,13 +16,14 @@ def token_hash(token: str) -> str:
     return sha256(token.encode("utf-8")).hexdigest()
 
 
-def settings() -> Settings:
+def settings(*, rate_limit: str = "20/minute") -> Settings:
     return Settings(
         embedding_provider="mock",
         generation_provider="mock",
         hf_api_key=None,
         cache_backend="memory",
         allowed_origins=["http://localhost:5173"],
+        rate_limit=rate_limit,
         auth_mode="token",
         auth_principals=[
             {
@@ -67,7 +68,7 @@ def test_auth_config_is_public_and_does_not_disclose_principals() -> None:
 
 
 def test_auth_config_is_not_subject_to_the_application_rate_limit() -> None:
-    with TestClient(create_app(settings())) as client:
+    with TestClient(create_app(settings(rate_limit="1/minute"))) as client:
         responses = [client.get("/api/v1/auth/config") for _ in range(25)]
 
     assert all(response.status_code == 200 for response in responses)
