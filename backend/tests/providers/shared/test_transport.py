@@ -1,11 +1,10 @@
 import gzip
 import logging
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator
 
 import httpx
 import pytest
 
-from app.core.config import get_settings
 from app.core.exceptions import (
     InvalidProviderResponseError,
     ProviderAuthenticationError,
@@ -33,20 +32,6 @@ class TrackingStream(httpx.AsyncByteStream):
 
     async def aclose(self) -> None:
         self.closed = True
-
-
-@pytest.fixture
-def set_provider_response_limit(
-    monkeypatch: pytest.MonkeyPatch,
-) -> Iterator[Callable[[int], None]]:
-    get_settings.cache_clear()
-
-    def configure(limit: int) -> None:
-        monkeypatch.setenv("PROVIDER_MAX_RESPONSE_BYTES", str(limit))
-        get_settings.cache_clear()
-
-    yield configure
-    get_settings.cache_clear()
 
 
 def _json_body_with_size(size: int) -> bytes:
@@ -143,11 +128,8 @@ async def test_network_errors_exhaust_retries() -> None:
 
 
 @pytest.mark.asyncio
-async def test_accepts_response_below_limit(
-    set_provider_response_limit: Callable[[int], None],
-) -> None:
+async def test_accepts_response_below_limit() -> None:
     limit = 64
-    set_provider_response_limit(limit)
     content = _json_body_with_size(limit - 1)
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -159,17 +141,15 @@ async def test_accepts_response_below_limit(
         headers={},
         body={},
         retry_factory=no_wait_retrying,
+        max_response_bytes=limit,
     )
 
     assert result == {"value": "x" * (limit - 1 - len(b'{"value":""}'))}
 
 
 @pytest.mark.asyncio
-async def test_accepts_response_exactly_at_limit(
-    set_provider_response_limit: Callable[[int], None],
-) -> None:
+async def test_accepts_response_exactly_at_limit() -> None:
     limit = 64
-    set_provider_response_limit(limit)
     content = _json_body_with_size(limit)
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -181,17 +161,15 @@ async def test_accepts_response_exactly_at_limit(
         headers={},
         body={},
         retry_factory=no_wait_retrying,
+        max_response_bytes=limit,
     )
 
     assert result == {"value": "x" * (limit - len(b'{"value":""}'))}
 
 
 @pytest.mark.asyncio
-async def test_rejects_declared_content_length_above_limit_without_reading(
-    set_provider_response_limit: Callable[[int], None],
-) -> None:
+async def test_rejects_declared_content_length_above_limit_without_reading() -> None:
     limit = 64
-    set_provider_response_limit(limit)
     stream = TrackingStream((b'{"ok":true}',))
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -209,6 +187,7 @@ async def test_rejects_declared_content_length_above_limit_without_reading(
             headers={},
             body={},
             retry_factory=no_wait_retrying,
+            max_response_bytes=limit,
         )
 
     assert stream.chunks_read == 0
@@ -217,11 +196,8 @@ async def test_rejects_declared_content_length_above_limit_without_reading(
 
 
 @pytest.mark.asyncio
-async def test_rejects_undeclared_oversized_response_while_streaming(
-    set_provider_response_limit: Callable[[int], None],
-) -> None:
+async def test_rejects_undeclared_oversized_response_while_streaming() -> None:
     limit = 64
-    set_provider_response_limit(limit)
     stream = TrackingStream((_json_body_with_size(limit + 1),))
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -234,6 +210,7 @@ async def test_rejects_undeclared_oversized_response_while_streaming(
             headers={},
             body={},
             retry_factory=no_wait_retrying,
+            max_response_bytes=limit,
         )
 
     assert stream.chunks_read == 1
@@ -241,11 +218,8 @@ async def test_rejects_undeclared_oversized_response_while_streaming(
 
 
 @pytest.mark.asyncio
-async def test_stops_reading_chunked_response_when_limit_is_crossed(
-    set_provider_response_limit: Callable[[int], None],
-) -> None:
+async def test_stops_reading_chunked_response_when_limit_is_crossed() -> None:
     limit = 16
-    set_provider_response_limit(limit)
     stream = TrackingStream(
         (
             b'{"value":"',
@@ -270,6 +244,7 @@ async def test_stops_reading_chunked_response_when_limit_is_crossed(
             headers={},
             body={},
             retry_factory=no_wait_retrying,
+            max_response_bytes=limit,
         )
 
     assert stream.chunks_read == 3
@@ -277,17 +252,15 @@ async def test_stops_reading_chunked_response_when_limit_is_crossed(
 
 
 @pytest.mark.asyncio
-async def test_counts_decoded_compressed_bytes(
-    set_provider_response_limit: Callable[[int], None],
-) -> None:
-    limit = 64
-    set_provider_response_limit(limit)
-    decoded = _json_body_with_size(limit * 4)
+async def test_rejects_highly_compressed_response_without_reading() -> None:
+    limit = 4 * 1024
+    decoded = _json_body_with_size(1024 * 1024)
     compressed = gzip.compress(decoded)
     assert len(compressed) < limit < len(decoded)
     stream = TrackingStream((compressed,))
 
     def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["Accept-Encoding"] == "identity"
         return httpx.Response(
             200,
             request=request,
@@ -298,24 +271,24 @@ async def test_counts_decoded_compressed_bytes(
             stream=stream,
         )
 
-    with pytest.raises(InvalidProviderResponseError):
+    with pytest.raises(InvalidProviderResponseError) as error:
         await post_json(
             mock_client(handler),
             "https://api.example.test/resource",
-            headers={},
+            headers={"Accept-Encoding": "gzip"},
             body={},
             retry_factory=no_wait_retrying,
+            max_response_bytes=limit,
         )
 
     assert stream.closed
+    assert stream.chunks_read == 0
+    assert error.value.error_code == "invalid_upstream_response"
 
 
 @pytest.mark.asyncio
-async def test_rejects_oversized_irrelevant_json_property(
-    set_provider_response_limit: Callable[[int], None],
-) -> None:
+async def test_rejects_oversized_irrelevant_json_property() -> None:
     limit = 64
-    set_provider_response_limit(limit)
     content = b'{"ok":true,"ignored":"' + (b"x" * limit) + b'"}'
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -328,15 +301,13 @@ async def test_rejects_oversized_irrelevant_json_property(
             headers={},
             body={},
             retry_factory=no_wait_retrying,
+            max_response_bytes=limit,
         )
 
 
 @pytest.mark.asyncio
-async def test_oversized_response_is_not_retried(
-    set_provider_response_limit: Callable[[int], None],
-) -> None:
+async def test_oversized_response_is_not_retried() -> None:
     limit = 64
-    set_provider_response_limit(limit)
     calls = 0
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -356,6 +327,7 @@ async def test_oversized_response_is_not_retried(
             headers={},
             body={},
             retry_factory=no_wait_retrying,
+            max_response_bytes=limit,
         )
 
     assert calls == 1
@@ -363,11 +335,9 @@ async def test_oversized_response_is_not_retried(
 
 @pytest.mark.asyncio
 async def test_oversized_response_error_does_not_expose_body_or_secret(
-    set_provider_response_limit: Callable[[int], None],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     limit = 64
-    set_provider_response_limit(limit)
     secret = "provider-secret"
     content = f'{{"ignored":"{secret * limit}"}}'.encode()
 
@@ -381,6 +351,7 @@ async def test_oversized_response_error_does_not_expose_body_or_secret(
             headers={"Authorization": f"Bearer {secret}"},
             body={},
             retry_factory=no_wait_retrying,
+            max_response_bytes=limit,
         )
 
     assert secret not in str(error.value)

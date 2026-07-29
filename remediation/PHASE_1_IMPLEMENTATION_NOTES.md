@@ -6,12 +6,13 @@
 - Configuration: one shared backend setting,
   `PROVIDER_MAX_RESPONSE_BYTES=4194304`.
 - Retryability: oversized responses are non-retryable.
-- Compressed responses: count bytes from HTTPX's decoded streaming interface.
+- Compressed responses: request `Accept-Encoding: identity` and reject an
+  encoded success response before reading its body.
 - Declared size: reject before reading when a trustworthy `Content-Length`
   exceeds the configured limit.
 - Public error: reuse `invalid_upstream_response`.
-- Placement: enforce the limit only in shared provider transport; do not
-  modify individual adapters.
+- Placement: enforce the limit only in shared provider transport. Provider
+  instances carry the resolved setting to that transport.
 
 ## Ceiling review
 
@@ -44,10 +45,14 @@ phase.
 
 ## Implementation result
 
-The shared transport reads the configured limit once per logical provider
-request. It checks a valid decimal `Content-Length`, streams decoded bytes in
-bounded chunks, stops before appending a chunk that would cross the ceiling,
-and parses JSON only after the complete response is within the limit.
+The provider factory binds the resolved `Settings` limit to each provider
+instance, which passes it to the shared transport for every logical request.
+The transport requests identity encoding and rejects an unexpected encoded
+success response before iterating its body, preventing HTTPX from decompressing
+an oversized representation before the size check. It checks a valid decimal
+`Content-Length`, streams identity-encoded bytes in bounded chunks, stops before
+appending a chunk that would cross the ceiling, and parses JSON only after the
+complete response is within the limit.
 
 Size violations use an internal subtype of `InvalidProviderResponseError`.
 This preserves the public `invalid_upstream_response` error and makes the

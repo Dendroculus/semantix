@@ -2,7 +2,8 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
+from app.core.exceptions import InvalidProviderResponseError
 from app.providers.adapters.anthropic import AnthropicProvider
 from app.providers.adapters.gemini import GeminiProvider
 from app.providers.adapters.huggingface import HuggingFaceProvider
@@ -12,6 +13,7 @@ from app.providers.factory import (
     create_generation_provider,
     create_provider_bundle,
 )
+from tests.providers.support import mock_client
 
 ORIGINS = ["http://localhost:5173"]
 
@@ -69,6 +71,42 @@ async def test_providers_are_selected_independently() -> None:
     assert isinstance(embedding, OpenAIProvider)
     assert isinstance(generation, AnthropicProvider)
     assert settings.embedding_dimensions == 256
+
+
+@pytest.mark.asyncio
+async def test_provider_uses_explicit_settings_response_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PROVIDER_MAX_RESPONSE_BYTES", str(1024 * 1024))
+    monkeypatch.setenv("HF_API_KEY", "global-hf-key")
+    monkeypatch.setenv("ALLOWED_ORIGINS", '["http://localhost:5173"]')
+    get_settings.cache_clear()
+    settings = Settings(
+        embedding_provider="mock",
+        generation_provider="openai",
+        openai_api_key="openai-key",
+        openai_generation_model="generation-model",
+        provider_max_response_bytes=64,
+        allowed_origins=ORIGINS,
+    )
+    content = (
+        b'{"choices":[{"message":{"content":"ok"}}],"padding":"' + (b"x" * 64) + b'"}'
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, request=request, content=content)
+
+    try:
+        async with mock_client(handler) as client:
+            provider = create_generation_provider(
+                client,
+                settings,
+            )
+
+            with pytest.raises(InvalidProviderResponseError):
+                await provider.generate("hello")
+    finally:
+        get_settings.cache_clear()
 
 
 @pytest.mark.asyncio
