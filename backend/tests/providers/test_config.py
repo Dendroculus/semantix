@@ -195,3 +195,71 @@ def test_provider_response_limit_is_configurable() -> None:
 def test_provider_response_limit_must_be_positive() -> None:
     with pytest.raises(ValidationError, match="provider_max_response_bytes"):
         settings(provider_max_response_bytes=0)
+
+
+@pytest.mark.parametrize("port", ["not-a-port", "-1", "65536"])
+def test_database_url_rejects_invalid_ports(port: str) -> None:
+    with pytest.raises(ValidationError, match="DATABASE_URL.*port"):
+        settings(
+            cache_backend="pgvector",
+            database_url=(f"postgresql://user:secret@database:{port}/semantix"),
+        )
+
+
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "postgresql://user:secret@localhost/semantix",
+        "postgresql://user:secret@[::1]:5432/semantix",
+        (
+            "postgresql://user%40example:p%3Ass%2Fword@"
+            "database:5432/semantix?sslmode=require"
+        ),
+    ],
+)
+def test_database_url_preserves_valid_boundary_cases(
+    database_url: str,
+) -> None:
+    configured = settings(
+        cache_backend="pgvector",
+        database_url=database_url,
+    )
+
+    assert configured.database_dsn == database_url
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://example.test/path",
+        "https://example.test/;params",
+        "https://example.test?query=yes",
+        "https://example.test#fragment",
+        "https://user:password@example.test",
+        "https://example.test:not-a-port",
+        "https://example.test:-1",
+        "https://example.test:65536",
+        "https://:443",
+    ],
+)
+def test_cors_origins_reject_non_origin_urls(origin: str) -> None:
+    with pytest.raises(ValidationError, match="CORS origin"):
+        settings(allowed_origins=[origin])
+
+
+@pytest.mark.parametrize(
+    ("origin", "normalized"),
+    [
+        ("http://localhost", "http://localhost"),
+        ("http://localhost:5173/", "http://localhost:5173"),
+        ("http://[::1]", "http://[::1]"),
+        ("https://[2001:db8::1]:8443/", "https://[2001:db8::1]:8443"),
+    ],
+)
+def test_cors_origins_preserve_valid_boundary_cases(
+    origin: str,
+    normalized: str,
+) -> None:
+    configured = settings(allowed_origins=[origin])
+
+    assert configured.allowed_origins == [normalized]

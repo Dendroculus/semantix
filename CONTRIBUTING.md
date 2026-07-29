@@ -157,7 +157,7 @@ Semantix follows feature-first ownership.
 - Keep storage-specific behavior inside cache infrastructure adapters.
 - Keep repository-level operational assets under `ops/`.
 - Keep PostgreSQL bootstrap assets under `ops/postgres/`.
-- Keep k6 workloads under `ops/load-tests/`.
+- Keep k6 workloads under `ops/load-testing/`.
 - Depend on protocols from application code rather than concrete adapters.
 - Add architectural layers only when a feature has a distinct responsibility.
 - Keep small cohesive features flat.

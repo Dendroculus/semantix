@@ -86,6 +86,18 @@ When another trusted TLS proxy adds forwarding headers before the frontend gatew
 
 The supplied backend runs one process. Rate-limit state remains process-local. Multiple workers or replicas require shared limiter storage before deployment.
 
+## URL configuration validation
+
+`ALLOWED_ORIGINS` entries must be bare HTTP or HTTPS origins: a host
+(including `localhost` or a bracketed IPv6 host) and an optional valid port.
+A single trailing slash is normalized away. Credentials, paths, parameters,
+queries, fragments, and malformed ports are rejected.
+
+`DATABASE_URL` continues to accept PostgreSQL DSNs with optional valid ports,
+query parameters, IPv6 hosts, and percent-encoded credentials. Malformed ports
+now fail during startup validation. This intentionally rejects configurations
+that were previously accepted even though they were not usable URLs.
+
 ## Request-size limits
 
 The frontend gateway enforces `client_max_body_size 64k`. The backend independently enforces `MAX_REQUEST_BODY_BYTES=65536` before JSON parsing.

@@ -130,7 +130,7 @@ semantix/
 │   └── tests/                    # Mirrors app and features
 ├── ops/
 │   ├── postgres/
-│   └── load-tests/
+│   └── load-testing/
 ├── docs/
 └── docker-compose.yml
 ```

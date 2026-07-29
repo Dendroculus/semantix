@@ -17,7 +17,7 @@ export function AuthPanel(): JSX.Element | null {
         aria-live="polite"
         className="font-data mt-4 block text-[10px] text-(--text-muted)"
       >
-        Checking access policyÃ¢â‚¬Â¦
+        Checking access policy…
       </output>
     );
   }
@@ -36,7 +36,7 @@ export function AuthPanel(): JSX.Element | null {
             Authenticated access
           </p>
           <p className="font-data mt-1 text-[10px] text-(--text-soft)">
-            {session.name} Ã‚Â· {session.role} Ã‚Â·{' '}
+            {session.name} · {session.role} ·{' '}
             {session.namespaces.join(', ')}
           </p>
         </div>
@@ -83,7 +83,7 @@ export function AuthPanel(): JSX.Element | null {
           disabled={isSubmitting}
           type="submit"
         >
-          {isSubmitting ? 'VerifyingÃ¢â‚¬Â¦' : 'Authenticate'}
+          {isSubmitting ? 'Verifying…' : 'Authenticate'}
         </button>
       </form>
       {error !== null && (
