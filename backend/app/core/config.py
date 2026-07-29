@@ -102,6 +102,7 @@ class Settings(BaseSettings):
     mock_embedding_dimensions: int = Field(default=384, gt=0)
 
     provider_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+    provider_max_response_bytes: int = Field(default=4_194_304, ge=1)
     generation_max_new_tokens: int = Field(default=512, ge=1, le=2_048)
     prompt_typo_correction_enabled: bool = False
     prompt_typo_max_edit_distance: int = Field(default=2, ge=0, le=3)

@@ -27,6 +27,19 @@ Only fields required by the selected capabilities are validated. For example,
 Ollama generation does not require an Ollama embedding model or dimensions.
 Anthropic cannot be selected for embeddings.
 
+All HTTP provider responses share one decoded-body limit before JSON parsing:
+
+```env
+PROVIDER_MAX_RESPONSE_BYTES=4194304
+```
+
+The 4 MiB default is enforced centrally across hosted providers and Ollama.
+Responses with a larger trustworthy `Content-Length` are rejected before the
+body is read; otherwise decoded/decompressed streamed bytes are counted and
+reading stops when the limit is crossed. Oversized responses are invalid and
+are not retried. Increase this setting only when a legitimate configured model
+cannot fit within the default.
+
 ## Hosted providers
 
 Hosted-provider base URLs must be absolute HTTPS URLs without embedded
