@@ -60,10 +60,11 @@ def invalid_attempt(
     client: TestClient,
     token: str = "wrong-token",
 ) -> Response:
-    return client.get(
+    response: Response = client.get(
         "/api/v1/auth/session",
         headers=authorization(token),
     )
+    return response
 
 
 def trigger_lock(client: TestClient, expected_seconds: int) -> None:
