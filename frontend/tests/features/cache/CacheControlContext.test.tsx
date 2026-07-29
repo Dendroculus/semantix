@@ -32,6 +32,7 @@ function CacheControlProbe(): JSX.Element {
     cacheState,
     commitThreshold,
     previewThreshold,
+    isRefreshingCacheState,
     refreshCacheState,
   } = useCacheControl();
   let stateLabel = 'loading';
@@ -45,6 +46,9 @@ function CacheControlProbe(): JSX.Element {
     <div>
       <output data-testid="cache-state">
         {stateLabel}
+      </output>
+      <output data-testid="cache-refresh-state">
+        {isRefreshingCacheState ? 'refreshing' : 'idle'}
       </output>
       <button
         type="button"
@@ -214,5 +218,54 @@ describe('CacheControlProvider', () => {
       );
     });
     expect(screen.queryByText(/0\.92/)).toBeNull();
+  });
+
+  it('keeps confirmed cache readings visible during a background refresh', async () => {
+    renderProbe();
+    await waitFor(() => {
+      expect(screen.getByTestId('cache-state').textContent).toBe(
+        '0.92:1:0.92',
+      );
+    });
+
+    const refreshedStats =
+      deferred<Awaited<ReturnType<typeof getCacheStats>>>();
+    const refreshedThreshold =
+      deferred<Awaited<ReturnType<typeof getCacheThreshold>>>();
+    vi.mocked(getCacheStats).mockReturnValueOnce(refreshedStats.promise);
+    vi.mocked(getCacheThreshold).mockReturnValueOnce(
+      refreshedThreshold.promise,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Refresh cache state' }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId('cache-refresh-state').textContent,
+      ).toBe('refreshing');
+    });
+    expect(screen.getByTestId('cache-state').textContent).toBe(
+      '0.92:1:0.92',
+    );
+
+    await act(async () => {
+      refreshedStats.resolve({
+        ok: true,
+        data: { ...initialStats, size: 4 },
+      });
+      refreshedThreshold.resolve({
+        ok: true,
+        data: { threshold: 0.94 },
+      });
+    });
+
+    expect(screen.getByTestId('cache-state').textContent).toBe(
+      '0.94:4:0.92',
+    );
+    expect(
+      screen.getByTestId('cache-refresh-state').textContent,
+    ).toBe('idle');
   });
 });

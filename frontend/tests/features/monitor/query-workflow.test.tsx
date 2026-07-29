@@ -127,6 +127,31 @@ describe("dashboard correctness", () => {
     expect(container.querySelectorAll('[data-testid="similarity-point"]')).toHaveLength(0);
   });
 
+  it("shows a cache-readings skeleton while initial workspace data loads", async () => {
+    vi.mocked(getCacheStats).mockReturnValue(
+      new Promise(() => undefined),
+    );
+    vi.mocked(getCacheThreshold).mockReturnValue(
+      new Promise(() => undefined),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByLabelText("Loading cache readings"),
+    ).toBeTruthy();
+    expect(
+      document.querySelectorAll("[data-skeleton-reading]"),
+    ).toHaveLength(6);
+    expect(
+      document.querySelector("[data-skeleton-similarity-plot]"),
+    ).toBeTruthy();
+  });
+
   it("reserves response space while a query is running", async () => {
     vi.mocked(useQuery).mockReturnValue({
       state: { status: "loading" },
@@ -142,6 +167,9 @@ describe("dashboard correctness", () => {
     expect(
       await screen.findByLabelText("Loading query response"),
     ).toBeTruthy();
+    expect(
+      document.querySelectorAll("[data-skeleton-evidence-metric]"),
+    ).toHaveLength(7);
   });
 
   it("preserves an API null similarity when adding an application trace", async () => {

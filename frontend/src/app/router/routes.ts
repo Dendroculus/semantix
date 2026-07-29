@@ -17,4 +17,25 @@ const routes: AppRouteDefinition[] = [
   },
 ];
 
+function matchesPath(
+  route: AppRouteDefinition,
+  pathname: string,
+): boolean {
+  if (route.index) {
+    return pathname === "/";
+  }
+
+  if (route.path === "*") {
+    return false;
+  }
+
+  const routePath = `/${route.path}`;
+  return pathname === routePath || pathname.startsWith(`${routePath}/`);
+}
+
+export async function preloadRouteModule(pathname: string): Promise<void> {
+  const route = routes.find((candidate) => matchesPath(candidate, pathname));
+  await route?.preload?.();
+}
+
 export default routes;

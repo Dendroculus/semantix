@@ -13,6 +13,7 @@ interface CacheInspectorControlsProps {
   isClearing: boolean;
   isLoading: boolean;
   isMutating: boolean;
+  isRefreshing: boolean;
   namespace: string;
   onCancelClear: () => void;
   onConfirmClear: () => void;
@@ -31,6 +32,7 @@ export function CacheInspectorControls({
   isClearing,
   isLoading,
   isMutating,
+  isRefreshing,
   namespace,
   onCancelClear,
   onConfirmClear,
@@ -67,12 +69,13 @@ export function CacheInspectorControls({
         <div className="flex flex-wrap gap-3">
           <Button
             className="border-(--hairline) text-(--teal) hover:border-(--teal) focus-visible:outline-(--teal) disabled:opacity-50"
-            disabled={isLoading || isMutating}
+            aria-busy={isRefreshing}
+            disabled={isLoading || isRefreshing || isMutating}
             size="compact"
             variant="secondary"
             onClick={onRefresh}
           >
-            {isLoading ? 'Refreshing' : 'Refresh'}
+            {isLoading || isRefreshing ? 'Refreshing' : 'Refresh'}
           </Button>
 
           <Button

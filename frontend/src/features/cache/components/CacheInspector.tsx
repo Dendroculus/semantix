@@ -10,7 +10,7 @@ import type { JSX } from "react";
 export type { CacheMutation };
 
 interface CacheInspectorProps {
-  onMutation: (mutation: CacheMutation) => void;
+  onMutation: (mutation: CacheMutation) => void | Promise<void>;
 }
 
 export function CacheInspector({
@@ -29,6 +29,7 @@ export function CacheInspector({
         isClearing={inspector.isClearing}
         isLoading={inspector.isLoading}
         isMutating={inspector.isMutating}
+        isRefreshing={inspector.isRefreshing}
         namespace={inspector.namespace}
         search={inspector.search}
         sort={inspector.sort}

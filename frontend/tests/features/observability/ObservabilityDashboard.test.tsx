@@ -1,3 +1,4 @@
+import type { QueryClient } from "@tanstack/react-query";
 import {
   act,
   cleanup,
@@ -6,9 +7,11 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { StrictMode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { QueryTestProvider } from "../QueryTestProvider";
+import { createTestQueryClient } from "../queryClient";
 import { getRuntimeMetrics } from "@/features/observability/api/metricsApi";
 import { ObservabilityDashboard } from "@/features/observability/components/ObservabilityDashboard";
 import { deferred } from "../support";
@@ -32,6 +35,23 @@ const metrics = {
   expirations: 2,
 };
 
+let queryClient: QueryClient;
+
+function renderDashboard(ui = <ObservabilityDashboard />) {
+  return render(ui, {
+    wrapper: ({ children }: Readonly<{ children: ReactNode }>) => (
+      <QueryTestProvider client={queryClient}>
+        {children}
+      </QueryTestProvider>
+    ),
+  });
+}
+
+beforeEach(() => {
+  queryClient = createTestQueryClient();
+  vi.mocked(getRuntimeMetrics).mockReset();
+});
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -48,11 +68,14 @@ describe("ObservabilityDashboard", () => {
       }),
     );
 
-    render(<ObservabilityDashboard />);
+    renderDashboard();
 
     expect(
       screen.getByLabelText("Loading runtime metrics"),
     ).toBeTruthy();
+    expect(
+      document.querySelectorAll("[data-skeleton-runtime-metric]"),
+    ).toHaveLength(12);
 
     await act(async () => {
       resolveMetrics?.({ ok: true, data: metrics });
@@ -85,46 +108,34 @@ describe("ObservabilityDashboard", () => {
       },
     });
 
-    render(<ObservabilityDashboard />);
+    renderDashboard();
 
     expect(await screen.findByText("Backend unavailable")).toBeTruthy();
     expect(screen.queryByText("25.5 ms")).toBeNull();
   });
 
-  it("ignores an older response that resolves after a newer request", async () => {
-    const older =
+  it("deduplicates simultaneous consumers of runtime metrics", async () => {
+    const request =
       deferred<Awaited<ReturnType<typeof getRuntimeMetrics>>>();
-    const newer =
-      deferred<Awaited<ReturnType<typeof getRuntimeMetrics>>>();
-    vi.mocked(getRuntimeMetrics)
-      .mockReturnValueOnce(older.promise)
-      .mockReturnValueOnce(newer.promise);
+    vi.mocked(getRuntimeMetrics).mockReturnValue(request.promise);
 
-    render(
-      <StrictMode>
+    renderDashboard(
+      <>
         <ObservabilityDashboard />
-      </StrictMode>,
+        <ObservabilityDashboard />
+      </>,
     );
 
-    await waitFor(() =>
-      expect(getRuntimeMetrics).toHaveBeenCalledTimes(2),
-    );
+    expect(getRuntimeMetrics).toHaveBeenCalledOnce();
+    expect(
+      screen.getAllByLabelText("Loading runtime metrics"),
+    ).toHaveLength(2);
 
     await act(async () => {
-      newer.resolve({
-        ok: true,
-        data: { ...metrics, request_count: 91 },
-      });
+      request.resolve({ ok: true, data: metrics });
     });
 
-    const requestMetric = screen.getByText("Requests").closest("div");
-    expect(requestMetric?.textContent).toContain("91");
-
-    await act(async () => {
-      older.resolve({ ok: true, data: metrics });
-    });
-
-    expect(requestMetric?.textContent).toContain("91");
+    expect(await screen.findAllByText("25.5 ms")).toHaveLength(2);
   });
 
   it("disables and coalesces manual refresh while a request is active", async () => {
@@ -136,7 +147,7 @@ describe("ObservabilityDashboard", () => {
       deferred<Awaited<ReturnType<typeof getRuntimeMetrics>>>();
     vi.mocked(getRuntimeMetrics).mockReturnValueOnce(refresh.promise);
 
-    render(<ObservabilityDashboard />);
+    renderDashboard();
     await screen.findByText("25.5 ms");
 
     const button = screen.getByRole<HTMLButtonElement>("button", {
@@ -146,6 +157,8 @@ describe("ObservabilityDashboard", () => {
 
     await waitFor(() => expect(button.disabled).toBe(true));
     fireEvent.click(button);
+    expect(screen.getByText("25.5 ms")).toBeTruthy();
+    expect(screen.getByText("Refreshing runtime metrics")).toBeTruthy();
     expect(getRuntimeMetrics).toHaveBeenCalledTimes(2);
 
     await act(async () => {
@@ -154,5 +167,37 @@ describe("ObservabilityDashboard", () => {
         data: { ...metrics, request_count: 13 },
       });
     });
+    await waitFor(() => {
+      expect(screen.queryByText("Refreshing runtime metrics")).toBeNull();
+    });
   });
+
+  it("stops metrics polling after the last consumer unmounts", async () => {
+    vi.useFakeTimers();
+    vi.mocked(getRuntimeMetrics).mockResolvedValue({
+      ok: true,
+      data: metrics,
+    });
+
+    try {
+      const { unmount } = renderDashboard();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(getRuntimeMetrics).toHaveBeenCalledOnce();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+      expect(getRuntimeMetrics).toHaveBeenCalledTimes(2);
+
+      unmount();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      expect(getRuntimeMetrics).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+});
 });

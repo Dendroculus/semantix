@@ -18,6 +18,7 @@ export interface CacheControlContextValue {
   commitThreshold: (value: number) => Promise<void>;
   controlError: string | null;
   isApplyingThreshold: boolean;
+  isRefreshingCacheState: boolean;
   previewThreshold: number | null;
   refreshCacheState: (syncPreview?: boolean) => Promise<void>;
   setPreviewThreshold: (value: number) => void;

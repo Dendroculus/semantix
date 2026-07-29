@@ -1,13 +1,14 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
 
+import type { ApiError } from "@/shared/api/types";
+import {
+  apiErrorFromUnknown,
+  dataFromApiResult,
+} from "@/shared/query/apiResult";
+import { runtimeMetricsKeys } from "@/shared/query/queryKeys";
 import { getRuntimeMetrics } from "../api/metricsApi";
 import type { RuntimeMetrics } from "../types";
-import type { ApiError } from "@/shared/api/types";
 
 export const RUNTIME_METRICS_REFRESH_INTERVAL_MS = 5_000;
 
@@ -18,85 +19,50 @@ type MetricsState =
 
 interface RuntimeMetricsController {
   isRefreshing: boolean;
+  refreshError: ApiError | null;
   state: MetricsState;
   refresh: () => void;
 }
 
 export function useRuntimeMetrics(): RuntimeMetricsController {
-  const [state, setState] = useState<MetricsState>({
-    status: "loading",
+  const query = useQuery({
+    queryKey: runtimeMetricsKeys.live(),
+    queryFn: async ({ signal }) =>
+      dataFromApiResult(await getRuntimeMetrics(signal)),
+    gcTime: 5 * 60 * 1_000,
+    staleTime: RUNTIME_METRICS_REFRESH_INTERVAL_MS,
+    refetchInterval: (currentQuery) =>
+      currentQuery.state.fetchStatus === "fetching"
+        ? false
+        : RUNTIME_METRICS_REFRESH_INTERVAL_MS,
+    refetchIntervalInBackground: false,
   });
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const activeController = useRef<AbortController | null>(null);
-  const inFlight = useRef(false);
-  const requestSequence = useRef(0);
 
-  const load = useCallback(async (): Promise<void> => {
-    if (inFlight.current) {
-      return;
-    }
-
-    const controller = new AbortController();
-    const requestId = requestSequence.current + 1;
-    requestSequence.current = requestId;
-    activeController.current = controller;
-    inFlight.current = true;
-    setIsRefreshing(true);
-
-    try {
-      const result = await getRuntimeMetrics(controller.signal);
-      if (
-        controller.signal.aborted ||
-        requestId !== requestSequence.current
-      ) {
-        return;
-      }
-
-      if (result.ok) {
-        setState({ status: "ready", data: result.data });
-      } else {
-        setState({ status: "error", error: result.error });
-      }
-    } finally {
-      if (requestId === requestSequence.current) {
-        activeController.current = null;
-        inFlight.current = false;
-        setIsRefreshing(false);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    let timeout: number | null = null;
-    let active = true;
-
-    async function poll(): Promise<void> {
-      await load();
-      if (active) {
-        timeout = window.setTimeout(
-          () => void poll(),
-          RUNTIME_METRICS_REFRESH_INTERVAL_MS,
-        );
-      }
-    }
-
-    void poll();
-
-    return () => {
-      active = false;
-      if (timeout !== null) {
-        window.clearTimeout(timeout);
-      }
-      requestSequence.current += 1;
-      activeController.current?.abort();
-      activeController.current = null;
-      inFlight.current = false;
+  let state: MetricsState;
+  if (query.data !== undefined) {
+    state = { status: "ready", data: query.data };
+  } else if (query.isError) {
+    state = {
+      status: "error",
+      error: apiErrorFromUnknown(query.error),
     };
-  }, [load]);
+  } else {
+    state = { status: "loading" };
+  }
 
   const refresh = useCallback((): void => {
-    void load();
-  }, [load]);
+    if (!query.isFetching) {
+      query.refetch({ cancelRefetch: false });
+    }
+  }, [query]);
 
-  return { isRefreshing, state, refresh };
+  return {
+    isRefreshing: query.isFetching,
+    refreshError:
+      query.data !== undefined && query.isError
+        ? apiErrorFromUnknown(query.error)
+        : null,
+    state,
+    refresh,
+  };
 }

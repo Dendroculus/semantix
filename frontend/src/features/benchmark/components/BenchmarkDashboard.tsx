@@ -2,6 +2,7 @@ import { Alert, EmptyState, PageHeader } from '@/shared/components/ui';
 import { useBenchmark } from '../hooks/useBenchmark';
 import { BenchmarkCharts } from './BenchmarkCharts';
 import { BenchmarkControls } from './BenchmarkControls';
+import { BenchmarkDatasetSkeleton } from './BenchmarkDatasetSkeleton';
 import { BenchmarkExports } from './BenchmarkExports';
 import { BenchmarkResultsTable } from './BenchmarkResultsTable';
 import { BenchmarkResultsSkeleton } from './BenchmarkResultsSkeleton';
@@ -14,6 +15,7 @@ export function BenchmarkDashboard(): JSX.Element {
   const controller = useBenchmark();
   const {
     datasetsLoading,
+    datasetsRefreshing,
     error,
     isRunning,
     result,
@@ -34,7 +36,20 @@ export function BenchmarkDashboard(): JSX.Element {
         title="Benchmark laboratory"
       />
 
-      <BenchmarkControls controller={controller} />
+      {datasetsLoading ? (
+        <BenchmarkDatasetSkeleton />
+      ) : (
+        <BenchmarkControls controller={controller} />
+      )}
+
+      {datasetsRefreshing && (
+        <output
+          aria-live="polite"
+          className="ui-label mt-3 block text-(--gold)"
+        >
+          Refreshing dataset catalog
+        </output>
+      )}
 
       {selectedDataset !== null && (
         <p className="font-data mt-3 text-[10px]/5 text-(--text-faint)">

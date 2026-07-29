@@ -10,20 +10,41 @@ import type {
   PathRouteDefinition,
 } from "./types";
 
+interface LazyNamedPage {
+  component: LazyExoticComponent<ComponentType>;
+  preload: () => Promise<void>;
+}
+
 function lazyNamedPage<
   TExportName extends string,
   TModule extends Record<TExportName, ComponentType>,
 >(
   importer: () => Promise<TModule>,
   exportName: TExportName,
-): LazyExoticComponent<ComponentType> {
-  return lazy(async () => {
-    const module = await importer();
+): LazyNamedPage {
+  let moduleRequest: Promise<TModule> | null = null;
 
-    return {
-      default: module[exportName],
-    };
-  });
+  function loadModule(): Promise<TModule> {
+    moduleRequest ??= importer().catch((error: unknown) => {
+      moduleRequest = null;
+      throw error;
+    });
+
+    return moduleRequest;
+  }
+
+  return {
+    component: lazy(async () => {
+      const module = await loadModule();
+
+      return {
+        default: module[exportName],
+      };
+    }),
+    preload: async () => {
+      await loadModule();
+    },
+  };
 }
 
 export function defineLazyIndexRoute<
@@ -34,10 +55,13 @@ export function defineLazyIndexRoute<
   importer: () => Promise<TModule>,
   exportName: TExportName,
 ): IndexRouteDefinition {
+  const page = lazyNamedPage(importer, exportName);
+
   return {
     key,
     index: true,
-    component: lazyNamedPage(importer, exportName),
+    component: page.component,
+    preload: page.preload,
   };
 }
 
@@ -51,10 +75,13 @@ export function defineLazyPathRoute<
   exportName: TExportName,
   children?: AppRouteDefinition[],
 ): PathRouteDefinition {
+  const page = lazyNamedPage(importer, exportName);
+
   return {
     key,
     path,
-    component: lazyNamedPage(importer, exportName),
+    component: page.component,
+    preload: page.preload,
     ...(children?.length ? { children } : {}),
   };
 }

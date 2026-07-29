@@ -23,12 +23,14 @@ export function CacheInspectorResults({
     hasNext,
     hasPrevious,
     isLoading,
+    isRefreshing,
     loadError,
     mutation,
     nextPage,
     pendingDelete,
     previousPage,
     refresh,
+    refreshError,
     requestDelete,
     search,
     visibleEnd,
@@ -57,9 +59,10 @@ export function CacheInspectorResults({
               <span className="mt-3 block h-3 w-full bg-[rgba(234,230,221,0.05)]" />
               <span className="mt-2 block h-3 w-4/5 bg-[rgba(234,230,221,0.05)]" />
               <span className="mt-5 grid grid-cols-2 gap-4 min-[720px]:grid-cols-3">
-                {[0, 1, 2].map((metric) => (
+                {[0, 1, 2, 3, 4, 5].map((metric) => (
                   <span
                     className="h-8 bg-[rgba(234,230,221,0.04)]"
+                    data-skeleton-entry-metric
                     key={metric}
                   />
                 ))}
@@ -76,6 +79,16 @@ export function CacheInspectorResults({
           tone="error"
         >
           {actionError}
+        </Alert>
+      )}
+
+      {refreshError !== null && (
+        <Alert
+          className="font-data mt-5 border-l border-(--coral) pl-4 text-[11px]/5 text-(--coral-text)"
+          aria-live="polite"
+          tone="error"
+        >
+          {refreshError} Cached entries remain visible.
         </Alert>
       )}
 
@@ -136,7 +149,7 @@ export function CacheInspectorResults({
           <div className="flex gap-5">
             <Button
               className="ui-label min-h-9 text-(--teal) focus-visible:outline-(--teal) disabled:text-(--text-faint)"
-              disabled={!hasPrevious || isLoading}
+              disabled={!hasPrevious || isLoading || isRefreshing}
               variant="link"
               onClick={previousPage}
             >
@@ -144,7 +157,7 @@ export function CacheInspectorResults({
             </Button>
             <Button
               className="ui-label min-h-9 text-(--teal) focus-visible:outline-(--teal) disabled:text-(--text-faint)"
-              disabled={!hasNext || isLoading}
+              disabled={!hasNext || isLoading || isRefreshing}
               variant="link"
               onClick={nextPage}
             >

@@ -1,9 +1,15 @@
+import { useQuery } from "@tanstack/react-query";
 import {
   useEffect,
   useRef,
   useState,
 } from "react";
 
+import {
+  apiErrorFromUnknown,
+  dataFromApiResult,
+} from "@/shared/query/apiResult";
+import { benchmarkDatasetKeys } from "@/shared/query/queryKeys";
 import {
   getBenchmarkDatasets,
   runBenchmark,
@@ -14,6 +20,9 @@ import type {
   BenchmarkRunRequest,
   BenchmarkRunResponse,
 } from "../types";
+
+export const BENCHMARK_DATASET_STALE_TIME_MS = 10 * 60 * 1_000;
+export const BENCHMARK_DATASET_GC_TIME_MS = 30 * 60 * 1_000;
 
 const EVALUATION_THRESHOLDS = [0.7, 0.8, 0.85, 0.9, 0.92, 0.95, 0.98];
 
@@ -29,6 +38,7 @@ export interface BenchmarkForm {
 export interface BenchmarkController {
   datasets: BenchmarkDatasetSummary[];
   datasetsLoading: boolean;
+  datasetsRefreshing: boolean;
   error: string | null;
   form: BenchmarkForm;
   isRunning: boolean;
@@ -64,8 +74,6 @@ function requestFromForm(form: BenchmarkForm): BenchmarkRunRequest {
 }
 
 export function useBenchmark(): BenchmarkController {
-  const [datasets, setDatasets] = useState<BenchmarkDatasetSummary[]>([]);
-  const [datasetsLoading, setDatasetsLoading] = useState(true);
   const [form, setForm] = useState<BenchmarkForm>(DEFAULT_FORM);
   const [result, setResult] = useState<BenchmarkRunResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,32 +81,30 @@ export function useBenchmark(): BenchmarkController {
   const [isRunning, setIsRunning] = useState(false);
   const activeRun = useRef<AbortController | null>(null);
   const runSequence = useRef(0);
+  const hasAppliedDefaultDataset = useRef(false);
+
+  const datasetQuery = useQuery({
+    queryKey: benchmarkDatasetKeys.catalog(),
+    queryFn: async ({ signal }) =>
+      dataFromApiResult(await getBenchmarkDatasets(signal)),
+    staleTime: BENCHMARK_DATASET_STALE_TIME_MS,
+    gcTime: BENCHMARK_DATASET_GC_TIME_MS,
+  });
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadDatasets(): Promise<void> {
-      const response = await getBenchmarkDatasets(controller.signal);
-      if (controller.signal.aborted) {
-        return;
-      }
-      setDatasetsLoading(false);
-      if (!response.ok) {
-        setError(
-          response.error.detail ?? "Benchmark datasets could not be loaded.",
-        );
-        return;
-      }
-      setDatasets(response.data.datasets);
-      setForm((current) => ({
-        ...current,
-        datasetId: response.data.default_dataset_id,
-      }));
+    if (
+      datasetQuery.data === undefined ||
+      hasAppliedDefaultDataset.current
+    ) {
+      return;
     }
 
-    void loadDatasets();
-    return () => controller.abort();
-  }, []);
+    hasAppliedDefaultDataset.current = true;
+    setForm((current) => ({
+      ...current,
+      datasetId: datasetQuery.data.default_dataset_id,
+    }));
+  }, [datasetQuery.data]);
 
   useEffect(
     () => () => {
@@ -108,6 +114,14 @@ export function useBenchmark(): BenchmarkController {
     },
     [],
   );
+
+  const datasets = datasetQuery.data?.datasets ?? [];
+  const datasetsLoading =
+    datasetQuery.data === undefined && datasetQuery.isPending;
+  const datasetError = datasetQuery.isError
+    ? apiErrorFromUnknown(datasetQuery.error).detail ??
+      "Benchmark datasets could not be loaded."
+    : null;
 
   const selectedDataset =
     datasets.find((dataset) => dataset.dataset_id === form.datasetId) ?? null;
@@ -150,7 +164,9 @@ export function useBenchmark(): BenchmarkController {
   return {
     datasets,
     datasetsLoading,
-    error,
+    datasetsRefreshing:
+      datasetQuery.data !== undefined && datasetQuery.isFetching,
+    error: error ?? datasetError,
     form,
     isRunning,
     result,
