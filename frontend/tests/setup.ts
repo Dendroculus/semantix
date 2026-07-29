@@ -33,7 +33,9 @@ beforeEach(() => {
   vi.mocked(useAuth).mockReturnValue({
     authenticate: vi.fn(async () => false),
     error: null,
+    lockedUntil: null,
     logout: vi.fn(),
+    retryAccessPolicy: vi.fn(),
     session: null,
     status: "disabled",
   });

@@ -17,6 +17,12 @@ import type {
   AuthStatus,
 } from "./AuthContext";
 
+const DEFAULT_LOCKOUT_SECONDS = 30;
+const LOCKOUT_ERROR = "Too many failed authentication attempts.";
+const ACCESS_POLICY_ERROR =
+  "Access policy unavailable. Semantix could not determine the current " +
+  "authentication policy. Please wait a moment and try again.";
+
 interface AuthProviderProps {
   children: ReactNode;
 }
@@ -28,6 +34,8 @@ export function AuthProvider({
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [session, setSession] = useState<AuthSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [policyRequest, setPolicyRequest] = useState(0);
 
   const clearProtectedQueries = useCallback((): void => {
     queryClient.removeQueries({
@@ -54,11 +62,30 @@ export function AuthProvider({
         clearProtectedQueries();
         setSession(null);
         setStatus("unauthenticated");
-        setError(response.error.detail ?? "The access token was rejected.");
+
+        if (
+          response.error.code === "authentication_temporarily_locked"
+        ) {
+          const retryAfter =
+            response.error.retryAfterSeconds ?? DEFAULT_LOCKOUT_SECONDS;
+          setLockedUntil(Date.now() + retryAfter * 1_000);
+          setError(LOCKOUT_ERROR);
+          return false;
+        }
+
+        setLockedUntil(null);
+        setError(
+          response.error.code === "authentication_required"
+            ? "The access token was rejected."
+            : (response.error.detail ??
+                "Authentication could not be completed."),
+        );
         return false;
       }
 
       clearProtectedQueries();
+      setLockedUntil(null);
+      setError(null);
       setSession(response.data);
       setStatus("authenticated");
       return true;
@@ -71,8 +98,17 @@ export function AuthProvider({
     clearProtectedQueries();
     setSession(null);
     setError(null);
+    setLockedUntil(null);
     setStatus("unauthenticated");
   }, [clearProtectedQueries]);
+
+  const retryAccessPolicy = useCallback((): void => {
+    setError(null);
+    setSession(null);
+    setLockedUntil(null);
+    setStatus("loading");
+    setPolicyRequest((request) => request + 1);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -85,15 +121,19 @@ export function AuthProvider({
       }
 
       if (!config.ok) {
+        clearProtectedQueries();
+        setSession(null);
+        setLockedUntil(null);
         setStatus("error");
-        setError(
-          config.error.detail ?? "Authentication status could not be loaded.",
-        );
+        setError(ACCESS_POLICY_ERROR);
         return;
       }
 
       if (!config.data.authentication_required) {
         clearProtectedQueries();
+        setError(null);
+        setSession(null);
+        setLockedUntil(null);
         setStatus("disabled");
         return;
       }
@@ -101,6 +141,8 @@ export function AuthProvider({
       const storedToken = getAuthToken();
 
       if (storedToken === null) {
+        setError(null);
+        setLockedUntil(null);
         setStatus("unauthenticated");
         return;
       }
@@ -113,11 +155,27 @@ export function AuthProvider({
     return () => {
       active = false;
     };
-  }, [authenticate, clearProtectedQueries]);
+  }, [authenticate, clearProtectedQueries, policyRequest]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ authenticate, error, logout, session, status }),
-    [authenticate, error, logout, session, status],
+    () => ({
+      authenticate,
+      error,
+      lockedUntil,
+      logout,
+      retryAccessPolicy,
+      session,
+      status,
+    }),
+    [
+      authenticate,
+      error,
+      lockedUntil,
+      logout,
+      retryAccessPolicy,
+      session,
+      status,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

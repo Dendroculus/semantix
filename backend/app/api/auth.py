@@ -1,14 +1,19 @@
 from fastapi import APIRouter, Request
 
 from app.api.schemas import AuthConfigResponse, AuthSessionResponse
+from app.core.exceptions import (
+    AuthenticationRequiredError,
+    AuthenticationTemporarilyLockedError,
+)
+from app.middleware.client_address import client_address
 from app.middleware.rate_limit import app_rate_limit, limiter
-from app.security.auth import PrincipalDependency
+from app.security.auth import authenticate
+from app.security.auth_attempts import AuthenticationAttemptTracker
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
 
 @router.get("/config", response_model=AuthConfigResponse)
-@limiter.limit(app_rate_limit)
 async def auth_config(request: Request) -> AuthConfigResponse:
     return AuthConfigResponse(
         authentication_required=request.app.state.settings.auth_mode == "token"
@@ -19,8 +24,33 @@ async def auth_config(request: Request) -> AuthConfigResponse:
 @limiter.limit(app_rate_limit)
 async def auth_session(
     request: Request,
-    principal: PrincipalDependency,
 ) -> AuthSessionResponse:
+    settings = request.app.state.settings
+    if settings.auth_mode == "disabled":
+        principal = authenticate(request)
+        return AuthSessionResponse(
+            name=principal.name,
+            role=principal.role,
+            namespaces=sorted(principal.namespaces),
+        )
+
+    tracker: AuthenticationAttemptTracker = (
+        request.app.state.authentication_attempt_tracker
+    )
+    address = client_address(request)
+    retry_after = tracker.retry_after(address)
+    if retry_after is not None:
+        raise AuthenticationTemporarilyLockedError(retry_after)
+
+    try:
+        principal = authenticate(request)
+    except AuthenticationRequiredError:
+        retry_after = tracker.record_failure(address)
+        if retry_after is not None:
+            raise AuthenticationTemporarilyLockedError(retry_after) from None
+        raise
+
+    tracker.reset(address)
     return AuthSessionResponse(
         name=principal.name,
         role=principal.role,

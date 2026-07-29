@@ -21,18 +21,26 @@ Run a TLS reverse proxy on the host and forward to `127.0.0.1:8080`. Public plai
 
 The backend stores only SHA-256 token digests in configuration. Users enter the original token at runtime. The browser keeps it in `sessionStorage`; it is not compiled into the frontend bundle.
 
-Generate a token and digest with Python:
+Production deployments must use HTTPS. Generate a token and digest with
+Python:
 
 ```bash
 python -c "import hashlib,secrets; t=secrets.token_urlsafe(32); print('token='+t); print('sha256='+hashlib.sha256(t.encode()).hexdigest())"
 ```
 
-Windows PowerShell:
+Windows PowerShell 5.1 or later:
 
 ```powershell
-$Token = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$RandomBytes = New-Object byte[] 32
+$Random = [Security.Cryptography.RandomNumberGenerator]::Create()
+$Random.GetBytes($RandomBytes)
+$Random.Dispose()
+$Token = [Convert]::ToBase64String($RandomBytes)
 $Bytes = [Text.Encoding]::UTF8.GetBytes($Token)
-$Hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant()
+$Sha256 = [Security.Cryptography.SHA256]::Create()
+$HashBytes = $Sha256.ComputeHash($Bytes)
+$Sha256.Dispose()
+$Hash = -join ($HashBytes | ForEach-Object { $_.ToString("x2") })
 "token=$Token"
 "sha256=$Hash"
 ```
@@ -46,13 +54,94 @@ echo "token=$Token"
 echo "sha256=$Hash"
 ```
 
-Store only the digest in `AUTH_PRINCIPALS`:
+Set up an operator token as follows:
+
+1. Generate a high-entropy random token using one of the commands above.
+2. Calculate its lowercase SHA-256 digest.
+3. Store only the digest in `AUTH_PRINCIPALS`.
+4. Give the original token to the authorized operator through a secure
+   channel. Never store the plaintext token in `AUTH_PRINCIPALS`.
+5. Set `AUTH_MODE=token`.
+6. Recreate the backend container so it receives the changed environment.
+7. Verify that `/api/v1/auth/config` reports authentication as required.
+8. Test one wrong token, then authenticate with the valid original token.
+
+The relevant environment values are:
 
 ```env
+AUTH_MODE=token
 AUTH_PRINCIPALS=[{"name":"ops-admin","token_sha256":"<64-lowercase-hex>","role":"admin","namespaces":["*"]},{"name":"team-reader","token_sha256":"<64-lowercase-hex>","role":"viewer","namespaces":["team-a"]}]
 ```
 
-Keep the original tokens in a secret manager. Rotating a token means generating a new token, replacing its digest, and restarting the backend.
+Keep the original tokens in a secret manager. Rotating a token means generating
+a new token, replacing its digest, and recreating the backend container.
+
+For local Docker development, `docker-compose.dev.yml` reads both values from
+`backend/.env`. After changing any value in that file, recreate the backend
+container so Compose supplies the new environment. A plain container restart
+does not reload changed environment values. An image rebuild is not required
+for environment-only changes.
+
+From the repository root in Windows PowerShell:
+
+```powershell
+docker compose `
+  -f docker-compose.dev.yml `
+  --profile pgvector `
+  up -d --force-recreate backend
+```
+
+Verify the container and public authentication configuration:
+
+```powershell
+docker compose -f docker-compose.dev.yml --profile pgvector exec backend printenv AUTH_MODE
+```
+
+```powershell
+Invoke-RestMethod http://localhost:8000/api/v1/auth/config
+```
+
+Token mode reports:
+
+```text
+authentication_required
+-----------------------
+True
+```
+
+Test a rejected token and then the valid original token:
+
+```powershell
+$WrongHeaders = @{ Authorization = "Bearer intentionally-wrong-token" }
+try {
+    Invoke-RestMethod http://localhost:8000/api/v1/auth/session -Headers $WrongHeaders
+} catch {
+    $_.Exception.Response.StatusCode.value__
+}
+
+$ValidHeaders = @{ Authorization = "Bearer $Token" }
+Invoke-RestMethod http://localhost:8000/api/v1/auth/session -Headers $ValidHeaders
+```
+
+### Progressive authentication lockouts
+
+Only failed authentication attempts against `/api/v1/auth/session` advance
+the lockout. The first three failures lock that client address for 30 seconds.
+After the lock expires, three additional failures lock it for 60 seconds.
+After that lock expires, three additional failures lock it for 3,600 seconds.
+Later stages remain at 3,600 seconds. A successful authentication completely
+resets the client to the initial stage.
+
+Requests made during an active lock receive HTTP `429`, a `Retry-After`
+header, and the standard `authentication_temporarily_locked` error. They do
+not extend the lock or count as additional failures. Authentication failures
+on other protected endpoints do not advance this state.
+
+Lockout state is held in memory, is process-local, and resets when the backend
+process restarts. The supplied single-process deployment therefore enforces
+the progression within that process. Multiple backend workers or replicas
+would each have independent state and require a shared lockout store before
+being treated as equivalent protection.
 
 ## Roles
 

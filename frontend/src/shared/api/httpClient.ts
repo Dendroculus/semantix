@@ -5,15 +5,33 @@ import { isRecord } from "./validators";
 
 export type Decoder<T> = (value: unknown) => T;
 
-function decodeApiError(value: unknown, status: number): ApiError {
+function retryAfterSeconds(headers: Headers): number | undefined {
+  const value = headers.get("Retry-After");
+  if (value === null || !/^\d+$/.test(value.trim())) {
+    return undefined;
+  }
+
+  const seconds = Number(value);
+  return Number.isSafeInteger(seconds) && seconds > 0 ? seconds : undefined;
+}
+
+function decodeApiError(
+  value: unknown,
+  status: number,
+  headers: Headers,
+): ApiError {
   if (
     isRecord(value) &&
     typeof value.error === "string" &&
     (value.detail === null || typeof value.detail === "string")
   ) {
+    const retryAfter = retryAfterSeconds(headers);
     return {
       code: value.error,
       detail: value.detail,
+      ...(retryAfter === undefined
+        ? {}
+        : { retryAfterSeconds: retryAfter }),
       status,
     };
   }
@@ -76,7 +94,7 @@ export async function request<T>(
   if (!response.ok) {
     return {
       ok: false,
-      error: decodeApiError(payload, response.status),
+      error: decodeApiError(payload, response.status, response.headers),
     };
   }
 

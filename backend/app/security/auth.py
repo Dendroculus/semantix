@@ -39,6 +39,18 @@ def _bearer_token(request: Request) -> str:
     return token.strip()
 
 
+def _principal_for_token(settings: Settings, token: str) -> Principal:
+    presented_hash = sha256(token.encode("utf-8")).hexdigest()
+    for configured in settings.auth_principals:
+        if compare_digest(presented_hash, configured.token_sha256):
+            return Principal(
+                name=configured.name,
+                role=configured.role,
+                namespaces=frozenset(configured.namespaces),
+            )
+    raise AuthenticationRequiredError
+
+
 def authenticate(request: Request) -> Principal:
     settings = _settings(request)
     if settings.auth_mode == "disabled":
@@ -48,15 +60,7 @@ def authenticate(request: Request) -> Principal:
             namespaces=frozenset({"*"}),
         )
 
-    presented_hash = sha256(_bearer_token(request).encode("utf-8")).hexdigest()
-    for configured in settings.auth_principals:
-        if compare_digest(presented_hash, configured.token_sha256):
-            return Principal(
-                name=configured.name,
-                role=configured.role,
-                namespaces=frozenset(configured.namespaces),
-            )
-    raise AuthenticationRequiredError
+    return _principal_for_token(settings, _bearer_token(request))
 
 
 PrincipalDependency = Annotated[Principal, Depends(authenticate)]

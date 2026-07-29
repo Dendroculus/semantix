@@ -1,6 +1,7 @@
 export interface ApiError {
   code: string;
   detail: string | null;
+  retryAfterSeconds?: number;
   status: number | null;
 }
 

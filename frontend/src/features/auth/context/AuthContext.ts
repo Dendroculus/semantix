@@ -12,7 +12,9 @@ export type AuthStatus =
 export interface AuthContextValue {
   authenticate: (token: string) => Promise<boolean>;
   error: string | null;
+  lockedUntil: number | null;
   logout: () => void;
+  retryAccessPolicy: () => void;
   session: AuthSession | null;
   status: AuthStatus;
 }

@@ -40,6 +40,12 @@ function ProtectedDataProbe(): JSX.Element {
   return (
     <>
       <output aria-label="Authentication status">{auth.status}</output>
+      <output aria-label="Authentication error">
+        {auth.error ?? "none"}
+      </output>
+      <output aria-label="Authentication lock">
+        {auth.lockedUntil ?? "none"}
+      </output>
       <output aria-label="Protected metrics">
         {protectedQuery.data ?? "empty"}
       </output>
@@ -48,6 +54,9 @@ function ProtectedDataProbe(): JSX.Element {
       </button>
       <button type="button" onClick={auth.logout}>
         Logout test identity
+      </button>
+      <button type="button" onClick={auth.retryAccessPolicy}>
+        Retry access policy
       </button>
     </>
   );
@@ -154,5 +163,93 @@ describe("authentication query isolation", () => {
     expect(
       queryClient.getQueryData(runtimeMetricsKeys.live()),
     ).toBeUndefined();
+  });
+
+  it("distinguishes policy failure and retries the configuration request", async () => {
+    vi.mocked(getAuthConfig)
+      .mockResolvedValueOnce({
+        ok: false,
+        error: {
+          code: "rate_limit_exceeded",
+          detail: "Too many requests. Please try again later.",
+          status: 429,
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: { authentication_required: false },
+      });
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(runtimeMetricsKeys.live(), "private metrics");
+
+    render(
+      <QueryTestProvider client={queryClient}>
+        <AuthProvider>
+          <ProtectedDataProbe />
+        </AuthProvider>
+      </QueryTestProvider>,
+    );
+
+    await screen.findByText("error");
+    expect(screen.getByLabelText("Authentication error").textContent).toBe(
+      "Access policy unavailable. Semantix could not determine the current " +
+        "authentication policy. Please wait a moment and try again.",
+    );
+    expect(screen.getByLabelText("Protected metrics").textContent).toBe(
+      "empty",
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry access policy" }),
+    );
+
+    await screen.findByText("disabled");
+    expect(getAuthConfig).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears protected data and records backend lockout expiration", async () => {
+    vi.mocked(getAuthConfig).mockResolvedValue({
+      ok: true,
+      data: { authentication_required: true },
+    });
+    vi.mocked(getAuthSession).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "authentication_temporarily_locked",
+        detail:
+          "Too many failed authentication attempts. Please try again later.",
+        retryAfterSeconds: 30,
+        status: 429,
+      },
+    });
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(runtimeMetricsKeys.live(), "private metrics");
+    const beforeAuthentication = Date.now();
+
+    render(
+      <QueryTestProvider client={queryClient}>
+        <AuthProvider>
+          <ProtectedDataProbe />
+        </AuthProvider>
+      </QueryTestProvider>,
+    );
+    await screen.findByText("unauthenticated");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Authenticate test identity",
+      }),
+    );
+
+    await screen.findByText("Too many failed authentication attempts.");
+    expect(screen.getByLabelText("Protected metrics").textContent).toBe(
+      "empty",
+    );
+    const lockedUntil = Number(
+      screen.getByLabelText("Authentication lock").textContent,
+    );
+    expect(lockedUntil).toBeGreaterThanOrEqual(
+      beforeAuthentication + 30_000,
+    );
   });
 });

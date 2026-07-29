@@ -3,6 +3,8 @@ from fastapi.testclient import TestClient
 from app.core.config import Settings
 from app.factory import create_app
 
+RATE_LIMITED_PATH = "/api/v1/cache/stats"
+
 
 def settings(
     rate_limit: str,
@@ -33,8 +35,8 @@ def test_injected_app_settings_control_the_route_limit() -> None:
         create_app(settings("1/minute")),
         client=("203.0.113.10", 50_000),
     ) as client:
-        assert client.get("/api/v1/auth/config").status_code == 200
-        response = client.get("/api/v1/auth/config")
+        assert client.get(RATE_LIMITED_PATH).status_code == 200
+        response = client.get(RATE_LIMITED_PATH)
 
     assert_rate_limited(response.status_code, response.json())
 
@@ -45,11 +47,11 @@ def test_untrusted_forwarded_address_cannot_evade_the_limit() -> None:
         client=("203.0.113.10", 50_000),
     ) as client:
         first = client.get(
-            "/api/v1/auth/config",
+            RATE_LIMITED_PATH,
             headers={"X-Forwarded-For": "198.51.100.10"},
         )
         second = client.get(
-            "/api/v1/auth/config",
+            RATE_LIMITED_PATH,
             headers={"X-Forwarded-For": "198.51.100.11"},
         )
 
@@ -63,11 +65,11 @@ def test_trusted_proxy_clients_receive_independent_limits() -> None:
         client=("172.28.0.5", 50_000),
     ) as client:
         first = client.get(
-            "/api/v1/auth/config",
+            RATE_LIMITED_PATH,
             headers={"X-Forwarded-For": "198.51.100.10"},
         )
         second = client.get(
-            "/api/v1/auth/config",
+            RATE_LIMITED_PATH,
             headers={"X-Forwarded-For": "198.51.100.11"},
         )
 
@@ -80,10 +82,10 @@ def test_limiter_state_and_settings_are_scoped_per_application() -> None:
     second_app = create_app(settings("2/minute"))
 
     with TestClient(first_app, client=("203.0.113.10", 50_000)) as first:
-        assert first.get("/api/v1/auth/config").status_code == 200
-        assert first.get("/api/v1/auth/config").status_code == 429
+        assert first.get(RATE_LIMITED_PATH).status_code == 200
+        assert first.get(RATE_LIMITED_PATH).status_code == 429
 
     with TestClient(second_app, client=("203.0.113.10", 50_000)) as second:
-        assert second.get("/api/v1/auth/config").status_code == 200
-        assert second.get("/api/v1/auth/config").status_code == 200
-        assert second.get("/api/v1/auth/config").status_code == 429
+        assert second.get(RATE_LIMITED_PATH).status_code == 200
+        assert second.get(RATE_LIMITED_PATH).status_code == 200
+        assert second.get(RATE_LIMITED_PATH).status_code == 429
