@@ -60,8 +60,15 @@ The development frontend image installs Node dependencies and runs the Vite
 development server with HMR; it does not compile production frontend assets.
 `VITE_API_BASE_URL` is supplied to that development server at runtime. The
 hardened frontend image performs the production build described later in this
-guide. The development backend runs Uvicorn reload. Do not expose this stack
-to an untrusted network.
+guide. For reliable bind-mount updates when native notifications are
+unavailable, the development stack polls for frontend and backend source
+changes once per second. Vite ignores generated coverage output, and Uvicorn
+reloads only for changes under `backend/app`. The hardened stack is unaffected.
+
+Changes normally appear within about one second. If they do not, confirm that
+Docker Desktop can share the repository drive, then recreate the affected
+service. Inspect idle usage with `docker stats --no-stream`. Do not expose the
+development stack to an untrusted network.
 
 ### Development with pgvector
 

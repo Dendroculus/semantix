@@ -19,8 +19,9 @@ export default defineConfig({
     port: 4173,
     strictPort: true,
     watch: {
+      ignored: ["**/coverage/**"],
       usePolling: true,
-      interval: 200,
+      interval: 1_000,
     },
     hmr: {
       clientPort: 4173,
