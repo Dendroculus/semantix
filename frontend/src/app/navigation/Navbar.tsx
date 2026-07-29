@@ -4,6 +4,7 @@ import { NavLink } from "react-router";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { canAccessGlobalMetrics } from "@/features/auth/permissions";
 
+import { preloadRouteModule } from "../router/routes";
 import { APP_PATHS, NAV_ITEMS } from "./navigationConfig";
 import { SessionUptime } from "./SessionUptime";
 
@@ -13,6 +14,10 @@ function navClass(isActive: boolean): string {
     : "border-l-transparent text-[var(--text-muted)] hover:bg-[rgba(234,230,221,0.04)] hover:text-[var(--text)] md:border-b-transparent";
 
   return `ui-label block border-b border-b-[var(--hairline)] border-l-2 px-3 py-3 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gold)] md:border-b md:border-l-0 md:py-2 ${tone}`;
+}
+
+function preloadRoute(pathname: string): void {
+  void preloadRouteModule(pathname).catch(() => undefined);
 }
 
 export function Navbar(): JSX.Element {
@@ -45,6 +50,8 @@ export function Navbar(): JSX.Element {
                 key={item.to}
                 className={({ isActive }) => navClass(isActive)}
                 to={item.to}
+                onFocus={() => preloadRoute(item.to)}
+                onPointerEnter={() => preloadRoute(item.to)}
                 onClick={() => setIsMenuOpen(false)}
               >
                 {item.label}

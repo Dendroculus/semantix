@@ -10,6 +10,7 @@ type RouteComponent =
 interface BaseRouteDefinition {
   component: RouteComponent;
   key: string;
+  preload?: () => Promise<void>;
 }
 
 export interface IndexRouteDefinition extends BaseRouteDefinition {

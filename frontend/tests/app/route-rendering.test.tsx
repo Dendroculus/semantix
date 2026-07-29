@@ -339,9 +339,13 @@ describe('application routing', () => {
   it('does not load benchmark data until its route mounts', async () => {
     renderAt('/');
 
+    const benchmarkLink = screen.getByRole('link', {
+      name: 'Benchmarks',
+    });
+    fireEvent.pointerEnter(benchmarkLink);
     expect(getBenchmarkDatasets).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('link', { name: 'Benchmarks' }));
+    fireEvent.click(benchmarkLink);
 
     expect(
       await screen.findByRole('heading', {
