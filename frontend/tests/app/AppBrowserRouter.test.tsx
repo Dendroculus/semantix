@@ -64,6 +64,12 @@ describe("AppBrowserRouter", () => {
     expect(screen.getByLabelText("Loading workspace")).toBeTruthy();
     expect(screen.queryByText("Monitor content")).toBeNull();
     expect(document.querySelector(".animate-spin")).toBeNull();
+    expect(
+      document.querySelector('[data-workspace-skeleton="benchmark"]'),
+    ).toBeTruthy();
+    expect(
+      document.querySelectorAll("[data-skeleton-route-control]"),
+    ).toHaveLength(6);
 
     await act(async () => {
       benchmarkModule.resolve({
