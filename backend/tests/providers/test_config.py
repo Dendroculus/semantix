@@ -178,3 +178,20 @@ def test_mock_providers_require_no_credentials() -> None:
     assert configured.embedding_dimensions == 32
     assert configured.embedding_space == "mock:stable-token-hash-v1"
     assert configured.configured_secrets() == ()
+
+
+def test_provider_response_limit_defaults_to_four_mibibytes() -> None:
+    configured = settings()
+
+    assert configured.provider_max_response_bytes == 4_194_304
+
+
+def test_provider_response_limit_is_configurable() -> None:
+    configured = settings(provider_max_response_bytes=8_388_608)
+
+    assert configured.provider_max_response_bytes == 8_388_608
+
+
+def test_provider_response_limit_must_be_positive() -> None:
+    with pytest.raises(ValidationError, match="provider_max_response_bytes"):
+        settings(provider_max_response_bytes=0)
