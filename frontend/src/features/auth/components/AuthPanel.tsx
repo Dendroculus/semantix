@@ -10,6 +10,9 @@ import { useAuth } from "../hooks/useAuth";
 const ACCESS_POLICY_ERROR =
   "Access policy unavailable. Semantix could not determine the current " +
   "authentication policy. Please wait a moment and try again.";
+const SESSION_VERIFICATION_ERROR =
+  "Session verification unavailable. Semantix could not verify the current " +
+  "authentication session. Please wait a moment and try again.";
 
 function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -17,6 +20,61 @@ function formatDuration(seconds: number): string {
   return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
     .toString()
     .padStart(2, "0")}`;
+}
+
+interface BootstrapErrorPanelProps {
+  error: string | null;
+  isSessionError: boolean;
+  retry: () => void;
+}
+
+function BootstrapErrorPanel({
+  error,
+  isSessionError,
+  retry,
+}: Readonly<BootstrapErrorPanelProps>): JSX.Element {
+  return (
+    <section
+      aria-labelledby="access-policy-heading"
+      className="mx-auto flex min-h-96 max-w-xl items-center py-2"
+    >
+      <div className="relative w-full overflow-hidden border border-(--hairline) border-l-2 border-l-(--gold) bg-(--surface) px-5 py-7 sm:px-8 sm:py-9">
+        <div
+          aria-hidden="true"
+          className="absolute right-0 top-0 h-px w-24 bg-(--gold)"
+        />
+        <p className="ui-label text-(--gold)">
+          {isSessionError ? "Session verification" : "Access policy"}
+        </p>
+        <h1
+          className="font-display mt-3 text-3xl italic text-(--text)"
+          id="access-policy-heading"
+        >
+          {isSessionError
+            ? "Session verification paused"
+            : "Workspace access paused"}
+        </h1>
+        <div className="min-h-24 pt-4">
+          <p
+            className="max-w-md text-sm/6 text-(--text-muted)"
+            role="alert"
+          >
+            {error ??
+              (isSessionError
+                ? SESSION_VERIFICATION_ERROR
+                : ACCESS_POLICY_ERROR)}
+          </p>
+          <button
+            className="ui-label mt-5 min-h-11 border border-(--gold) bg-(--gold) px-5 py-2.5 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
+            type="button"
+            onClick={retry}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 export function AuthPanel(): JSX.Element | null {
@@ -53,45 +111,21 @@ export function AuthPanel(): JSX.Element | null {
     return null;
   }
 
-  if (status === "error") {
+  if (status === "error" || status === "session-error") {
     return (
-      <section
-        aria-labelledby="access-policy-heading"
-        className="mx-auto flex min-h-96 max-w-xl items-center py-2"
-      >
-        <div className="relative w-full overflow-hidden border border-(--hairline) border-l-2 border-l-(--gold) bg-(--surface) px-5 py-7 sm:px-8 sm:py-9">
-          <div
-            aria-hidden="true"
-            className="absolute right-0 top-0 h-px w-24 bg-(--gold)"
-          />
-          <p className="ui-label text-(--gold)">Access policy</p>
-          <h1
-            className="font-display mt-3 text-3xl italic text-(--text)"
-            id="access-policy-heading"
-          >
-            Workspace access paused
-          </h1>
-          <div className="min-h-24 pt-4">
-            <p
-              className="max-w-md text-sm/6 text-(--text-muted)"
-              role="alert"
-            >
-              {error ?? ACCESS_POLICY_ERROR}
-            </p>
-            <button
-              className="ui-label mt-5 min-h-11 border border-(--gold) bg-(--gold) px-5 py-2.5 text-(--ink) transition-colors hover:bg-transparent hover:text-(--gold) focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--gold)"
-              type="button"
-              onClick={retryAccessPolicy}
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      </section>
+      <BootstrapErrorPanel
+        error={error}
+        isSessionError={status === "session-error"}
+        retry={retryAccessPolicy}
+      />
     );
   }
 
   if (status === "authenticated" && session !== null) {
+    const namespaces =
+      session.namespaces.length === 1 && session.namespaces[0] === "*"
+        ? "All"
+        : session.namespaces.join(", ");
     return (
       <section
         aria-labelledby="authenticated-access-heading"
@@ -124,7 +158,7 @@ export function AuthPanel(): JSX.Element | null {
                   {session.role}
                 </span>
                 <span className="font-data min-w-0 text-[10px] text-(--text-muted)">
-                  Scope: {session.namespaces.join(", ")}
+                  Namespaces: {namespaces}
                 </span>
               </div>
             </div>
@@ -180,7 +214,7 @@ export function AuthPanel(): JSX.Element | null {
           Authentication required
         </h1>
         <p className="mt-2 text-sm/6 text-(--text-muted)">
-          Enter an operator access token to continue.
+          Enter your Semantix access token to continue.
         </p>
 
         <form className="mt-7" onSubmit={submit}>

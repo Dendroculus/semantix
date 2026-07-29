@@ -300,6 +300,31 @@ describe('application routing', () => {
     expect(screen.queryByLabelText('Access token')).toBeNull();
   });
 
+  it('keeps workspace queries unmounted when session verification fails', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error:
+        'Session verification unavailable. Semantix could not verify the ' +
+        'current authentication session. Please wait a moment and try again.',
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
+      session: null,
+      status: 'session-error',
+    });
+
+    renderAt('/cache');
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Session verification paused',
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText('Access token')).toBeNull();
+    expect(getCacheStats).not.toHaveBeenCalled();
+    expect(listCacheEntries).not.toHaveBeenCalled();
+  });
+
   it('loads the workspace directly when authentication is disabled', async () => {
     renderAt('/');
 

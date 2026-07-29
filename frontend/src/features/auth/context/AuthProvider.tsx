@@ -22,6 +22,9 @@ const LOCKOUT_ERROR = "Too many failed authentication attempts.";
 const ACCESS_POLICY_ERROR =
   "Access policy unavailable. Semantix could not determine the current " +
   "authentication policy. Please wait a moment and try again.";
+const SESSION_VERIFICATION_ERROR =
+  "Session verification unavailable. Semantix could not verify the current " +
+  "authentication session. Please wait a moment and try again.";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -58,10 +61,8 @@ export function AuthProvider({
       const response = await getAuthSession();
 
       if (!response.ok) {
-        clearAuthToken();
         clearProtectedQueries();
         setSession(null);
-        setStatus("unauthenticated");
 
         if (
           response.error.code === "authentication_temporarily_locked"
@@ -70,16 +71,20 @@ export function AuthProvider({
             response.error.retryAfterSeconds ?? DEFAULT_LOCKOUT_SECONDS;
           setLockedUntil(Date.now() + retryAfter * 1_000);
           setError(LOCKOUT_ERROR);
+          setStatus("unauthenticated");
           return false;
         }
 
         setLockedUntil(null);
-        setError(
-          response.error.code === "authentication_required"
-            ? "The access token was rejected."
-            : (response.error.detail ??
-                "Authentication could not be completed."),
-        );
+        if (response.error.code === "authentication_required") {
+          clearAuthToken();
+          setError("The access token was rejected.");
+          setStatus("unauthenticated");
+          return false;
+        }
+
+        setError(SESSION_VERIFICATION_ERROR);
+        setStatus("session-error");
         return false;
       }
 

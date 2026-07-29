@@ -132,6 +132,13 @@ After that lock expires, three additional failures lock it for 3,600 seconds.
 Later stages remain at 3,600 seconds. A successful authentication completely
 resets the client to the initial stage.
 
+`/api/v1/auth/config` is an unmetered authentication bootstrap endpoint.
+Successful `/api/v1/auth/session` restoration is also excluded from the
+ordinary `RATE_LIMIT` quota so browser refreshes do not consume application
+request capacity. Invalid session attempts remain protected by the progressive
+lockout above. Query, cache, benchmark, observability, and other limited API
+routes continue to use the configured `RATE_LIMIT`.
+
 Requests made during an active lock receive HTTP `429`, a `Retry-After`
 header, and the standard `authentication_temporarily_locked` error. They do
 not extend the lock or count as additional failures. Authentication failures

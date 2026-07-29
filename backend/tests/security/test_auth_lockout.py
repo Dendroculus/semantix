@@ -29,7 +29,11 @@ def token_hash(token: str) -> str:
     return sha256(token.encode("utf-8")).hexdigest()
 
 
-def token_settings(*, auth_mode: str = "token") -> Settings:
+def token_settings(
+    *,
+    auth_mode: str = "token",
+    rate_limit: str = "1000/minute",
+) -> Settings:
     principals: list[dict[str, object]] = []
     if auth_mode == "token":
         principals = [
@@ -48,7 +52,7 @@ def token_settings(*, auth_mode: str = "token") -> Settings:
         allowed_origins=["http://localhost:5173"],
         auth_mode=auth_mode,
         auth_principals=principals,
-        rate_limit="1000/minute",
+        rate_limit=rate_limit,
     )
 
 
@@ -74,6 +78,36 @@ def trigger_lock(client: TestClient, expected_seconds: int) -> None:
     assert response.status_code == 429
     assert response.headers["retry-after"] == str(expected_seconds)
     assert response.json() == LOCKOUT_ERROR
+
+
+def test_valid_sessions_do_not_consume_the_application_rate_limit() -> None:
+    with TestClient(create_app(token_settings(rate_limit="1/minute"))) as client:
+        sessions = [invalid_attempt(client, VALID_TOKEN) for _ in range(10)]
+        first_limited = client.get(
+            "/api/v1/cache/stats",
+            headers=authorization(VALID_TOKEN),
+        )
+        second_limited = client.get(
+            "/api/v1/cache/stats",
+            headers=authorization(VALID_TOKEN),
+        )
+
+    assert all(response.status_code == 200 for response in sessions)
+    assert all("rate_limit_exceeded" not in response.text for response in sessions)
+    assert first_limited.status_code == 200
+    assert second_limited.status_code == 429
+    assert second_limited.json()["error"] == "rate_limit_exceeded"
+
+
+def test_low_application_limit_does_not_replace_progressive_lockout() -> None:
+    clock = FakeClock()
+    with TestClient(
+        create_app(
+            token_settings(rate_limit="1/minute"),
+            auth_attempt_clock=clock,
+        )
+    ) as client:
+        trigger_lock(client, 30)
 
 
 def test_lockout_progresses_only_after_three_new_failures_per_stage() -> None:
@@ -197,7 +231,7 @@ def test_failures_on_other_protected_routes_do_not_count() -> None:
 def test_disabled_authentication_bypasses_attempt_tracking() -> None:
     clock = FakeClock()
     application = create_app(
-        token_settings(auth_mode="disabled"),
+        token_settings(auth_mode="disabled", rate_limit="1/minute"),
         auth_attempt_clock=clock,
     )
     with TestClient(application) as client:

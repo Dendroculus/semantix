@@ -6,7 +6,6 @@ from app.core.exceptions import (
     AuthenticationTemporarilyLockedError,
 )
 from app.middleware.client_address import client_address
-from app.middleware.rate_limit import app_rate_limit, limiter
 from app.security.auth import authenticate
 from app.security.auth_attempts import AuthenticationAttemptTracker
 
@@ -21,7 +20,6 @@ async def auth_config(request: Request) -> AuthConfigResponse:
 
 
 @router.get("/session", response_model=AuthSessionResponse)
-@limiter.limit(app_rate_limit)
 async def auth_session(
     request: Request,
 ) -> AuthSessionResponse:

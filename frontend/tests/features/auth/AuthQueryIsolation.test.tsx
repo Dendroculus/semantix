@@ -21,6 +21,10 @@ import {
 } from "@/features/auth/context/AuthContext";
 import { AuthProvider } from "@/features/auth/context/AuthProvider";
 import {
+  getAuthToken,
+  setAuthToken,
+} from "@/shared/api/authToken";
+import {
   benchmarkDatasetKeys,
   cacheEntryKeys,
   runtimeMetricsKeys,
@@ -56,7 +60,7 @@ function ProtectedDataProbe(): JSX.Element {
         Logout test identity
       </button>
       <button type="button" onClick={auth.retryAccessPolicy}>
-        Retry access policy
+        Retry authentication bootstrap
       </button>
     </>
   );
@@ -138,6 +142,7 @@ describe("authentication query isolation", () => {
     expect(screen.getByLabelText("Protected metrics").textContent).toBe(
       "empty",
     );
+    expect(getAuthToken()).toBeNull();
   });
 
   it("removes protected data when authentication becomes disabled", async () => {
@@ -200,12 +205,153 @@ describe("authentication query isolation", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Retry access policy" }),
+      screen.getByRole("button", {
+        name: "Retry authentication bootstrap",
+      }),
     );
 
     await screen.findByText("disabled");
     expect(getAuthConfig).toHaveBeenCalledTimes(2);
   });
+
+  it("restores a stored session repeatedly without an authentication error", async () => {
+    setAuthToken("stored-token");
+    vi.mocked(getAuthConfig).mockResolvedValue({
+      ok: true,
+      data: { authentication_required: true },
+    });
+    vi.mocked(getAuthSession).mockResolvedValue({
+      ok: true,
+      data: {
+        name: "restored-principal",
+        role: "viewer",
+        namespaces: ["team-a"],
+      },
+    });
+
+    const firstRender = render(
+      <QueryTestProvider client={createTestQueryClient()}>
+        <AuthProvider>
+          <ProtectedDataProbe />
+        </AuthProvider>
+      </QueryTestProvider>,
+    );
+
+    await screen.findByText("authenticated");
+    expect(screen.getByLabelText("Authentication error").textContent).toBe(
+      "none",
+    );
+    firstRender.unmount();
+
+    render(
+      <QueryTestProvider client={createTestQueryClient()}>
+        <AuthProvider>
+          <ProtectedDataProbe />
+        </AuthProvider>
+      </QueryTestProvider>,
+    );
+
+    await screen.findByText("authenticated");
+    expect(screen.getByLabelText("Authentication error").textContent).toBe(
+      "none",
+    );
+    expect(getAuthSession).toHaveBeenCalledTimes(2);
+    expect(getAuthToken()).toBe("stored-token");
+  });
+
+  it("clears a stored token only when the credential is rejected", async () => {
+    setAuthToken("rejected-token");
+    vi.mocked(getAuthConfig).mockResolvedValue({
+      ok: true,
+      data: { authentication_required: true },
+    });
+    vi.mocked(getAuthSession).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "authentication_required",
+        detail: "A valid bearer token is required.",
+        status: 401,
+      },
+    });
+
+    render(
+      <QueryTestProvider client={createTestQueryClient()}>
+        <AuthProvider>
+          <ProtectedDataProbe />
+        </AuthProvider>
+      </QueryTestProvider>,
+    );
+
+    await screen.findByText("unauthenticated");
+    expect(screen.getByLabelText("Authentication error").textContent).toBe(
+      "The access token was rejected.",
+    );
+    expect(getAuthToken()).toBeNull();
+  });
+
+  it.each([
+    ["network_error", null],
+    ["invalid_response", 502],
+    ["invalid_error_response", 502],
+    ["internal_error", 500],
+    ["rate_limit_exceeded", 429],
+  ] as const)(
+    "preserves a token and retries after transient %s session failure",
+    async (errorCode, status) => {
+      setAuthToken("potentially-valid-token");
+      vi.mocked(getAuthConfig).mockResolvedValue({
+        ok: true,
+        data: { authentication_required: true },
+      });
+      vi.mocked(getAuthSession)
+        .mockResolvedValueOnce({
+          ok: false,
+          error: {
+            code: errorCode,
+            detail: "Temporary session verification failure.",
+            status,
+          },
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          data: {
+            name: "restored-principal",
+            role: "operator",
+            namespaces: ["team-a"],
+          },
+        });
+      const queryClient = createTestQueryClient();
+      queryClient.setQueryData(runtimeMetricsKeys.live(), "private metrics");
+
+      render(
+        <QueryTestProvider client={queryClient}>
+          <AuthProvider>
+            <ProtectedDataProbe />
+          </AuthProvider>
+        </QueryTestProvider>,
+      );
+
+      await screen.findByText("session-error");
+      expect(screen.getByLabelText("Authentication error").textContent).toBe(
+        "Session verification unavailable. Semantix could not verify the " +
+          "current authentication session. Please wait a moment and try again.",
+      );
+      expect(getAuthToken()).toBe("potentially-valid-token");
+      expect(screen.getByLabelText("Protected metrics").textContent).toBe(
+        "empty",
+      );
+
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Retry authentication bootstrap",
+        }),
+      );
+
+      await screen.findByText("authenticated");
+      expect(getAuthSession).toHaveBeenCalledTimes(2);
+      expect(getAuthToken()).toBe("potentially-valid-token");
+    },
+  );
 
   it("clears protected data and records backend lockout expiration", async () => {
     vi.mocked(getAuthConfig).mockResolvedValue({
@@ -251,5 +397,6 @@ describe("authentication query isolation", () => {
     expect(lockedUntil).toBeGreaterThanOrEqual(
       beforeAuthentication + 30_000,
     );
+    expect(getAuthToken()).toBe("new-token");
   });
 });
