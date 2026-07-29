@@ -74,7 +74,33 @@ describe("AuthPanel", () => {
     expect(retryAccessPolicy).toHaveBeenCalledOnce();
   });
 
-  it("shows principal, role, scope, and sign-out in the access bar", () => {
+  it("shows a session-verification error with Retry and no token form", () => {
+    const retryAccessPolicy = vi.fn();
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error:
+        "Session verification unavailable. Semantix could not verify the " +
+        "current authentication session. Please wait a moment and try again.",
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy,
+      session: null,
+      status: "session-error",
+    });
+
+    render(<AuthPanel />);
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Session verification paused",
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Access token")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(retryAccessPolicy).toHaveBeenCalledOnce();
+  });
+
+  it("shows principal, role, namespaces, and sign-out in the access bar", () => {
     const logout = vi.fn();
     vi.mocked(useAuth).mockReturnValue({
       authenticate: vi.fn(async () => true),
@@ -95,10 +121,31 @@ describe("AuthPanel", () => {
     expect(screen.getByText("Authenticated access")).toBeTruthy();
     expect(screen.getByText("Ada")).toBeTruthy();
     expect(screen.getByText("admin")).toBeTruthy();
-    expect(screen.getByText("Scope: alpha, beta")).toBeTruthy();
+    expect(screen.getByText("Namespaces: alpha, beta")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(logout).toHaveBeenCalledOnce();
+  });
+
+  it("displays wildcard namespace access as all namespaces", () => {
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => true),
+      error: null,
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
+      session: {
+        name: "Global administrator",
+        role: "admin",
+        namespaces: ["*"],
+      },
+      status: "authenticated",
+    });
+
+    render(<AuthPanel />);
+
+    expect(screen.getByText("Namespaces: All")).toBeTruthy();
+    expect(screen.queryByText("Namespaces: *")).toBeNull();
   });
 
   it("updates only inline feedback after a rejected token", () => {
@@ -139,6 +186,9 @@ describe("AuthPanel", () => {
     ).toBe(gate);
     expect(screen.getByLabelText("Access token")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Authenticate" })).toBeTruthy();
+    expect(
+      screen.getByText("Enter your Semantix access token to continue."),
+    ).toBeTruthy();
   });
 
   it("disables controls and counts down from the absolute lock timestamp", () => {
