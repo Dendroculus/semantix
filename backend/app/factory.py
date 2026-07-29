@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
@@ -19,6 +20,7 @@ from app.core.logging import configure_logging
 from app.lifecycle import create_lifespan
 from app.middleware.body_limit import RequestBodyLimitMiddleware
 from app.middleware.rate_limit import limiter
+from app.security.auth_attempts import AuthenticationAttemptTracker
 
 API_TITLE = "Semantic Cache API"
 API_VERSION = "1.0.0"
@@ -26,7 +28,11 @@ CORS_ALLOWED_METHODS = ("GET", "POST", "PUT", "DELETE")
 CORS_ALLOWED_HEADERS = ("Authorization", "Content-Type")
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    auth_attempt_clock: Callable[[], float] | None = None,
+) -> FastAPI:
     resolved_settings = settings or get_settings()
 
     configure_logging(
@@ -41,6 +47,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.state.settings = resolved_settings
     application.state.rate_limit_scope = uuid4().hex
+    application.state.authentication_attempt_tracker = (
+        AuthenticationAttemptTracker()
+        if auth_attempt_clock is None
+        else AuthenticationAttemptTracker(clock=auth_attempt_clock)
+    )
 
     _configure_middleware(application, resolved_settings)
     _register_exception_handlers(application)

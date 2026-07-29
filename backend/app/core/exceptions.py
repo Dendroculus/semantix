@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 from typing import cast
 
 from fastapi import HTTPException, Request
@@ -14,6 +15,14 @@ class AppError(Exception):
     error_code = "internal_error"
     public_detail: str | None = None
 
+    def __init__(
+        self,
+        *args: object,
+        headers: Mapping[str, str] | None = None,
+    ) -> None:
+        super().__init__(*args)
+        self.headers = dict(headers or {})
+
 
 class AuthenticationRequiredError(AppError):
     status_code, error_code, public_detail = (
@@ -21,6 +30,19 @@ class AuthenticationRequiredError(AppError):
         "authentication_required",
         "A valid bearer token is required.",
     )
+
+
+class AuthenticationTemporarilyLockedError(AppError):
+    status_code, error_code, public_detail = (
+        429,
+        "authentication_temporarily_locked",
+        "Too many failed authentication attempts. Please try again later.",
+    )
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__(
+            headers={"Retry-After": str(max(1, retry_after_seconds))},
+        )
 
 
 class AuthorizationError(AppError):
@@ -87,12 +109,20 @@ class InvalidProviderResponseError(AppError):
     )
 
 
-def _response(status: int, error: str, detail: str | None) -> JSONResponse:
-    headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
+def _response(
+    status: int,
+    error: str,
+    detail: str | None,
+    *,
+    headers: Mapping[str, str] | None = None,
+) -> JSONResponse:
+    response_headers = dict(headers or {})
+    if status == 401:
+        response_headers.setdefault("WWW-Authenticate", "Bearer")
     return JSONResponse(
         status_code=status,
         content={"error": error, "detail": detail},
-        headers=headers,
+        headers=response_headers or None,
     )
 
 
@@ -101,7 +131,12 @@ async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.warning(
         "Application error type=%s path=%s", type(error).__name__, request.url.path
     )
-    return _response(error.status_code, error.error_code, error.public_detail)
+    return _response(
+        error.status_code,
+        error.error_code,
+        error.public_detail,
+        headers=error.headers,
+    )
 
 
 async def validation_error_handler(request: Request, exc: Exception) -> JSONResponse:
