@@ -165,10 +165,23 @@ class Settings(BaseSettings):
             parsed = urlparse(origin)
             if origin == "*":
                 raise ValueError("Wildcard CORS origins are forbidden")
-            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            try:
+                _ = parsed.port
+            except ValueError as exc:
+                raise ValueError("CORS origin contains an invalid port") from exc
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.netloc
+                or parsed.hostname is None
+            ):
                 raise ValueError(f"Invalid CORS origin: {origin}")
             if parsed.username is not None or parsed.password is not None:
                 raise ValueError("CORS origins must not contain credentials")
+            if parsed.path or parsed.params or parsed.query or parsed.fragment:
+                raise ValueError(
+                    "CORS origins must not contain a path, parameters, "
+                    "query, or fragment"
+                )
             normalized.append(origin)
         if len(normalized) != len(set(normalized)):
             raise ValueError("ALLOWED_ORIGINS must not contain duplicates")
@@ -251,6 +264,10 @@ class Settings(BaseSettings):
         if self.database_url is None:
             return
         parsed = urlparse(self.database_url.get_secret_value())
+        try:
+            _ = parsed.port
+        except ValueError as exc:
+            raise ValueError("DATABASE_URL contains an invalid port") from exc
         if (
             parsed.scheme not in {"postgres", "postgresql"}
             or not parsed.hostname
