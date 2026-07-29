@@ -73,14 +73,22 @@ AUTH_MODE=token
 AUTH_PRINCIPALS=[{"name":"ops-admin","token_sha256":"<64-lowercase-hex>","role":"admin","namespaces":["*"]},{"name":"team-reader","token_sha256":"<64-lowercase-hex>","role":"viewer","namespaces":["team-a"]}]
 ```
 
-Keep the original tokens in a secret manager. Rotating a token means generating a new token, replacing its digest, and restarting the backend.
+Keep the original tokens in a secret manager. Rotating a token means generating
+a new token, replacing its digest, and recreating the backend container.
 
 For local Docker development, `docker-compose.dev.yml` reads both values from
-`backend/.env`. Recreate only the backend container after editing that file; an
-image rebuild is not required for environment-only changes:
+`backend/.env`. After changing any value in that file, recreate the backend
+container so Compose supplies the new environment. A plain container restart
+does not reload changed environment values. An image rebuild is not required
+for environment-only changes.
+
+From the repository root in Windows PowerShell:
 
 ```powershell
-docker compose -f docker-compose.dev.yml --profile pgvector up -d --force-recreate backend
+docker compose `
+  -f docker-compose.dev.yml `
+  --profile pgvector `
+  up -d --force-recreate backend
 ```
 
 Verify the container and public authentication configuration:
