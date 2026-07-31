@@ -79,15 +79,15 @@ export function Navbar(): JSX.Element {
 
   return (
     <header className="sticky top-0 z-30 border-b border-(--hairline) bg-(--ink) py-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 lg:flex-nowrap lg:gap-x-6">
-        <div className="min-w-0 flex-1 lg:min-w-48 lg:flex-none">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-6">
+        <div className="min-w-0 flex-1 lg:col-start-1 lg:row-start-1 lg:min-w-48 lg:flex-none">
           <p className="ui-label text-(--gold)">Semantix</p>
           <p className="font-display mt-1 hidden text-lg italic text-(--text-soft) sm:block">
             Semantic cache laboratory
           </p>
         </div>
 
-        <SessionUptime className="order-1 lg:order-2" />
+        <SessionUptime className="order-1 lg:col-start-3 lg:row-start-1 lg:justify-self-end" />
 
         <button
           ref={menuButtonRef}
@@ -123,7 +123,7 @@ export function Navbar(): JSX.Element {
         <nav
           ref={navigationRef}
           aria-label="Primary navigation"
-          className={`${isMenuOpen ? "block" : "hidden"} order-3 w-full border border-(--hairline) bg-(--surface) p-1 lg:order-1 lg:block lg:min-w-0 lg:flex-1`}
+          className={`${isMenuOpen ? "block" : "hidden"} order-3 w-full border border-(--hairline) bg-(--surface) p-1 lg:col-start-2 lg:row-start-1 lg:block lg:w-fit lg:justify-self-center`}
           id="primary-navigation"
         >
           <div className="flex flex-col lg:flex-row lg:items-center lg:gap-1">

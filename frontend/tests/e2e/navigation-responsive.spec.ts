@@ -158,6 +158,40 @@ for (const viewport of EXPANDED_VIEWPORTS) {
     await expect(
       page.getByRole("button", { name: "Open primary menu" }),
     ).toBeHidden();
+    const navigation = page.getByRole("navigation", {
+      name: "Primary navigation",
+    });
+    const navigationBox = await navigation.boundingBox();
+    const lastLinkBox = await navigation
+      .getByRole("link", { name: "Observability" })
+      .boundingBox();
+    expect(navigationBox).not.toBeNull();
+    expect(lastLinkBox).not.toBeNull();
+    expect(
+      navigationBox!.x +
+        navigationBox!.width -
+        (lastLinkBox!.x + lastLinkBox!.width),
+    ).toBeLessThanOrEqual(6);
+
+    const headerRowBox = await navigation.locator("..").boundingBox();
+    const uptimeBox = await page
+      .getByText("Session uptime", { exact: true })
+      .locator("..")
+      .boundingBox();
+    expect(headerRowBox).not.toBeNull();
+    expect(uptimeBox).not.toBeNull();
+    expect(
+      Math.abs(
+        navigationBox!.x +
+          navigationBox!.width / 2 -
+          (headerRowBox!.x + headerRowBox!.width / 2),
+      ),
+    ).toBeLessThanOrEqual(1);
+    expect(
+      headerRowBox!.x +
+        headerRowBox!.width -
+        (uptimeBox!.x + uptimeBox!.width),
+    ).toBeLessThanOrEqual(1);
     await expectSharedRouteContract(page);
   });
 }
