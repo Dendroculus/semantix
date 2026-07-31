@@ -1,3 +1,7 @@
+<p align="center">
+  <sub><a href="/docs/translation/id/SECURITY.md">ID</a> · <a href="README.md">EN</a></sub>
+</p>
+
 # Security Policy
 
 Semantix is a local-first semantic-cache laboratory. The explicitly named development stack is intended for one trusted developer and must not be exposed to an untrusted network. A separate hardened single-instance deployment path is provided as a prerequisite for shared use.
