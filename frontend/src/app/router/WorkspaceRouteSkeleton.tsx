@@ -24,7 +24,10 @@ const CACHE_ENTRY_METRICS = [0, 1, 2, 3, 4, 5] as const;
 const OBSERVABILITY_GROUPS = [4, 5, 3] as const;
 
 function kindForPath(pathname: string): WorkspaceKind {
-  if (pathname.startsWith(APP_PATHS.benchmarks)) {
+  if (
+    pathname.startsWith(APP_PATHS.evaluations) ||
+    pathname.startsWith(APP_PATHS.benchmarks)
+  ) {
     return "benchmark";
   }
   if (pathname.startsWith(APP_PATHS.cache)) {

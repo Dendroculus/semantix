@@ -24,7 +24,7 @@ export function BenchmarkDashboard(): JSX.Element {
   } = controller;
 
   return (
-    <section aria-labelledby="benchmark-heading" className="pb-4">
+    <section aria-labelledby="evaluation-heading" className="pb-4">
       <PageHeader
         actions={
           result !== null ? <BenchmarkExports result={result} /> : undefined
@@ -32,8 +32,8 @@ export function BenchmarkDashboard(): JSX.Element {
         className="mb-7"
         description="Measure cache quality, latency, provider savings, and threshold trade-offs against prompts with explicit expected decisions."
         eyebrow="Controlled evaluation"
-        headingId="benchmark-heading"
-        title="Benchmark laboratory"
+        headingId="evaluation-heading"
+        title="Evaluation laboratory"
       />
 
       {datasetsLoading ? (
@@ -65,7 +65,7 @@ export function BenchmarkDashboard(): JSX.Element {
         <Alert
           className="mt-6 border-l-2 border-(--coral) bg-[rgba(194,96,74,0.06)] px-4 py-3"
           role="alert"
-          title="Benchmark failed"
+          title="Evaluation failed"
           tone="error"
         >
           <p className="font-data mt-1 text-[11px]/5 text-(--text-soft)">

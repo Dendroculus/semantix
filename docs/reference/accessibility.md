@@ -29,9 +29,19 @@ Check the following at desktop and mobile widths:
 - coral errors, destructive actions, and MISS labels are readable without
   appearing brighter than primary content;
 - focus outlines remain visible when navigating with the keyboard;
-- benchmark line charts and similarity histograms retain their visible
+- evaluation line charts and similarity histograms retain their visible
   presentation while exposing the same values in a screen-reader table;
 - empty histogram bins have no visible bar.
+
+Navigation verification also covers:
+
+- a compact menu from 320 through 834 CSS pixels and expanded navigation from
+  1024 CSS pixels;
+- native Enter and Space activation, Escape closure, conditional focus return,
+  and route-change closure;
+- portrait and landscape tablet widths, 200% zoom-equivalent layouts,
+  increased text size, and long navigation labels;
+- no horizontal overflow at any checked viewport.
 
 Run the automated token check with:
 

@@ -26,7 +26,7 @@ Semantix is a full-stack semantic-cache laboratory for inspecting cache
 decisions, measuring provider savings, evaluating similarity thresholds, and
 comparing replaceable AI and storage providers.
 
-<sub>Monitor · Cache Inspector · Benchmark Lab · Runtime Observability</sub>
+<sub>Monitor · Cache Inspector · Evaluations · Runtime Observability</sub>
 
 </div>
 
@@ -38,7 +38,7 @@ comparing replaceable AI and storage providers.
 |---|---|
 | **Monitor** | Submit prompts and inspect cache hits, misses, latency, matched prompts, and similarity evidence |
 | **Cache Inspector** | Search entries, inspect metadata, delete records, clear namespaces, and manage the threshold |
-| **Benchmark Lab** | Measure precision, recall, false hits, false misses, latency, and provider calls avoided |
+| **Evaluations** | Measure precision, recall, false hits, false misses, latency, and provider calls avoided |
 | **Observability** | Track request volume, provider calls, cache activity, coalescing, expirations, and evictions |
 
 Core capabilities:

@@ -28,10 +28,10 @@ afterEach(() => {
 
 describe("AppBrowserRouter", () => {
   it("commits navigation to the workspace loader while a lazy route resolves", async () => {
-    const benchmarkModule = deferred<{
+    const evaluationModule = deferred<{
       default: () => JSX.Element;
     }>();
-    const LazyBenchmarkPage = lazy(() => benchmarkModule.promise);
+    const LazyEvaluationPage = lazy(() => evaluationModule.promise);
 
     window.history.replaceState(null, "", "/");
     render(
@@ -41,16 +41,16 @@ describe("AppBrowserRouter", () => {
             path="/"
             element={
               <>
-                <Link to="/benchmarks">Benchmarks</Link>
+                <Link to="/evaluations">Evaluations</Link>
                 <p>Monitor content</p>
               </>
             }
           />
           <Route
-            path="/benchmarks"
+            path="/evaluations"
             element={
               <Suspense fallback={<RouteLoader />}>
-                <LazyBenchmarkPage />
+                <LazyEvaluationPage />
               </Suspense>
             }
           />
@@ -58,9 +58,9 @@ describe("AppBrowserRouter", () => {
       </AppBrowserRouter>,
     );
 
-    fireEvent.click(screen.getByRole("link", { name: "Benchmarks" }));
+    fireEvent.click(screen.getByRole("link", { name: "Evaluations" }));
 
-    expect(window.location.pathname).toBe("/benchmarks");
+    expect(window.location.pathname).toBe("/evaluations");
     expect(screen.getByLabelText("Loading workspace")).toBeTruthy();
     expect(screen.queryByText("Monitor content")).toBeNull();
     expect(document.querySelector(".animate-spin")).toBeNull();
@@ -72,14 +72,14 @@ describe("AppBrowserRouter", () => {
     ).toHaveLength(6);
 
     await act(async () => {
-      benchmarkModule.resolve({
-        default: () => <h1>Benchmark laboratory</h1>,
+      evaluationModule.resolve({
+        default: () => <h1>Evaluation laboratory</h1>,
       });
     });
 
     expect(
       await screen.findByRole("heading", {
-        name: "Benchmark laboratory",
+        name: "Evaluation laboratory",
       }),
     ).toBeTruthy();
   });

@@ -4,6 +4,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
   waitFor,
 } from '@testing-library/react';
 import { createMemoryRouter, MemoryRouter } from 'react-router';
@@ -71,6 +72,18 @@ function renderAt(path: string) {
 function renderWithHistory() {
   const router = createMemoryRouter([{ path: '*', element: <App /> }], {
     initialEntries: ['/', '/cache'],
+    initialIndex: 1,
+  });
+
+  return {
+    router,
+    ...render(<RouterProvider router={router} />),
+  };
+}
+
+function renderLegacyRouteWithHistory() {
+  const router = createMemoryRouter([{ path: '*', element: <App /> }], {
+    initialEntries: ['/', '/benchmarks?dataset=quick#results'],
     initialIndex: 1,
   });
 
@@ -192,6 +205,7 @@ describe('application routing', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -199,10 +213,10 @@ describe('application routing', () => {
     ['/', 'Probe the cache', 'Monitor', 'Monitor | Semantix'],
     ['/cache', 'Cache inspector', 'Cache', 'Cache | Semantix'],
     [
-      '/benchmarks',
-      'Benchmark laboratory',
-      'Benchmarks',
-      'Benchmarks | Semantix',
+      '/evaluations',
+      'Evaluation laboratory',
+      'Evaluations',
+      'Evaluations | Semantix',
     ],
     [
       '/observability',
@@ -287,7 +301,7 @@ describe('application routing', () => {
       status: 'loading',
     });
 
-    const { container } = renderAt('/benchmarks');
+    const { container } = renderAt('/evaluations');
 
     expect(screen.getByLabelText('Loading workspace')).toBeTruthy();
     expect(
@@ -415,6 +429,40 @@ describe('application routing', () => {
     });
   });
 
+  it('replaces the legacy route, preserves URL state, and focuses main once', async () => {
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+    const { router } = renderLegacyRouteWithHistory();
+    const main = screen.getByRole('main');
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Evaluation laboratory',
+      }),
+    ).toBeTruthy();
+    expect(router.state.location.pathname).toBe('/evaluations');
+    expect(router.state.location.search).toBe('?dataset=quick');
+    expect(router.state.location.hash).toBe('#results');
+    expect(document.title).toBe('Evaluations | Semantix');
+    expect(document.activeElement).toBe(main);
+    expect(focus).toHaveBeenCalledOnce();
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(window.scrollTo).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Probe the cache',
+      }),
+    ).toBeTruthy();
+    expect(router.state.location.pathname).toBe('/');
+    expect(focus).toHaveBeenCalledOnce();
+  });
+
   it('preserves focus during browser history navigation', async () => {
     const { router } = renderWithHistory();
     await screen.findByRole('heading', {
@@ -439,21 +487,21 @@ describe('application routing', () => {
     expect(window.scrollTo).not.toHaveBeenCalled();
   });
 
-  it('does not load benchmark data until its route mounts', async () => {
+  it('does not load evaluation data until its route mounts', async () => {
     renderAt('/');
 
-    const benchmarkLink = screen.getByRole('link', {
-      name: 'Benchmarks',
+    const evaluationLink = screen.getByRole('link', {
+      name: 'Evaluations',
     });
-    fireEvent.pointerEnter(benchmarkLink);
+    fireEvent.pointerEnter(evaluationLink);
     expect(getBenchmarkDatasets).not.toHaveBeenCalled();
 
-    fireEvent.click(benchmarkLink);
+    fireEvent.click(evaluationLink);
 
     expect(
       await screen.findByRole('heading', {
         level: 1,
-        name: 'Benchmark laboratory',
+        name: 'Evaluation laboratory',
       }),
     ).toBeTruthy();
     await waitFor(() => expect(getBenchmarkDatasets).toHaveBeenCalledOnce());
@@ -485,6 +533,93 @@ describe('application routing', () => {
         .getByRole('button', { name: 'Open primary menu' })
         .getAttribute('aria-expanded'),
     ).toBe('false');
+  });
+
+  it('returns focus from an open compact menu when Escape closes it', () => {
+    renderAt('/');
+
+    const menuButton = screen.getByRole('button', {
+      name: 'Open primary menu',
+    });
+    fireEvent.click(menuButton);
+    const cacheLink = screen.getByRole('link', { name: 'Cache' });
+    cacheLink.focus();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(
+      screen
+        .getByRole('button', { name: 'Open primary menu' })
+        .getAttribute('aria-expanded'),
+    ).toBe('false');
+    expect(document.activeElement).toBe(menuButton);
+  });
+
+  it('does not steal focus when Escape closes a menu focused elsewhere', () => {
+    renderAt('/');
+
+    const menuButton = screen.getByRole('button', {
+      name: 'Open primary menu',
+    });
+    fireEvent.click(menuButton);
+    const queryInput = screen.getByLabelText('Query text');
+    queryInput.focus();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(menuButton.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(queryInput);
+  });
+
+  it('closes the compact menu when the viewport reaches the expanded breakpoint', () => {
+    const originalInnerWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 820,
+    });
+
+    try {
+      renderAt('/');
+
+      const menuButton = screen.getByRole('button', {
+        name: 'Open primary menu',
+      });
+      fireEvent.click(menuButton);
+      expect(
+        screen
+          .getByRole('button', { name: 'Close primary menu' })
+          .getAttribute('aria-expanded'),
+      ).toBe('true');
+
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        value: 1024,
+      });
+      fireEvent(window, new Event('resize'));
+
+      expect(
+        screen
+          .getByRole('button', { name: 'Open primary menu' })
+          .getAttribute('aria-expanded'),
+      ).toBe('false');
+    } finally {
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        value: originalInnerWidth,
+      });
+    }
+  });
+
+  it('renders exactly four workspace links when authentication is disabled', () => {
+    renderAt('/');
+
+    expect(
+      within(
+        screen.getByRole('navigation', {
+          name: 'Primary navigation',
+        }),
+      ).getAllByRole('link'),
+    ).toHaveLength(4);
   });
 
   it('preserves monitor traces and threshold preview during navigation', async () => {

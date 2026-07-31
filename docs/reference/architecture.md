@@ -85,15 +85,21 @@ inspection, and statistics behavior.
 
 ## Frontend ownership
 
-The React application has five lazy workspaces:
+The React application has four lazy product workspaces and a not-found
+fallback:
 
 | Route | Feature |
 |---|---|
 | `/` | Query monitor, decision evidence, similarity trace, and session log |
 | `/cache` | Cache inspection, search, sorting, deletion, and clearing |
-| `/benchmarks` | Isolated controlled evaluation |
+| `/evaluations` | Isolated controlled evaluation |
 | `/observability` | Process-local runtime metrics |
 | `*` | Not-found page |
+
+`/benchmarks` remains a compatibility URL. It replace-redirects to
+`/evaluations` while preserving query parameters and fragments, so the
+Evaluations workspace has one page implementation and one active navigation
+item.
 
 Each feature owns its pages, components, hooks, API adapter, types, and route
 registry. `src/app/router` composes those registries and provides the shared
@@ -102,7 +108,7 @@ monitor trace session alive across client-side navigation.
 
 Monitor traces intentionally live in browser memory. Reloading starts a new
 trace session; backend cache entries follow the configured cache lifecycle.
-Benchmark state is route-local and does not modify the interactive cache.
+Evaluation state is route-local and does not modify the interactive cache.
 
 ## Project structure
 
