@@ -23,6 +23,7 @@ frontend/playwright-report/
 frontend/test-results/
 .vite_cache/
 frontend/.vite-cache
+.lycheecache
 
 .vscode/settings.json
 .vscode/extensions.json

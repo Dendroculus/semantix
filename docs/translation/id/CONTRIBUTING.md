@@ -109,7 +109,7 @@ npm ci
 npm run dev
 ```
 
-Lihat [Getting Started](guides/getting-started.md) dan [Development](/guides/development.md) untuk detail setup lengkap.
+Lihat [Getting Started](guides/getting-started.md) dan [Development](guides/development.md) untuk detail setup lengkap.
 
 ## Branch
 
