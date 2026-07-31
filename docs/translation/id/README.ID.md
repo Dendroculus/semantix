@@ -358,4 +358,4 @@ Dibuat dengan ❤️ oleh:
 
 ## 📄 Lisensi
 
-Dilisensikan di bawah [MIT License](LICENSE).
+Dilisensikan di bawah [MIT License](../../../LICENSE).
