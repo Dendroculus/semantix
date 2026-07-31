@@ -18,8 +18,13 @@ interface BenchmarkChartsProps {
 function points(
   evaluations: ThresholdEvaluation[],
   value: (evaluation: ThresholdEvaluation) => number,
-): Array<{ x: number; y: number }> {
+): Array<{
+  kind: ThresholdEvaluation['result_kind'];
+  x: number;
+  y: number;
+}> {
   return evaluations.map((evaluation) => ({
+    kind: evaluation.result_kind,
     x: evaluation.threshold,
     y: value(evaluation),
   }));
@@ -38,7 +43,7 @@ export function BenchmarkCharts({
           points: points(evaluations, (item) => item.hit_rate),
         },
       ],
-      title: 'Hit rate vs. threshold',
+      title: 'Hit rate vs. threshold (frozen-candidate projection)',
       valueLabel: (value: number) => formatPercent(value, 0),
     },
     {
@@ -54,7 +59,7 @@ export function BenchmarkCharts({
           points: points(evaluations, (item) => item.recall),
         },
       ],
-      title: 'Precision / recall vs. threshold',
+      title: 'Precision / recall vs. threshold (frozen-candidate projection)',
       valueLabel: (value: number) => formatPercent(value, 0),
     },
     {
@@ -65,7 +70,7 @@ export function BenchmarkCharts({
           points: points(evaluations, (item) => item.average_latency_ms),
         },
       ],
-      title: 'Average latency vs. threshold',
+      title: 'Average latency vs. threshold (frozen-candidate projection)',
       valueLabel: (value: number) => formatLatency(value, 0),
     },
     {
@@ -79,19 +84,20 @@ export function BenchmarkCharts({
           ),
         },
       ],
-      title: 'Provider calls avoided vs. threshold',
+      title:
+        'Provider calls avoided vs. threshold (frozen-candidate projection)',
       valueLabel: (value: number) => formatDecimal(value, 0),
     },
   ] satisfies ComponentProps<typeof LineChart>[];
 
   return (
     <section aria-labelledby="benchmark-charts-heading" className="mt-12">
-      <h3
+      <h2
         className="font-display text-2xl italic"
         id="benchmark-charts-heading"
       >
         Frozen-candidate projections
-      </h3>
+      </h2>
       <p className="mt-2 max-w-3xl text-sm/6 text-(--text-muted)">
         Alternate thresholds reclassify this run&apos;s measured nearest-match
         scores without replaying cache writes. Cache contents stay frozen, so

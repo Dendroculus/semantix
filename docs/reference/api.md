@@ -72,6 +72,48 @@ because it awaited the leader.
 Embeddings and full inspector responses are never exposed through the query or
 cache-management contracts.
 
+## Benchmark contracts
+
+`GET /api/v1/benchmarks/datasets` returns Viewer-accessible built-in dataset
+metadata, including stable versions and SHA-256 digests derived from ordered
+evaluation semantics.
+
+`POST /api/v1/benchmarks/run` requires Operator access and
+`allow_external_provider_calls=true`. Requests accept 1 through 5 repetitions
+and 2 through 15 unique thresholds from 0 through 1. The backend sorts the
+explicit threshold list, inserts the measured `threshold` exactly once, and
+rejects a combined list beyond 15 values.
+
+```json
+{
+  "dataset_id": "quick",
+  "threshold": 0.92,
+  "evaluation_thresholds": [0.8, 0.9, 0.92, 0.95],
+  "repetitions": 1,
+  "reset_cache_before_run": true,
+  "estimated_cost_per_request_usd": 0,
+  "estimated_cost_per_1k_tokens_usd": 0,
+  "allow_external_provider_calls": true
+}
+```
+
+Every response includes complete TP/TN/FP/FN counts that reconcile with cache
+hits, misses, provider calls, calls avoided, and per-query outcomes. Cache hits
+carry `matched_prompt` and `matched_cache_key`; misses carry neither. The
+measured threshold is marked `result_kind="measured"` and all alternates are
+marked `result_kind="projected"` under
+`threshold_evaluation_mode="frozen_candidate_projection"`.
+
+The `reproducibility` object is allowlisted: application version, dataset
+identity, provider categories, embedding dimensions, non-secret embedding and
+normalization fingerprints, thresholds, repetitions, reset policy, cost
+assumptions, timeout, and a configuration fingerprint. It excludes credentials,
+authorization values, provider endpoints, model identifiers, and embeddings.
+
+Runs use fresh in-memory evaluation caches and cannot modify the live cache or
+runtime counters. `EVALUATION_TIMEOUT_SECONDS` bounds wall-clock execution.
+Timeouts return HTTP `504` with `error="evaluation_timeout"`.
+
 ## Cache inspector query
 
 `GET /api/v1/cache/entries` accepts:

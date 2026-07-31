@@ -59,6 +59,45 @@ const INVALID_RUN_CASES: InvalidRunCase[] = [
     },
   },
   {
+    name: 'confusion totals that do not match query evidence',
+    mutate: (value) => {
+      value.metrics.true_positive_hits = 0;
+      value.metrics.true_negative_misses = 2;
+    },
+  },
+  {
+    name: 'a cache hit without a matched key',
+    mutate: (value) => {
+      const hit = value.query_results.find((query) => query.actual_cache_hit);
+      if (hit !== undefined) {
+        hit.matched_cache_key = null;
+      }
+    },
+  },
+  {
+    name: 'a missing measured threshold label',
+    mutate: (value) => {
+      for (const evaluation of value.threshold_evaluations) {
+        evaluation.result_kind = 'projected';
+      }
+    },
+  },
+  {
+    name: 'threshold confusion totals that do not cover the workload',
+    mutate: (value) => {
+      const evaluation = value.threshold_evaluations[0];
+      if (evaluation !== undefined) {
+        evaluation.true_negative_misses = 0;
+      }
+    },
+  },
+  {
+    name: 'reproducibility metadata that differs from the run',
+    mutate: (value) => {
+      value.reproducibility.dataset_digest = 'e'.repeat(64);
+    },
+  },
+  {
     name: 'completion before the start time',
     mutate: (value) => {
       value.completed_at = '2026-07-17T09:59:59Z';

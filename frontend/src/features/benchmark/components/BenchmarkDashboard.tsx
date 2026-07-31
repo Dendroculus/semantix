@@ -53,11 +53,21 @@ export function BenchmarkDashboard(): JSX.Element {
 
       {selectedDataset !== null && (
         <p className="font-data mt-3 text-[10px]/5 text-(--text-faint)">
-          {selectedDataset.description}
+          {selectedDataset.description} Dataset version {selectedDataset.version}{' '}
+          - digest {selectedDataset.digest.slice(0, 12)}...
         </p>
       )}
 
       <BenchmarkRunWarning controller={controller} />
+
+      {controller.statusMessage !== '' && (
+        <output
+          aria-live="polite"
+          className="font-data mt-4 block text-[10px]/5 text-(--text-muted)"
+        >
+          {controller.statusMessage}
+        </output>
+      )}
 
       {isRunning && <BenchmarkResultsSkeleton />}
 

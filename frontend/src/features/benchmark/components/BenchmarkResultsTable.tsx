@@ -1,7 +1,7 @@
 import type { BenchmarkQueryResult } from '../types';
 import { BENCHMARK_RESULT_COLUMNS } from '../lib/resultColumns';
 
-import type { JSX } from "react";
+import type { JSX } from 'react';
 
 interface BenchmarkResultsTableProps {
   results: BenchmarkQueryResult[];
@@ -12,18 +12,21 @@ export function BenchmarkResultsTable({
 }: Readonly<BenchmarkResultsTableProps>): JSX.Element {
   return (
     <section aria-labelledby="benchmark-results-heading" className="mt-12">
-      <h3
+      <h2
         className="font-display text-2xl italic"
         id="benchmark-results-heading"
       >
         Per-query evidence
-      </h3>
+      </h2>
       <p className="font-data mt-2 text-[10px] text-(--text-faint) min-[960px]:hidden">
         Scroll horizontally to inspect every evidence column.
       </p>
       <section
         aria-label="Scrollable per-query benchmark evidence"
         className="scrollbar-thin mt-5 overflow-x-auto border-y border-(--hairline)"
+        // The overflow region must be keyboard-focusable so non-pointer users can scroll it.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        tabIndex={0}
       >
         <table className="w-full min-w-[920px] border-collapse text-left">
           <caption className="sr-only">Per-query benchmark results</caption>

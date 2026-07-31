@@ -108,7 +108,12 @@ monitor trace session alive across client-side navigation.
 
 Monitor traces intentionally live in browser memory. Reloading starts a new
 trace session; backend cache entries follow the configured cache lifecycle.
-Evaluation state is route-local and does not modify the interactive cache.
+Evaluation result state is route-local. Backend evaluation execution is
+serialized and creates a fresh in-memory semantic cache per run, so completion,
+failure, timeout, or cancellation cannot seed a later run or modify the
+interactive cache and its runtime counters. Threshold alternatives are
+frozen-candidate projections from one measured run, not repeated provider
+executions.
 
 ## Project structure
 

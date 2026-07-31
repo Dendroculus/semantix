@@ -1,8 +1,33 @@
+import hashlib
+import json
+from collections.abc import Sequence
+
 from app.benchmark.api.schemas import (
     BenchmarkDatasetId,
     BenchmarkDatasetSummary,
 )
 from app.benchmark.domain.models import BenchmarkCase, BenchmarkDataset
+
+BUILTIN_DATASET_VERSION = "1.0.0"
+
+
+def dataset_semantics_digest(cases: Sequence[BenchmarkCase]) -> str:
+    ordered_semantics = [
+        {
+            "case_id": case.case_id,
+            "category": case.category,
+            "prompt": case.prompt,
+            "expected_cache_hit": case.expected_cache_hit,
+        }
+        for case in cases
+    ]
+    canonical = json.dumps(
+        ordered_semantics,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _dataset(
@@ -16,6 +41,8 @@ def _dataset(
     return BenchmarkDataset(
         summary=BenchmarkDatasetSummary(
             dataset_id=dataset_id,
+            version=BUILTIN_DATASET_VERSION,
+            digest=dataset_semantics_digest(cases),
             name=name,
             description=description,
             query_count=len(cases),

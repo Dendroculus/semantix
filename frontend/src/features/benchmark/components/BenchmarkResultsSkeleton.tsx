@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 
-const RESULT_METRICS = Array.from({ length: 14 }, (_, index) => index);
+const RESULT_METRICS = Array.from({ length: 18 }, (_, index) => index);
 const RESULT_CHARTS = Array.from({ length: 5 }, (_, index) => index);
 
 export function BenchmarkResultsSkeleton(): JSX.Element {

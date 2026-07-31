@@ -17,13 +17,13 @@ from app.core.exceptions import (
     validation_error_handler,
 )
 from app.core.logging import configure_logging
+from app.core.version import API_VERSION
 from app.lifecycle import create_lifespan
 from app.middleware.body_limit import RequestBodyLimitMiddleware
 from app.middleware.rate_limit import limiter
 from app.security.auth_attempts import AuthenticationAttemptTracker
 
 API_TITLE = "Semantic Cache API"
-API_VERSION = "1.0.0"
 CORS_ALLOWED_METHODS = ("GET", "POST", "PUT", "DELETE")
 CORS_ALLOWED_HEADERS = ("Authorization", "Content-Type")
 

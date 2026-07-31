@@ -109,6 +109,14 @@ class InvalidProviderResponseError(AppError):
     )
 
 
+class EvaluationTimeoutError(AppError):
+    status_code, error_code, public_detail = (
+        504,
+        "evaluation_timeout",
+        "The evaluation exceeded its configured wall-clock limit.",
+    )
+
+
 def _response(
     status: int,
     error: str,

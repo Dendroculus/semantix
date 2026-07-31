@@ -31,6 +31,14 @@ Check the following at desktop and mobile widths:
 - focus outlines remain visible when navigating with the keyboard;
 - evaluation line charts and similarity histograms retain their visible
   presentation while exposing the same values in a screen-reader table;
+- measured threshold points use outlined circles, projected points use filled
+  squares, and every chart table names the value kind without relying on color;
+- benchmark controls use no more than two columns at 744, 768, 820, and 834 px
+  portrait widths, preserve 44 px interaction targets, and have no page-level
+  horizontal overflow at 320, 1024, or 1280 px;
+- the advanced sweep disclosure works with Enter and Space, reports
+  `aria-expanded`, and announces validation and run status without moving
+  focus;
 - empty histogram bins have no visible bar.
 
 Navigation verification also covers:
@@ -42,6 +50,9 @@ Navigation verification also covers:
 - portrait and landscape tablet widths, 200% zoom-equivalent layouts,
   increased text size, and long navigation labels;
 - no horizontal overflow at any checked viewport.
+
+Evaluation workspace review additionally covers long dataset names, visible
+focus, and the provider warning in normal reading order.
 
 Run the automated token check with:
 

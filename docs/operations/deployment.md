@@ -15,6 +15,17 @@ SEMANTIX_BIND_ADDRESS=127.0.0.1
 SEMANTIX_PORT=8080
 ```
 
+Evaluation runs have an independent bounded wall-clock setting:
+
+```env
+EVALUATION_TIMEOUT_SECONDS=300
+```
+
+The value must be greater than zero and no more than 3,600 seconds. It bounds
+the serialized run and discards its run-local cache on timeout. Size it for the
+bounded built-in dataset and configured provider latency without treating it as
+proof that remote provider work was cancelled.
+
 Run a TLS reverse proxy on the host and forward to `127.0.0.1:8080`. Public plaintext HTTP is unsupported.
 
 ## Access tokens

@@ -1,3 +1,5 @@
+import hashlib
+import json
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
@@ -5,9 +7,11 @@ import httpx
 from fastapi import FastAPI
 
 from app.benchmark.application.service import BenchmarkService
+from app.benchmark.domain.models import BenchmarkRuntimeConfiguration
 from app.cache.application.service import SemanticCache
 from app.cache.infrastructure.factory import cache_backend_lifespan
 from app.core.config import Settings
+from app.core.version import API_VERSION
 from app.embedding.service import EmbeddingService
 from app.observability.metrics import RuntimeMetrics
 from app.providers.factory import create_provider_bundle
@@ -70,11 +74,45 @@ def create_lifespan(settings: Settings) -> Lifespan:
                     providers.generation_provider,
                     max_cache_size=settings.max_cache_size,
                     cache_ttl_seconds=settings.cache_ttl_seconds,
-                    initial_threshold=settings.similarity_threshold,
-                    embedding_dimensions=providers.embedding_dimensions,
                     prompt_normalizer=prompt_normalizer,
+                    runtime_configuration=BenchmarkRuntimeConfiguration(
+                        application_version=API_VERSION,
+                        embedding_provider_category=settings.embedding_provider,
+                        generation_provider_category=settings.generation_provider,
+                        embedding_dimensions=providers.embedding_dimensions,
+                        embedding_space_fingerprint=_fingerprint(
+                            settings.embedding_space
+                        ),
+                        normalization_mode=(
+                            "typo_correction"
+                            if settings.prompt_typo_correction_enabled
+                            else "identity"
+                        ),
+                        normalization_fingerprint=_fingerprint(
+                            {
+                                "mode": (
+                                    "typo_correction"
+                                    if settings.prompt_typo_correction_enabled
+                                    else "identity"
+                                ),
+                                "max_edit_distance": (
+                                    settings.prompt_typo_max_edit_distance
+                                    if settings.prompt_typo_correction_enabled
+                                    else None
+                                ),
+                            }
+                        ),
+                        evaluation_timeout_seconds=(
+                            settings.evaluation_timeout_seconds
+                        ),
+                    ),
                 )
 
                 yield
 
     return lifespan
+
+
+def _fingerprint(value: object) -> str:
+    canonical = json.dumps(value, separators=(",", ":"), sort_keys=True)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

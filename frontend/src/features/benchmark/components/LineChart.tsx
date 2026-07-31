@@ -3,6 +3,7 @@ import { formatDecimal } from '@/shared/lib/formatters';
 import type { JSX } from "react";
 
 interface ChartPoint {
+  kind: 'measured' | 'projected';
   x: number;
   y: number;
 }
@@ -95,15 +96,28 @@ export function LineChart({
               stroke={item.color}
               strokeWidth="2"
             />
-            {item.points.map((point) => (
-              <circle
-                cx={x(point.x)}
-                cy={y(point.y)}
-                fill={item.color}
-                key={`${point.x}-${point.y}`}
-                r="2.5"
-              />
-            ))}
+            {item.points.map((point) =>
+              point.kind === 'measured' ? (
+                <circle
+                  cx={x(point.x)}
+                  cy={y(point.y)}
+                  fill="var(--ink)"
+                  key={`${point.x}-${point.y}`}
+                  r="4"
+                  stroke={item.color}
+                  strokeWidth="2.5"
+                />
+              ) : (
+                <rect
+                  fill={item.color}
+                  height="5"
+                  key={`${point.x}-${point.y}`}
+                  width="5"
+                  x={x(point.x) - 2.5}
+                  y={y(point.y) - 2.5}
+                />
+              ),
+            )}
           </g>
         ))}
         <text fill="var(--text-faint)" fontSize="8" x={LEFT} y={HEIGHT - 7}>
@@ -133,12 +147,27 @@ export function LineChart({
             {item.label}
           </span>
         ))}
+        <span className="font-data flex items-center gap-2 text-[9px] text-(--text-muted)">
+          <span
+            aria-hidden="true"
+            className="size-2 rounded-full border-2 border-(--text-muted)"
+          />{' '}
+          <span>Measured threshold (outlined circle)</span>
+        </span>
+        <span className="font-data flex items-center gap-2 text-[9px] text-(--text-muted)">
+          <span
+            aria-hidden="true"
+            className="size-1.5 bg-(--text-muted)"
+          />{' '}
+          <span>Projected threshold (filled square)</span>
+        </span>
       </div>
       <table className="sr-only">
         <caption>{title} data</caption>
         <thead>
           <tr>
             <th scope="col">Series</th>
+            <th scope="col">Value kind</th>
             <th scope="col">Threshold</th>
             <th scope="col">Value</th>
           </tr>
@@ -148,6 +177,11 @@ export function LineChart({
             item.points.map((point, index) => (
               <tr key={`${item.label}-${point.x}-${index}`}>
                 <th scope="row">{item.label}</th>
+                <td>
+                  {point.kind === 'measured'
+                    ? 'Measured threshold'
+                    : 'Frozen-candidate projection'}
+                </td>
                 <td>{formatDecimal(point.x, 2)}</td>
                 <td>{valueLabel(point.y)}</td>
               </tr>

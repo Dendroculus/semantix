@@ -26,7 +26,7 @@ def _percentile(values: Sequence[float], percentile: float) -> float:
 
 def _quality_metrics(
     observations: Sequence[BenchmarkObservation],
-) -> tuple[int, int, float, float, float]:
+) -> tuple[int, int, int, int, float, float, float]:
     false_positives = sum(
         result.actual_cache_hit and not result.expected_cache_hit
         for result in observations
@@ -38,6 +38,10 @@ def _quality_metrics(
     true_positives = sum(
         result.actual_cache_hit and result.expected_cache_hit for result in observations
     )
+    true_negatives = sum(
+        not result.actual_cache_hit and not result.expected_cache_hit
+        for result in observations
+    )
     precision = _safe_ratio(true_positives, true_positives + false_positives)
     recall = _safe_ratio(true_positives, true_positives + false_negatives)
     f1_score = (
@@ -45,7 +49,15 @@ def _quality_metrics(
         if precision + recall == 0
         else 2 * precision * recall / (precision + recall)
     )
-    return false_positives, false_negatives, precision, recall, f1_score
+    return (
+        true_positives,
+        true_negatives,
+        false_positives,
+        false_negatives,
+        precision,
+        recall,
+        f1_score,
+    )
 
 
 def calculate_metrics(
@@ -87,6 +99,8 @@ def calculate_metrics(
         + estimated_tokens_saved / 1_000 * estimated_cost_per_1k_tokens_usd
     )
     (
+        true_positives,
+        true_negatives,
         false_positives,
         false_negatives,
         precision,
@@ -109,6 +123,8 @@ def calculate_metrics(
         estimated_latency_saved_ms=estimated_latency_saved,
         estimated_provider_cost_saved_usd=estimated_cost_saved,
         estimated_tokens_saved=estimated_tokens_saved,
+        true_positive_hits=true_positives,
+        true_negative_misses=true_negatives,
         false_positive_hits=false_positives,
         false_negative_misses=false_negatives,
         precision=precision,
@@ -120,6 +136,8 @@ def calculate_metrics(
 def evaluate_frozen_candidate_thresholds(
     observations: Sequence[BenchmarkObservation],
     thresholds: Sequence[float],
+    *,
+    measured_threshold: float,
 ) -> list[ThresholdEvaluation]:
     if not observations:
         raise ValueError("At least one benchmark observation is required")
@@ -161,6 +179,8 @@ def evaluate_frozen_candidate_thresholds(
         ]
         projected_hits = sum(result.actual_cache_hit for result in projected)
         (
+            true_positives,
+            true_negatives,
             false_positives,
             false_negatives,
             precision,
@@ -174,12 +194,17 @@ def evaluate_frozen_candidate_thresholds(
         evaluations.append(
             ThresholdEvaluation(
                 threshold=threshold,
+                result_kind=(
+                    "measured" if threshold == measured_threshold else "projected"
+                ),
                 hit_rate=_safe_ratio(projected_hits, len(projected)),
                 precision=precision,
                 recall=recall,
                 f1_score=f1_score,
                 average_latency_ms=projected_average_latency,
                 provider_calls_avoided=projected_hits,
+                true_positive_hits=true_positives,
+                true_negative_misses=true_negatives,
                 false_positive_hits=false_positives,
                 false_negative_misses=false_negatives,
             )

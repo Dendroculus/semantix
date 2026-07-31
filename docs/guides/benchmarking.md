@@ -2,8 +2,11 @@
 
 The Evaluations workspace measures cache quality, latency, and provider-call
 savings against ordered prompts with explicit expected `HIT` or `MISS`
-decisions. It uses an isolated in-memory cache and never reads or writes the
-interactive cache.
+decisions. Every accepted run creates a fresh isolated in-memory cache and
+never reads, writes, clears, or increments counters on the interactive cache.
+When reset is enabled the run-local cache is cleared before every repetition;
+when disabled, later repetitions in that same run can reuse earlier state.
+Completed, failed, timed-out, and cancelled runs never seed a later run.
 
 ## Measured reference run
 
@@ -48,24 +51,29 @@ reports the evaluated threshold and quality errors alongside latency.
 
 ## Built-in datasets
 
-| Dataset | Queries | Expected hits | Expected misses | Coverage |
-|---|---:|---:|---:|---|
-| `quick` | 8 | 4 | 4 | Seed, exact duplicate, paraphrase, typo, unrelated, negation, different intent |
-| `extended` | 12 | 6 | 6 | Quick set plus more paraphrase, typo, negation, and intent boundaries |
+| Dataset | Version | Queries | Expected hits | Expected misses | Coverage |
+|---|---|---:|---:|---:|---|
+| `quick` | `1.0.0` | 8 | 4 | 4 | Seed, exact duplicate, paraphrase, typo, unrelated, negation, different intent |
+| `extended` | `1.0.0` | 12 | 6 | 6 | Quick set plus more paraphrase, typo, negation, and intent boundaries |
 
 Cases are ordered because earlier misses seed later expected hits. Every case
-has an explicit expected classification.
+has an explicit expected classification. The API returns a SHA-256 digest
+derived from ordered case IDs, categories, prompts, and expected decisions;
+display names and descriptions do not affect it.
 
 ## Run from the frontend
 
 1. Open <http://localhost:4173/evaluations>.
 2. Select a dataset and threshold.
-3. Keep one repetition and reset enabled for a short independent run.
-4. Review the expected external generation-call warning.
-5. Confirm the run.
-6. Inspect summary metrics, per-query evidence, threshold projections, and
+3. Optionally disclose the advanced sweep controls and choose a start, end,
+   and step. The UI shows the resulting explicit list and includes the measured
+   threshold exactly once.
+4. Keep one repetition and reset enabled for a short independent run.
+5. Review the bounded case count and maximum generation-call warning.
+6. Confirm the run.
+7. Inspect summary metrics, per-query evidence, threshold projections, and
    similarity distributions.
-7. Export JSON for the complete result or CSV for per-query evidence.
+8. Export JSON for the complete result or CSV for per-query evidence.
 
 Benchmark requests may call the selected generation provider. Review provider
 cost, rate limits, and data handling before confirming.
@@ -73,6 +81,11 @@ cost, rate limits, and data handling before confirming.
 Leaving the Evaluations workspace aborts the browser request and prevents a late
 response from updating the unmounted page. It does not guarantee that provider
 work already accepted by the backend has stopped.
+
+The backend separately applies `EVALUATION_TIMEOUT_SECONDS` (300 seconds by
+default, validated from greater than zero through 3,600). A timeout returns the
+structured `evaluation_timeout` error and discards the run-local cache. It does
+not claim that a remote provider has cancelled work it already accepted.
 
 ## Run through the API
 
@@ -82,6 +95,7 @@ PowerShell:
 $body = @{
     dataset_id = "quick"
     threshold = 0.92
+    evaluation_thresholds = @(0.80, 0.90, 0.92, 0.95)
     repetitions = 1
     reset_cache_before_run = $true
     estimated_cost_per_request_usd = 0
@@ -102,6 +116,8 @@ benchmark from silently creating provider traffic.
 ## Metric interpretation
 
 - **Provider calls avoided** equals queries served from the benchmark cache.
+- **True-positive hit** means an expected reuse was served from the cache.
+- **True-negative miss** means a required generation remained a miss.
 - **Precision** answers: of returned hits, how many were expected hits?
 - **Recall** answers: of expected hits, how many were returned as hits?
 - **False positive** means the cache returned a response where the dataset
@@ -113,6 +129,8 @@ benchmark from silently creating provider traffic.
 - **Estimated costs** use the optional values supplied by the operator.
 
 Cost and token estimates are evaluation aids, not provider billing records.
+Measured classification and latency fields, estimated savings fields, and
+projected threshold fields are named and displayed separately.
 
 Threshold charts are **frozen-candidate projections**. They reclassify the
 nearest-match scores observed in the original run without replaying cache
@@ -120,6 +138,19 @@ writes at each alternate threshold. Because the candidate set does not evolve,
 their quality, provider-savings, and latency estimates can differ from a real
 ordered run at that threshold. The projection makes no additional provider
 calls and uses the original run's average hit and miss latency.
+
+## Reproducibility metadata
+
+Run responses include the run ID, timezone-aware timestamps, dataset version
+and digest, measured threshold, explicit threshold list, repetitions, reset
+policy, cost assumptions, timeout, provider categories, embedding dimensions,
+and SHA-256 fingerprints for the embedding space, normalization configuration,
+and complete safe configuration.
+
+This is a positive allowlist. It does not contain credentials, authorization
+material, private provider endpoints, raw embeddings, or model identifiers.
+Matched cache keys are evaluation evidence only and do not identify entries in
+the live Cache workspace.
 
 ## Comparing runs responsibly
 

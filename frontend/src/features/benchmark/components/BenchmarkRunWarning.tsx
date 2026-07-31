@@ -17,7 +17,7 @@ export function BenchmarkRunWarning({
   const dataset = controller.selectedDataset;
   const queryCount = (dataset?.query_count ?? 0) * controller.form.repetitions;
 
-  const expectedProviderCalls =
+  const estimatedProviderCalls =
     (dataset?.expected_misses ?? 0) * controller.form.repetitions;
 
   return (
@@ -34,10 +34,17 @@ export function BenchmarkRunWarning({
       </p>
 
       <p className="mt-3 max-w-3xl text-sm/6 text-(--text-soft)">
-        This run sends {queryCount} embedding requests and is expected to make
-        about {expectedProviderCalls} external generation calls. Actual calls
-        can differ when the classifier makes false-positive or false-negative
-        decisions. Provider charges may apply.
+        This bounded run executes {queryCount} cases and sends {queryCount}{' '}
+        embedding requests. It may make at most {queryCount} external
+        generation calls; dataset labels estimate about{' '}
+        {estimatedProviderCalls}. Actual calls can differ when cache decisions
+        are false positives or false negatives. Provider charges may apply.
+      </p>
+
+      <p className="font-data mt-3 text-[10px]/5 text-(--text-faint)">
+        One measured run supplies {controller.sweep.thresholds.length}{' '}
+        frozen-candidate threshold values. Alternate thresholds do not repeat
+        provider work.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-3">
