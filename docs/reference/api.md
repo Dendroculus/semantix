@@ -20,6 +20,10 @@ Application errors use a stable object containing `error` and `detail`.
 | `GET` | `/api/v1/metrics` | Read process-local aggregate metrics (global admin only) |
 | `GET` | `/health` | Read application and provider-type health |
 
+The frontend exposes the evaluation laboratory at canonical route
+`/evaluations`; `/benchmarks` is a replace-redirect kept for compatibility.
+The backend API paths retain the `/api/v1/benchmarks/*` namespace.
+
 ## Query request
 
 ```json

@@ -1,6 +1,6 @@
-# Benchmarking
+# Evaluations and benchmarking
 
-The Benchmark workspace measures cache quality, latency, and provider-call
+The Evaluations workspace measures cache quality, latency, and provider-call
 savings against ordered prompts with explicit expected `HIT` or `MISS`
 decisions. It uses an isolated in-memory cache and never reads or writes the
 interactive cache.
@@ -58,7 +58,7 @@ has an explicit expected classification.
 
 ## Run from the frontend
 
-1. Open <http://localhost:4173/benchmarks>.
+1. Open <http://localhost:4173/evaluations>.
 2. Select a dataset and threshold.
 3. Keep one repetition and reset enabled for a short independent run.
 4. Review the expected external generation-call warning.
@@ -70,7 +70,7 @@ has an explicit expected classification.
 Benchmark requests may call the selected generation provider. Review provider
 cost, rate limits, and data handling before confirming.
 
-Leaving the Benchmark workspace aborts the browser request and prevents a late
+Leaving the Evaluations workspace aborts the browser request and prevents a late
 response from updating the unmounted page. It does not guarantee that provider
 work already accepted by the backend has stopped.
 

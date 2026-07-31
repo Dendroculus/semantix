@@ -15,6 +15,12 @@ describe("RouteLoader", () => {
     ["/", "monitor", "[data-skeleton-query-input]", 1],
     ["/cache", "cache", "[data-skeleton-route-entry]", 2],
     [
+      "/evaluations",
+      "benchmark",
+      "[data-skeleton-route-control]",
+      6,
+    ],
+    [
       "/benchmarks",
       "benchmark",
       "[data-skeleton-route-control]",

@@ -93,7 +93,7 @@ function AppShell(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-(--ink) px-4 text-(--text) sm:px-8">
+    <div className="min-h-screen bg-(--ink) px-4 text-(--text) sm:px-8">
       <a
         className="ui-label fixed left-4 top-3 z-50 -translate-y-20 bg-(--gold) px-3 py-2 text-(--ink) focus:translate-y-0"
         href="#main-content"
