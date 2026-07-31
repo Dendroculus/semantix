@@ -1,3 +1,7 @@
+<p align="center">
+  <sub><a href="/docs/translation/id/CODE_OF_CONDUCT.md">ID</a> · <a href="CODE_OF_CONDUCT.md">EN</a></sub>
+</p>
+
 # Code of Conduct
 
 ## Our commitment

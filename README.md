@@ -1,4 +1,8 @@
 <p align="center">
+  <sub><a href="/docs/translation/id/README.ID.md">ID</a> · <a href="README.md">EN</a></sub>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/React-19.2.8-61DAFB?logo=react&logoColor=white" alt="React 19.2.8">
   <img src="https://img.shields.io/badge/Vite-7.3.6-646CFF?logo=vite&logoColor=white" alt="Vite 7.3.6">
   <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
