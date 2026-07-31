@@ -12,9 +12,9 @@ Sebelum berkontribusi, harap baca:
 
 * [Code of Conduct](CODE_OF_CONDUCT.md)
 * [Security Policy](SECURITY.md)
-* [Architecture](../id/reference/architecture.md)
+* [Architecture](reference/architecture.md)
 * [Development Guide](guides/development.md)
-* [Cache Policies](../id/guides/cache-policies.md)
+* [Cache Policies](guides/cache-policies.md)
 
 ## Cara berkontribusi
 
@@ -77,7 +77,7 @@ docker compose -f docker-compose.dev.yml --profile pgvector logs -f backend
 docker compose -f docker-compose.dev.yml --profile pgvector down
 ```
 
-Gunakan hardened stack hanya ketika memvalidasi konfigurasi yang berorientasi production. Lihat [Hardened deployment](../id/operations/deployment.md) sebelum menjalankannya.
+Gunakan hardened stack hanya ketika memvalidasi konfigurasi yang berorientasi production. Lihat [Hardened deployment](operations/deployment.md) sebelum menjalankannya.
 
 ### Local backend workflow
 
@@ -109,7 +109,7 @@ npm ci
 npm run dev
 ```
 
-Lihat [Getting Started](../id/guides/getting-started.md) dan [Development](../id//guides/development.md) untuk detail setup lengkap.
+Lihat [Getting Started](guides/getting-started.md) dan [Development](/guides/development.md) untuk detail setup lengkap.
 
 ## Branch
 
@@ -156,7 +156,7 @@ Semantix mengikuti feature-first ownership.
 * Jangan membandingkan embedding dari provider, model, atau dimensions yang berbeda.
 * Jangan mengekspos prompt, full response, provider URL, model name, atau secret melalui aggregate telemetry.
 
-Review [Architecture](../id/reference/architecture.md) sebelum melakukan perubahan struktural.
+Review [Architecture](reference/architecture.md) sebelum melakukan perubahan struktural.
 
 ## Ekspektasi coding
 
@@ -274,7 +274,7 @@ Quality gate
 
 `Quality gate` hanya berhasil ketika backend, frontend, container, dan pgvector check berhasil. Multi-platform build, CodeQL, secret scanning, image scanning, dan supply-chain artifact generation juga harus berhasil. Dependency review harus berhasil pada pull request. Job required yang masih pending, dibatalkan, atau gagal harus memblokir merge normal.
 
-Lihat [Supply-chain security](../id/operations/supply-chain.md) untuk threshold dan cadence.
+Lihat [Supply-chain security](operations/supply-chain.md) untuk threshold dan cadence.
 
 Repository ruleset mewajibkan pull request dan check `Quality gate`. CODEOWNERS menentukan ownership review. Akses ruleset bypass dicadangkan untuk memperbaiki repository automation yang rusak atau kasus administratif luar biasa lainnya; akses tersebut tidak boleh digunakan untuk melakukan merge terhadap product failure yang sudah diketahui.
 

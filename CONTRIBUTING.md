@@ -1,5 +1,5 @@
 <p align="center">
-  <sub><a href="/docs/translation/id/CONTRIBUTING.md">ID</a> · <a href="README.md">EN</a></sub>
+  <sub><a href="/docs/translation/id/CONTRIBUTING.md">ID</a> · <a href="CONTRIBUTING.md">EN</a></sub>
 </p>
 
 # Contributing to Semantix

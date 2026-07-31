@@ -1,4 +1,4 @@
-# Normalisasi typo prompt ( opsional )
+# Normalisasi typo prompt (opsional)
 
 Semantix dapat mengoreksi kesalahan ejaan bahasa Inggris yang umum dan pemisahan kata yang tidak disengaja sebelum membuat embedding yang digunakan untuk semantic-cache matching. Feature ini dinonaktifkan secara default karena koreksi otomatis dapat mengubah nama yang tidak dikenal atau istilah khusus domain.
 

@@ -1,5 +1,5 @@
 <p align="center">
-  <sub><a href="/docs/translation/id/SECURITY.md">ID</a> · <a href="README.md">EN</a></sub>
+  <sub><a href="/docs/translation/id/SECURITY.md">ID</a> · <a href="SECURITY.md">EN</a></sub>
 </p>
 
 # Security Policy

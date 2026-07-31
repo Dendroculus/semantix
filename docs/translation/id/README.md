@@ -1,6 +1,6 @@
 # Dokumentasi Semantix
 
-Gunakan indeks ini untuk menemukan panduan terperinci untuk tugas yang sedang dikerjakan. Root repository [README](../README.md) tetap menjadi ringkasan singkat proyek dan quick start.
+Gunakan indeks ini untuk menemukan panduan terperinci untuk tugas yang sedang dikerjakan. Root repository [README](../../../README.md) tetap menjadi ringkasan singkat proyek dan quick start.
 
 ## Panduan
 

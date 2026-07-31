@@ -68,7 +68,7 @@ Search the active namespace and embedding space
   └── score < threshold ───► call provider ─► store response
 ```
 
-Semantix hanya mengembalikan respons yang telah di-cache jika entri terdekat yang kompatibel memenuhi similarity threshold yang aktif. Lihat [Cache policies](../id/guides/cache-policies.md) untuk aturan lengkapnya.
+Semantix hanya mengembalikan respons yang telah di-cache jika entri terdekat yang kompatibel memenuhi similarity threshold yang aktif. Lihat [Cache policies](guides/cache-policies.md) untuk aturan lengkapnya.
 
 ## 🚀 Mulai Cepat
 
@@ -115,7 +115,7 @@ MAX_REQUEST_BODY_BYTES=65536
 
 Nilai autentikasi dan proxy ini sengaja dikosongkan atau dinonaktifkan untuk development lokal yang tepercaya. Jangan gunakan konfigurasi development ini untuk deployment publik.
 
-Untuk menggunakan Hugging Face, OpenAI, Anthropic, Gemini, atau Ollama, lihat [Providers](../id/guides/providers.md). Untuk setiap opsi environment, lihat [Getting started](../id/guides/getting-started.md) dan `backend/.env.example`.
+Untuk menggunakan Hugging Face, OpenAI, Anthropic, Gemini, atau Ollama, lihat [Providers](guides/providers.md). Untuk setiap opsi environment, lihat [Getting started](guides/getting-started.md) dan `backend/.env.example`.
 
 ### 3. Jalankan stack development lengkap
 
@@ -165,7 +165,7 @@ Embedding provider dan generation provider dipilih secara independen.
 | Ollama | Ya | Ya | Tidak diperlukan secara lokal |
 | Mock | Ya | Ya | Tidak diperlukan |
 
-Hanya pengaturan yang diperlukan oleh kapabilitas yang dipilih yang akan divalidasi. Lihat [Providers](../id/guides/providers.md) untuk contoh konfigurasi dan catatan jaringan.
+Hanya pengaturan yang diperlukan oleh kapabilitas yang dipilih yang akan divalidasi. Lihat [Providers](guides/providers.md) untuk contoh konfigurasi dan catatan jaringan.
 
 ## 🛡️ Deployment Development dan Hardened
 
@@ -180,7 +180,7 @@ Buat `.env.production` dari `.env.production.example` hanya ketika Anda menyiapk
 docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
 ```
 
-Jangan menjalankannya sebelum setiap placeholder diganti. Lihat [Hardened deployment](../id/operations/deployment.md) untuk pembuatan token, trusted proxy, peran database, TLS, dan validasi.
+Jangan menjalankannya sebelum setiap placeholder diganti. Lihat [Hardened deployment](operations/deployment.md) untuk pembuatan token, trusted proxy, peran database, TLS, dan validasi.
 
 ## 📊 Benchmark Terukur
 
@@ -190,7 +190,7 @@ Uji coba lokal pada 19 Juli 2026 menggunakan **Quick semantic safety set** yang 
 |---:|---:|---:|---:|
 | **4 dari 8 (50%)** | **330,3 ms** | **3772,7 ms** | **1,0 / 1,0 / 1,0** |
 
-Ini adalah satu pengukuran bertanggal, bukan jaminan performa. Lihat [Benchmarking](../id/guides/benchmarking.md) untuk dataset, detail uji coba, dan batasannya.
+Ini adalah satu pengukuran bertanggal, bukan jaminan performa. Lihat [Benchmarking](guides/benchmarking.md) untuk dataset, detail uji coba, dan batasannya.
 
 ## ✅ Pemeriksaan Kualitas
 
@@ -292,7 +292,7 @@ npm run test
 npm run build
 ```
 
-Lihat [Development](../id/guides/development.md) untuk toolchain lokal, aturan arsitektur, dan langkah-langkah kontribusi.
+Lihat [Development](guides/development.md) untuk toolchain lokal, aturan arsitektur, dan langkah-langkah kontribusi.
 
 ## 🗂️ Struktur Proyek
 
@@ -314,7 +314,7 @@ semantix/
 └── README.md
 ```
 
-Backend dan frontend menggunakan kepemilikan feature-first. Lihat [Architecture](../id/reference/architecture.md) untuk alur runtime dan batas paket.
+Backend dan frontend menggunakan kepemilikan feature-first. Lihat [Architecture](reference/architecture.md) untuk alur runtime dan batas paket.
 
 ## ⚠️ Batasan Penting
 
@@ -326,14 +326,14 @@ Backend dan frontend menggunakan kepemilikan feature-first. Lihat [Architecture]
 
 ## 📚 Dokumentasi
 
-[Indeks dokumentasi](../id/README.md) mengelompokkan seluruh panduan berdasarkan tujuannya.
+[Indeks dokumentasi](README.md) mengelompokkan seluruh panduan berdasarkan tujuannya.
 
 | Mulai di sini | Gunakan untuk |
 |---|---|
-| [Getting started](../id/guides/getting-started.md) | Setup lokal, file environment, dan alur kerja Docker |
-| [Providers](../id/guides/providers.md) | Konfigurasi provider hosted, lokal, dan mock |
-| [Architecture](../id/reference/architecture.md) | Alur runtime, kepemilikan fitur, dan batas paket |
-| [Hardened deployment](../id/operations/deployment.md) | Autentikasi, TLS, peran database, dan validasi produksi |
+| [Getting started](guides/getting-started.md) | Setup lokal, file environment, dan alur kerja Docker |
+| [Providers](guides/providers.md) | Konfigurasi provider hosted, lokal, dan mock |
+| [Architecture](reference/architecture.md) | Alur runtime, kepemilikan fitur, dan batas paket |
+| [Hardened deployment](operations/deployment.md) | Autentikasi, TLS, peran database, dan validasi produksi |
 
 ## 🤝 Kontributor
 
