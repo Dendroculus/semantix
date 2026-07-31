@@ -292,6 +292,7 @@ function reproducibility(
     !isNormalizationMode(value.normalization_mode) ||
     typeof value.normalization_fingerprint !== 'string' ||
     !SHA256_PATTERN.test(value.normalization_fingerprint) ||
+    !isNumberInRange(value.measured_threshold, 0, 1) ||
     !Array.isArray(value.evaluation_thresholds) ||
     value.evaluation_thresholds.length < 2 ||
     value.evaluation_thresholds.length > 15 ||
@@ -418,6 +419,7 @@ export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
     decodedReproducibility.dataset_id !== decodedDataset.dataset_id ||
     decodedReproducibility.dataset_version !== decodedDataset.version ||
     decodedReproducibility.dataset_digest !== decodedDataset.digest ||
+    decodedReproducibility.measured_threshold !== value.threshold ||
     decodedReproducibility.repetitions !== value.repetitions ||
     decodedReproducibility.reset_cache_before_run !==
       value.reset_cache_before_run ||

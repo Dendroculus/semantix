@@ -229,6 +229,7 @@ class BenchmarkReproducibilityMetadata(StrictModel):
     embedding_space_fingerprint: str = Field(pattern=SHA256_PATTERN)
     normalization_mode: NormalizationMode
     normalization_fingerprint: str = Field(pattern=SHA256_PATTERN)
+    measured_threshold: float = Field(ge=0, le=1)
     evaluation_thresholds: list[float] = Field(
         min_length=2,
         max_length=MAX_EVALUATION_THRESHOLDS,
@@ -330,6 +331,7 @@ class BenchmarkRunResponse(StrictModel):
             metadata.dataset_id != self.dataset.dataset_id
             or metadata.dataset_version != self.dataset.version
             or metadata.dataset_digest != self.dataset.digest
+            or metadata.measured_threshold != self.threshold
             or metadata.evaluation_thresholds != thresholds
             or metadata.repetitions != self.repetitions
             or metadata.reset_cache_before_run != self.reset_cache_before_run

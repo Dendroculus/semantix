@@ -197,7 +197,8 @@ export function BenchmarkSummary({
           <div>
             <dt className="text-(--text-faint)">Measured configuration</dt>
             <dd className="mt-1 text-(--text-soft)">
-              Threshold {formatDecimal(result.threshold, 2)} -{' '}
+              Threshold{' '}
+              {formatDecimal(result.reproducibility.measured_threshold, 2)} -{' '}
               {result.repetitions} repetition
               {result.repetitions === 1 ? '' : 's'} - cache reset{' '}
               {result.reset_cache_before_run

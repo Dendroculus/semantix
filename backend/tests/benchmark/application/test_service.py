@@ -2,8 +2,9 @@ import asyncio
 from collections.abc import Sequence
 
 import pytest
+from pydantic import ValidationError
 
-from app.benchmark.api.schemas import BenchmarkRunRequest
+from app.benchmark.api.schemas import BenchmarkRunRequest, BenchmarkRunResponse
 from app.benchmark.application.service import BenchmarkService
 from app.benchmark.domain.models import BenchmarkRuntimeConfiguration
 from app.core.exceptions import EvaluationTimeoutError, InvalidProviderResponseError
@@ -188,6 +189,7 @@ async def test_safe_reproducibility_metadata_uses_an_explicit_allowlist() -> Non
         "embedding_space_fingerprint",
         "normalization_mode",
         "normalization_fingerprint",
+        "measured_threshold",
         "evaluation_thresholds",
         "repetitions",
         "reset_cache_before_run",
@@ -208,7 +210,64 @@ async def test_safe_reproducibility_metadata_uses_an_explicit_allowlist() -> Non
     assert all(
         "embedding" not in query for query in result.model_dump()["query_results"]
     )
+    assert payload["measured_threshold"] == result.threshold == 0.91
     assert payload["evaluation_thresholds"] == [0.80, 0.91, 0.95]
+
+
+@pytest.mark.asyncio
+async def test_configuration_fingerprint_includes_the_measured_threshold() -> None:
+    service = benchmark_service(Provider())
+    thresholds = [0.80, 0.90, 0.95]
+
+    run_at_90 = await service.run(
+        BenchmarkRunRequest(
+            threshold=0.90,
+            evaluation_thresholds=thresholds,
+            allow_external_provider_calls=True,
+        )
+    )
+    repeated_run_at_90 = await service.run(
+        BenchmarkRunRequest(
+            threshold=0.90,
+            evaluation_thresholds=thresholds,
+            allow_external_provider_calls=True,
+        )
+    )
+    run_at_95 = await service.run(
+        BenchmarkRunRequest(
+            threshold=0.95,
+            evaluation_thresholds=thresholds,
+            allow_external_provider_calls=True,
+        )
+    )
+
+    assert run_at_90.reproducibility.evaluation_thresholds == thresholds
+    assert run_at_95.reproducibility.evaluation_thresholds == thresholds
+    assert run_at_90.reproducibility.configuration_fingerprint == (
+        repeated_run_at_90.reproducibility.configuration_fingerprint
+    )
+    assert run_at_90.reproducibility.configuration_fingerprint != (
+        run_at_95.reproducibility.configuration_fingerprint
+    )
+
+
+@pytest.mark.asyncio
+async def test_response_rejects_a_mismatched_reproducibility_threshold() -> None:
+    result = await benchmark_service(Provider()).run(
+        BenchmarkRunRequest(
+            threshold=0.90,
+            evaluation_thresholds=[0.80, 0.90, 0.95],
+            allow_external_provider_calls=True,
+        )
+    )
+    payload = result.model_dump()
+    payload["reproducibility"]["measured_threshold"] = 0.95
+
+    with pytest.raises(
+        ValidationError,
+        match="Reproducibility metadata does not match the run",
+    ):
+        BenchmarkRunResponse.model_validate(payload)
 
 
 @pytest.mark.asyncio

@@ -106,9 +106,13 @@ marked `result_kind="projected"` under
 
 The `reproducibility` object is allowlisted: application version, dataset
 identity, provider categories, embedding dimensions, non-secret embedding and
-normalization fingerprints, thresholds, repetitions, reset policy, cost
-assumptions, timeout, and a configuration fingerprint. It excludes credentials,
-authorization values, provider endpoints, model identifiers, and embeddings.
+normalization fingerprints, `measured_threshold`, `evaluation_thresholds`,
+repetitions, reset policy, cost assumptions, timeout, and a configuration
+fingerprint. `measured_threshold` always equals the top-level `threshold`.
+Both the measured threshold and complete projection list are inputs to the
+deterministically serialized configuration fingerprint. The object excludes
+credentials, authorization values, provider endpoints, model identifiers, and
+embeddings.
 
 Runs use fresh in-memory evaluation caches and cannot modify the live cache or
 runtime counters. `EVALUATION_TIMEOUT_SECONDS` bounds wall-clock execution.

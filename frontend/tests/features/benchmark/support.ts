@@ -36,6 +36,7 @@ export const benchmarkResult: BenchmarkRunResponse = {
     embedding_space_fingerprint: 'e'.repeat(64),
     normalization_mode: 'identity',
     normalization_fingerprint: 'a'.repeat(64),
+    measured_threshold: 0.9,
     evaluation_thresholds: [0.8, 0.9, 0.95],
     repetitions: 1,
     reset_cache_before_run: true,

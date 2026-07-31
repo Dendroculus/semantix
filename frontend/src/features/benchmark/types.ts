@@ -118,6 +118,7 @@ export interface BenchmarkReproducibilityMetadata {
   embedding_space_fingerprint: string;
   normalization_mode: "identity" | "typo_correction";
   normalization_fingerprint: string;
+  measured_threshold: number;
   evaluation_thresholds: number[];
   repetitions: number;
   reset_cache_before_run: boolean;
