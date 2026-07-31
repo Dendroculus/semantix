@@ -270,6 +270,9 @@ describe('BenchmarkDashboard', () => {
     const csv = buildBenchmarkCsv(result);
 
     expect(JSON.parse(json)).toEqual(result);
+    expect(
+      (JSON.parse(json) as typeof result).reproducibility.measured_threshold,
+    ).toBe(result.threshold);
     expect(csv).toContain(
       'sequence,repetition,case_id,category,prompt,expected_cache_hit',
     );

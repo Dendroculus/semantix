@@ -142,10 +142,14 @@ calls and uses the original run's average hit and miss latency.
 ## Reproducibility metadata
 
 Run responses include the run ID, timezone-aware timestamps, dataset version
-and digest, measured threshold, explicit threshold list, repetitions, reset
-policy, cost assumptions, timeout, provider categories, embedding dimensions,
-and SHA-256 fingerprints for the embedding space, normalization configuration,
-and complete safe configuration.
+and digest, `reproducibility.measured_threshold`, the explicit
+`evaluation_thresholds` list, repetitions, reset policy, cost assumptions,
+timeout, provider categories, embedding dimensions, and SHA-256 fingerprints
+for the embedding space, normalization configuration, and complete safe
+configuration. The metadata measured threshold must equal the response's
+top-level `threshold`. It is fingerprinted separately from the complete
+projection list, so runs measured at different thresholds cannot share a
+configuration fingerprint even when their projection lists match.
 
 This is a positive allowlist. It does not contain credentials, authorization
 material, private provider endpoints, raw embeddings, or model identifiers.

@@ -138,6 +138,7 @@ def test_runs_default_benchmark_end_to_end(settings: Settings) -> None:
     assert (
         payload["reproducibility"]["dataset_digest"] == (payload["dataset"]["digest"])
     )
+    assert payload["reproducibility"]["measured_threshold"] == payload["threshold"]
     assert payload["reproducibility"]["evaluation_thresholds"] == [0.8, 0.9, 0.95]
     assert live_stats_after == live_stats_before
     for field in (

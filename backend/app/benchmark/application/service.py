@@ -229,6 +229,7 @@ class BenchmarkService:
             "embedding_space_fingerprint": runtime.embedding_space_fingerprint,
             "normalization_mode": runtime.normalization_mode,
             "normalization_fingerprint": runtime.normalization_fingerprint,
+            "measured_threshold": request.threshold,
             "evaluation_thresholds": request.evaluation_thresholds,
             "repetitions": request.repetitions,
             "reset_cache_before_run": request.reset_cache_before_run,

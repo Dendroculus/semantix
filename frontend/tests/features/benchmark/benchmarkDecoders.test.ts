@@ -98,6 +98,21 @@ const INVALID_RUN_CASES: InvalidRunCase[] = [
     },
   },
   {
+    name: 'a missing reproducibility measured threshold',
+    mutate: (value) => {
+      Reflect.deleteProperty(
+        value.reproducibility,
+        'measured_threshold',
+      );
+    },
+  },
+  {
+    name: 'a reproducibility measured threshold that differs from the run',
+    mutate: (value) => {
+      value.reproducibility.measured_threshold = 0.95;
+    },
+  },
+  {
     name: 'completion before the start time',
     mutate: (value) => {
       value.completed_at = '2026-07-17T09:59:59Z';
