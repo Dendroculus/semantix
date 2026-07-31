@@ -28,3 +28,7 @@ frontend/.vite-cache
 .vscode/extensions.json
 .vscode/tasks.json
 .vscode/launch.json
+
+# Graphify local/generated state
+.codex/hooks.json
+graphify-out/
