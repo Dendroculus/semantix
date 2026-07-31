@@ -5,3 +5,15 @@ ignore:
       name: python
       version: 3.14.6
       type: binary
+  - vulnerability: CVE-2026-11940
+    reason: Fix is backported to CPython 3.14; remove after upgrading the base image to 3.14.7 or later.
+    package:
+      name: python
+      version: 3.14.6
+      type: binary
+  - vulnerability: CVE-2026-11972
+    reason: Fix is backported to CPython 3.14; remove after upgrading the base image to 3.14.7 or later.
+    package:
+      name: python
+      version: 3.14.6
+      type: binary
