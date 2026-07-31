@@ -23,12 +23,27 @@ BenchmarkOutcome = Literal[
     "false_negative",
 ]
 ThresholdEvaluationMode = Literal["frozen_candidate_projection"]
+ThresholdResultKind = Literal["measured", "projected"]
+ProviderCategory = Literal[
+    "huggingface",
+    "openai",
+    "anthropic",
+    "gemini",
+    "ollama",
+    "mock",
+]
+NormalizationMode = Literal["identity", "typo_correction"]
 
 DEFAULT_EVALUATION_THRESHOLDS = [0.70, 0.80, 0.85, 0.90, 0.92, 0.95, 0.98]
+MAX_EVALUATION_THRESHOLDS = 15
+MAX_BENCHMARK_REPETITIONS = 5
+SHA256_PATTERN = r"^[a-f0-9]{64}$"
 
 
 class BenchmarkDatasetSummary(StrictModel):
     dataset_id: BenchmarkDatasetId
+    version: str = Field(min_length=1, max_length=50)
+    digest: str = Field(pattern=SHA256_PATTERN)
     name: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=300)
     query_count: int = Field(ge=1)
@@ -54,9 +69,9 @@ class BenchmarkRunRequest(StrictModel):
     evaluation_thresholds: list[float] = Field(
         default_factory=lambda: list(DEFAULT_EVALUATION_THRESHOLDS),
         min_length=2,
-        max_length=15,
+        max_length=MAX_EVALUATION_THRESHOLDS,
     )
-    repetitions: int = Field(default=1, ge=1, le=5)
+    repetitions: int = Field(default=1, ge=1, le=MAX_BENCHMARK_REPETITIONS)
     reset_cache_before_run: bool = True
     estimated_cost_per_request_usd: float = Field(default=0, ge=0, le=100)
     estimated_cost_per_1k_tokens_usd: float = Field(default=0, ge=0, le=100)
@@ -71,6 +86,17 @@ class BenchmarkRunRequest(StrictModel):
         if len(unique) != len(value):
             raise ValueError("Evaluation thresholds must be unique")
         return unique
+
+    @model_validator(mode="after")
+    def include_measured_threshold(self) -> "BenchmarkRunRequest":
+        thresholds = sorted({*self.evaluation_thresholds, self.threshold})
+        if len(thresholds) > MAX_EVALUATION_THRESHOLDS:
+            raise ValueError(
+                "Evaluation thresholds, including the measured threshold, "
+                f"cannot exceed {MAX_EVALUATION_THRESHOLDS}"
+            )
+        self.evaluation_thresholds = thresholds
+        return self
 
 
 class BenchmarkMetrics(StrictModel):
@@ -88,6 +114,8 @@ class BenchmarkMetrics(StrictModel):
     estimated_latency_saved_ms: float = Field(ge=0)
     estimated_provider_cost_saved_usd: float = Field(ge=0)
     estimated_tokens_saved: int = Field(ge=0)
+    true_positive_hits: int = Field(ge=0)
+    true_negative_misses: int = Field(ge=0)
     false_positive_hits: int = Field(ge=0)
     false_negative_misses: int = Field(ge=0)
     precision: float = Field(ge=0, le=1)
@@ -100,6 +128,23 @@ class BenchmarkMetrics(StrictModel):
             raise ValueError("Cache classifications must cover every query")
         if self.provider_calls + self.provider_calls_avoided != self.total_queries:
             raise ValueError("Provider-call totals must cover every query")
+        confusion_total = (
+            self.true_positive_hits
+            + self.true_negative_misses
+            + self.false_positive_hits
+            + self.false_negative_misses
+        )
+        if confusion_total != self.total_queries:
+            raise ValueError("Confusion-matrix totals must cover every query")
+        if self.true_positive_hits + self.false_positive_hits != self.cache_hits:
+            raise ValueError("Positive classifications must equal cache hits")
+        if self.true_negative_misses + self.false_negative_misses != self.cache_misses:
+            raise ValueError("Negative classifications must equal cache misses")
+        if (
+            self.provider_calls != self.cache_misses
+            or self.provider_calls_avoided != self.cache_hits
+        ):
+            raise ValueError("Provider-call totals must match cache decisions")
         return self
 
 
@@ -119,18 +164,90 @@ class BenchmarkQueryResult(StrictModel):
     matched_prompt: str | None = Field(
         default=None, min_length=1, max_length=MAX_PROMPT_LENGTH
     )
+    matched_cache_key: str | None = Field(default=None, pattern=SHA256_PATTERN)
+
+    @model_validator(mode="after")
+    def validate_evidence(self) -> "BenchmarkQueryResult":
+        expected_outcome: BenchmarkOutcome
+        if self.actual_cache_hit:
+            expected_outcome = (
+                "true_positive" if self.expected_cache_hit else "false_positive"
+            )
+        else:
+            expected_outcome = (
+                "false_negative" if self.expected_cache_hit else "true_negative"
+            )
+        if self.outcome != expected_outcome:
+            raise ValueError("Query outcome does not match its cache decisions")
+        if self.correct != (self.expected_cache_hit == self.actual_cache_hit):
+            raise ValueError("Query correctness does not match its cache decisions")
+        if self.provider_called == self.actual_cache_hit:
+            raise ValueError("Provider-call evidence does not match the cache decision")
+        if self.actual_cache_hit and (
+            self.matched_prompt is None or self.matched_cache_key is None
+        ):
+            raise ValueError("Cache-hit evidence must identify the matched entry")
+        if not self.actual_cache_hit and (
+            self.matched_prompt is not None or self.matched_cache_key is not None
+        ):
+            raise ValueError("Cache-miss evidence cannot identify a matched entry")
+        return self
 
 
 class ThresholdEvaluation(StrictModel):
     threshold: float = Field(ge=0, le=1)
+    result_kind: ThresholdResultKind
     hit_rate: float = Field(ge=0, le=1)
     precision: float = Field(ge=0, le=1)
     recall: float = Field(ge=0, le=1)
     f1_score: float = Field(ge=0, le=1)
     average_latency_ms: float = Field(ge=0)
     provider_calls_avoided: int = Field(ge=0)
+    true_positive_hits: int = Field(ge=0)
+    true_negative_misses: int = Field(ge=0)
     false_positive_hits: int = Field(ge=0)
     false_negative_misses: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_totals(self) -> "ThresholdEvaluation":
+        projected_hits = self.true_positive_hits + self.false_positive_hits
+        if projected_hits != self.provider_calls_avoided:
+            raise ValueError(
+                "Projected hits must equal projected provider calls avoided"
+            )
+        return self
+
+
+class BenchmarkReproducibilityMetadata(StrictModel):
+    application_version: str = Field(min_length=1, max_length=50)
+    dataset_id: BenchmarkDatasetId
+    dataset_version: str = Field(min_length=1, max_length=50)
+    dataset_digest: str = Field(pattern=SHA256_PATTERN)
+    embedding_provider_category: ProviderCategory
+    generation_provider_category: ProviderCategory
+    embedding_dimensions: int = Field(gt=0)
+    embedding_space_fingerprint: str = Field(pattern=SHA256_PATTERN)
+    normalization_mode: NormalizationMode
+    normalization_fingerprint: str = Field(pattern=SHA256_PATTERN)
+    evaluation_thresholds: list[float] = Field(
+        min_length=2,
+        max_length=MAX_EVALUATION_THRESHOLDS,
+    )
+    repetitions: int = Field(ge=1, le=MAX_BENCHMARK_REPETITIONS)
+    reset_cache_before_run: bool
+    estimated_cost_per_request_usd: float = Field(ge=0, le=100)
+    estimated_cost_per_1k_tokens_usd: float = Field(ge=0, le=100)
+    evaluation_timeout_seconds: float = Field(gt=0, le=3_600)
+    configuration_fingerprint: str = Field(pattern=SHA256_PATTERN)
+
+    @field_validator("evaluation_thresholds")
+    @classmethod
+    def validate_thresholds(cls, value: list[float]) -> list[float]:
+        if any(threshold < 0 or threshold > 1 for threshold in value):
+            raise ValueError("Evaluation thresholds must be between 0 and 1")
+        if value != sorted(set(value)):
+            raise ValueError("Evaluation thresholds must be ordered and unique")
+        return value
 
 
 class BenchmarkRunResponse(StrictModel):
@@ -139,13 +256,17 @@ class BenchmarkRunResponse(StrictModel):
     completed_at: datetime
     dataset: BenchmarkDatasetSummary
     threshold: float = Field(ge=0, le=1)
-    repetitions: int = Field(ge=1, le=5)
+    repetitions: int = Field(ge=1, le=MAX_BENCHMARK_REPETITIONS)
     reset_cache_before_run: bool
     estimated_cost_per_request_usd: float = Field(ge=0)
     estimated_cost_per_1k_tokens_usd: float = Field(ge=0)
+    reproducibility: BenchmarkReproducibilityMetadata
     metrics: BenchmarkMetrics
     threshold_evaluation_mode: ThresholdEvaluationMode
-    threshold_evaluations: list[ThresholdEvaluation] = Field(min_length=2)
+    threshold_evaluations: list[ThresholdEvaluation] = Field(
+        min_length=2,
+        max_length=MAX_EVALUATION_THRESHOLDS,
+    )
     query_results: list[BenchmarkQueryResult] = Field(min_length=1)
 
     @field_validator("started_at", "completed_at")
@@ -161,4 +282,61 @@ class BenchmarkRunResponse(StrictModel):
             raise ValueError("Benchmark completion cannot precede its start")
         if len(self.query_results) != self.dataset.query_count * self.repetitions:
             raise ValueError("Benchmark results do not match the requested workload")
+        total_queries = len(self.query_results)
+        outcomes = {
+            outcome: sum(result.outcome == outcome for result in self.query_results)
+            for outcome in (
+                "true_positive",
+                "true_negative",
+                "false_positive",
+                "false_negative",
+            )
+        }
+        if (
+            self.metrics.total_queries != total_queries
+            or self.metrics.true_positive_hits != outcomes["true_positive"]
+            or self.metrics.true_negative_misses != outcomes["true_negative"]
+            or self.metrics.false_positive_hits != outcomes["false_positive"]
+            or self.metrics.false_negative_misses != outcomes["false_negative"]
+            or self.metrics.provider_calls
+            != sum(result.provider_called for result in self.query_results)
+        ):
+            raise ValueError("Benchmark metrics do not match query evidence")
+
+        thresholds = [evaluation.threshold for evaluation in self.threshold_evaluations]
+        measured = [
+            evaluation
+            for evaluation in self.threshold_evaluations
+            if evaluation.result_kind == "measured"
+        ]
+        if thresholds != sorted(set(thresholds)):
+            raise ValueError("Threshold evaluations must be ordered and unique")
+        if len(measured) != 1 or measured[0].threshold != self.threshold:
+            raise ValueError("The measured threshold must appear exactly once")
+        for evaluation in self.threshold_evaluations:
+            confusion_total = (
+                evaluation.true_positive_hits
+                + evaluation.true_negative_misses
+                + evaluation.false_positive_hits
+                + evaluation.false_negative_misses
+            )
+            if confusion_total != total_queries:
+                raise ValueError(
+                    "Threshold confusion-matrix totals must cover every query"
+                )
+
+        metadata = self.reproducibility
+        if (
+            metadata.dataset_id != self.dataset.dataset_id
+            or metadata.dataset_version != self.dataset.version
+            or metadata.dataset_digest != self.dataset.digest
+            or metadata.evaluation_thresholds != thresholds
+            or metadata.repetitions != self.repetitions
+            or metadata.reset_cache_before_run != self.reset_cache_before_run
+            or metadata.estimated_cost_per_request_usd
+            != self.estimated_cost_per_request_usd
+            or metadata.estimated_cost_per_1k_tokens_usd
+            != self.estimated_cost_per_1k_tokens_usd
+        ):
+            raise ValueError("Reproducibility metadata does not match the run")
         return self

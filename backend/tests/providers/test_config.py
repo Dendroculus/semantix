@@ -197,6 +197,17 @@ def test_provider_response_limit_must_be_positive() -> None:
         settings(provider_max_response_bytes=0)
 
 
+def test_evaluation_timeout_is_bounded() -> None:
+    configured = settings(evaluation_timeout_seconds=45)
+
+    assert configured.evaluation_timeout_seconds == 45
+
+    with pytest.raises(ValidationError, match="evaluation_timeout_seconds"):
+        settings(evaluation_timeout_seconds=0)
+    with pytest.raises(ValidationError, match="evaluation_timeout_seconds"):
+        settings(evaluation_timeout_seconds=3_601)
+
+
 @pytest.mark.parametrize("port", ["not-a-port", "-1", "65536"])
 def test_database_url_rejects_invalid_ports(port: str) -> None:
     with pytest.raises(ValidationError, match="DATABASE_URL.*port"):

@@ -12,6 +12,7 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BenchmarkDashboard } from '@/features/benchmark/components/BenchmarkDashboard';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { QueryTestProvider } from '../QueryTestProvider';
 import { createTestQueryClient } from '../queryClient';
 import {
@@ -116,6 +117,7 @@ describe('BenchmarkDashboard', () => {
         expect.objectContaining({
           threshold: 0.9,
           dataset_id: 'quick',
+          evaluation_thresholds: [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.98],
           allow_external_provider_calls: true,
         }),
         expect.any(AbortSignal),
@@ -130,8 +132,16 @@ describe('BenchmarkDashboard', () => {
 
     expect(await screen.findByText('Measured run')).toBeTruthy();
     expect(screen.getByText('50.0%')).toBeTruthy();
-    expect(screen.getByText('Hit rate vs. threshold')).toBeTruthy();
-    expect(screen.getByText('Precision / recall vs. threshold')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Hit rate vs. threshold (frozen-candidate projection)',
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Precision / recall vs. threshold (frozen-candidate projection)',
+      ),
+    ).toBeTruthy();
     expect(screen.getByText('Similarity-score distribution')).toBeTruthy();
     expect(screen.getByText('Per-query evidence')).toBeTruthy();
     const table = screen.getByRole('table', {
@@ -170,7 +180,7 @@ describe('BenchmarkDashboard', () => {
     expect(screen.getByLabelText('Loading benchmark results')).toBeTruthy();
     expect(
       document.querySelectorAll('[data-skeleton-result-metric]'),
-    ).toHaveLength(14);
+    ).toHaveLength(18);
     expect(
       document.querySelectorAll('[data-skeleton-result-chart]'),
     ).toHaveLength(5);
@@ -263,7 +273,89 @@ describe('BenchmarkDashboard', () => {
     expect(csv).toContain(
       'sequence,repetition,case_id,category,prompt,expected_cache_hit',
     );
+    expect(csv).toContain('matched_prompt,matched_cache_key');
     expect(csv).toContain('duplicate,exact_duplicate');
     expect(csv.split('\r\n')).toHaveLength(3);
+  });
+
+  it('compiles advanced sweep controls into an exact bounded list', async () => {
+    renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Advanced frozen-candidate sweep',
+      }),
+    );
+    fireEvent.change(screen.getByLabelText('Threshold sweep start'), {
+      target: { value: '0.80' },
+    });
+    fireEvent.change(screen.getByLabelText('Threshold sweep end'), {
+      target: { value: '0.90' },
+    });
+    fireEvent.change(screen.getByLabelText('Threshold sweep step'), {
+      target: { value: '0.05' },
+    });
+
+    await reviewAndConfirm();
+
+    await waitFor(() =>
+      expect(runBenchmark).toHaveBeenCalledWith(
+        expect.objectContaining({
+          evaluation_thresholds: [0.8, 0.85, 0.9, 0.92],
+        }),
+        expect.any(AbortSignal),
+      ),
+    );
+  });
+
+  it('lets viewers inspect metadata but not initiate a run', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error: null,
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
+      session: {
+        name: 'reader',
+        role: 'viewer',
+        namespaces: ['default'],
+      },
+      status: 'authenticated',
+    });
+
+    renderDashboard();
+
+    const review = await screen.findByRole('button', {
+      name: 'Review benchmark run',
+    });
+    expect((review as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      screen.getByText(/Operator access is required/),
+    ).toBeTruthy();
+    expect(screen.getByText(/Dataset version 1.0.0/)).toBeTruthy();
+    expect(runBenchmark).not.toHaveBeenCalled();
+  });
+
+  it('lets an authenticated operator complete the review flow', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error: null,
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
+      session: {
+        name: 'operator',
+        role: 'operator',
+        namespaces: ['default'],
+      },
+      status: 'authenticated',
+    });
+
+    renderDashboard();
+    await reviewAndConfirm();
+
+    await waitFor(() => expect(runBenchmark).toHaveBeenCalledOnce());
+    expect(await screen.findByText(/Evaluation run completed/)).toBeTruthy();
   });
 });

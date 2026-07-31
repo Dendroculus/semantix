@@ -50,6 +50,8 @@ Core capabilities:
 - optional typo-aware prompt normalization;
 - token roles and namespace authorization for hardened deployments;
 - deterministic mock providers for safe local testing.
+- run-local evaluation caches, complete confusion-matrix accounting, and
+  configurable bounded frozen-candidate threshold sweeps.
 
 ## ⚙️ How it works
 
@@ -356,6 +358,8 @@ boundaries.
 - The hardened stack is a single-instance baseline, not a complete multi-tenant
   or multi-replica platform.
 - Mock providers are for tests, demonstrations, and UI development.
+- Evaluation sweeps reuse one measured run; alternate thresholds are
+  projections, not ordered replays or automatic threshold recommendations.
 
 ## 📚 Documentation
 

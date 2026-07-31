@@ -12,7 +12,7 @@ export function BenchmarkDatasetSkeleton(): JSX.Element {
       <span className="sr-only">Loading the benchmark dataset catalog.</span>
       <span
         aria-hidden="true"
-        className="grid gap-5 md:grid-cols-3"
+        className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
       >
         {CONTROL_SKELETONS.map((control) => {
           if (control === 5) {

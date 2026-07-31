@@ -15,3 +15,17 @@ export function canAccessGlobalMetrics(
     session.namespaces.includes("*")
   );
 }
+
+export function canRunBenchmarks(
+  status: AuthContextValue["status"],
+  session: AuthSession | null,
+): boolean {
+  if (status === "disabled") {
+    return true;
+  }
+
+  return (
+    status === "authenticated" &&
+    (session?.role === "operator" || session?.role === "admin")
+  );
+}

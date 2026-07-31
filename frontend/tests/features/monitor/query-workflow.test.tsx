@@ -79,6 +79,8 @@ describe("dashboard correctness", () => {
         datasets: [
           {
             dataset_id: "quick",
+            version: "1.0.0",
+            digest: "d".repeat(64),
             name: "Quick semantic safety set",
             description: "Controlled prompts.",
             query_count: 8,

@@ -14,8 +14,8 @@ describe("benchmark chart accessibility", () => {
             color: "var(--gold)",
             label: "Hit rate",
             points: [
-              { x: 0.8, y: 0.5 },
-              { x: 0.95, y: 0 },
+              { kind: "measured", x: 0.8, y: 0.5 },
+              { kind: "projected", x: 0.95, y: 0 },
             ],
           },
         ]}
@@ -28,6 +28,9 @@ describe("benchmark chart accessibility", () => {
       name: "Hit rate vs. threshold data",
     });
     expect(within(table).getByText("Series")).toBeTruthy();
+    expect(within(table).getByText("Value kind")).toBeTruthy();
+    expect(within(table).getByText("Measured threshold")).toBeTruthy();
+    expect(within(table).getByText("Frozen-candidate projection")).toBeTruthy();
     expect(within(table).getByText("0.80")).toBeTruthy();
     expect(within(table).getByText("50%")).toBeTruthy();
     expect(within(table).getByText("0.95")).toBeTruthy();

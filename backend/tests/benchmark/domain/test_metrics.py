@@ -37,6 +37,8 @@ def test_metric_calculations_match_hand_computed_values() -> None:
     assert metrics.estimated_latency_saved_ms == pytest.approx(180)
     assert metrics.estimated_tokens_saved == 150
     assert metrics.estimated_provider_cost_saved_usd == pytest.approx(0.023)
+    assert metrics.true_positive_hits == 1
+    assert metrics.true_negative_misses == 1
     assert metrics.false_positive_hits == 1
     assert metrics.false_negative_misses == 1
     assert metrics.precision == pytest.approx(0.5)
@@ -49,15 +51,23 @@ def test_threshold_evaluation_reclassifies_scores_without_defaulting_null() -> N
         *observations(),
         BenchmarkObservation(True, False, 120, True, None),
     ]
-    evaluations = evaluate_frozen_candidate_thresholds(source, [0.90, 0.94])
+    evaluations = evaluate_frozen_candidate_thresholds(
+        source,
+        [0.90, 0.94],
+        measured_threshold=0.94,
+    )
 
     lower, higher = evaluations
     assert lower.threshold == pytest.approx(0.90)
+    assert lower.result_kind == "projected"
     assert lower.provider_calls_avoided == 2
+    assert lower.true_positive_hits == 1
+    assert lower.true_negative_misses == 1
     assert lower.false_positive_hits == 1
     assert lower.false_negative_misses == 2
 
     assert higher.threshold == pytest.approx(0.94)
+    assert higher.result_kind == "measured"
     assert higher.provider_calls_avoided == 1
     assert higher.false_positive_hits == 0
     assert higher.false_negative_misses == 2
@@ -71,7 +81,11 @@ def test_frozen_candidates_can_diverge_from_an_ordered_threshold_replay() -> Non
         BenchmarkObservation(True, False, 100, True, 0.93),
         BenchmarkObservation(True, True, 10, False, 0.96),
     ]
-    frozen = evaluate_frozen_candidate_thresholds(observed_at_095, [0.90])
+    frozen = evaluate_frozen_candidate_thresholds(
+        observed_at_095,
+        [0.90],
+        measured_threshold=0.90,
+    )
 
     candidate_scores: tuple[dict[int, float], ...] = (
         {},
@@ -104,6 +118,73 @@ def test_metrics_report_missing_hit_average_as_null() -> None:
 
     assert metrics.average_cache_hit_latency_ms is None
     assert metrics.average_cache_miss_latency_ms == pytest.approx(25)
+    assert metrics.true_positive_hits == 0
+    assert metrics.true_negative_misses == 1
     assert metrics.precision == 0
     assert metrics.recall == 0
     assert metrics.f1_score == 0
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_counts", "expected_quality"),
+    [
+        (
+            [
+                BenchmarkObservation(False, True, 10, False, 0.99),
+                BenchmarkObservation(False, False, 20, True, 0.10),
+            ],
+            (0, 1, 1, 0),
+            (0.0, 0.0, 0.0),
+        ),
+        (
+            [
+                BenchmarkObservation(True, False, 10, True, 0.20),
+                BenchmarkObservation(False, False, 20, True, None),
+            ],
+            (0, 1, 0, 1),
+            (0.0, 0.0, 0.0),
+        ),
+        (
+            [
+                BenchmarkObservation(True, True, 10, False, 0.99),
+                BenchmarkObservation(False, True, 20, False, 0.95),
+            ],
+            (1, 0, 1, 0),
+            (0.5, 1.0, 2 / 3),
+        ),
+        (
+            [
+                BenchmarkObservation(True, False, 10, True, 0.20),
+                BenchmarkObservation(False, False, 20, True, None),
+            ],
+            (0, 1, 0, 1),
+            (0.0, 0.0, 0.0),
+        ),
+    ],
+    ids=[
+        "zero-positive",
+        "zero-predicted-positive",
+        "all-hit",
+        "all-miss",
+    ],
+)
+def test_quality_metrics_cover_zero_and_extreme_classifications(
+    source: list[BenchmarkObservation],
+    expected_counts: tuple[int, int, int, int],
+    expected_quality: tuple[float, float, float],
+) -> None:
+    metrics = calculate_metrics(
+        source,
+        estimated_cost_per_request_usd=0,
+        estimated_cost_per_1k_tokens_usd=0,
+    )
+
+    assert (
+        metrics.true_positive_hits,
+        metrics.true_negative_misses,
+        metrics.false_positive_hits,
+        metrics.false_negative_misses,
+    ) == expected_counts
+    assert metrics.precision == pytest.approx(expected_quality[0])
+    assert metrics.recall == pytest.approx(expected_quality[1])
+    assert metrics.f1_score == pytest.approx(expected_quality[2])

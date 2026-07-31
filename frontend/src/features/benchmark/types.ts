@@ -15,8 +15,18 @@ export type BenchmarkOutcome =
   | "false_positive"
   | "false_negative";
 
+export type ProviderCategory =
+  | "huggingface"
+  | "openai"
+  | "anthropic"
+  | "gemini"
+  | "ollama"
+  | "mock";
+
 export interface BenchmarkDatasetSummary {
   dataset_id: BenchmarkDatasetId;
+  version: string;
+  digest: string;
   name: string;
   description: string;
   query_count: number;
@@ -56,6 +66,8 @@ export interface BenchmarkMetrics {
   estimated_latency_saved_ms: number;
   estimated_provider_cost_saved_usd: number;
   estimated_tokens_saved: number;
+  true_positive_hits: number;
+  true_negative_misses: number;
   false_positive_hits: number;
   false_negative_misses: number;
   precision: number;
@@ -77,18 +89,42 @@ export interface BenchmarkQueryResult {
   latency_ms: number;
   provider_called: boolean;
   matched_prompt: string | null;
+  matched_cache_key: string | null;
 }
 
 export interface ThresholdEvaluation {
   threshold: number;
+  result_kind: "measured" | "projected";
   hit_rate: number;
   precision: number;
   recall: number;
   f1_score: number;
   average_latency_ms: number;
   provider_calls_avoided: number;
+  true_positive_hits: number;
+  true_negative_misses: number;
   false_positive_hits: number;
   false_negative_misses: number;
+}
+
+export interface BenchmarkReproducibilityMetadata {
+  application_version: string;
+  dataset_id: BenchmarkDatasetId;
+  dataset_version: string;
+  dataset_digest: string;
+  embedding_provider_category: ProviderCategory;
+  generation_provider_category: ProviderCategory;
+  embedding_dimensions: number;
+  embedding_space_fingerprint: string;
+  normalization_mode: "identity" | "typo_correction";
+  normalization_fingerprint: string;
+  evaluation_thresholds: number[];
+  repetitions: number;
+  reset_cache_before_run: boolean;
+  estimated_cost_per_request_usd: number;
+  estimated_cost_per_1k_tokens_usd: number;
+  evaluation_timeout_seconds: number;
+  configuration_fingerprint: string;
 }
 
 export interface BenchmarkRunResponse {
@@ -101,6 +137,7 @@ export interface BenchmarkRunResponse {
   reset_cache_before_run: boolean;
   estimated_cost_per_request_usd: number;
   estimated_cost_per_1k_tokens_usd: number;
+  reproducibility: BenchmarkReproducibilityMetadata;
   metrics: BenchmarkMetrics;
   threshold_evaluation_mode: "frozen_candidate_projection";
   threshold_evaluations: ThresholdEvaluation[];

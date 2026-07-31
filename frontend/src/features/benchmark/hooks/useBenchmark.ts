@@ -9,6 +9,8 @@ import {
   apiErrorFromUnknown,
   dataFromApiResult,
 } from "@/shared/query/apiResult";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { canRunBenchmarks } from "@/features/auth/permissions";
 import { benchmarkDatasetKeys } from "@/shared/query/queryKeys";
 import {
   getBenchmarkDatasets,
@@ -20,11 +22,13 @@ import type {
   BenchmarkRunRequest,
   BenchmarkRunResponse,
 } from "../types";
+import {
+  compileThresholdSweep,
+  type ThresholdSweep,
+} from "../lib/thresholdSweep";
 
 export const BENCHMARK_DATASET_STALE_TIME_MS = 10 * 60 * 1_000;
 export const BENCHMARK_DATASET_GC_TIME_MS = 30 * 60 * 1_000;
-
-const EVALUATION_THRESHOLDS = [0.7, 0.8, 0.85, 0.9, 0.92, 0.95, 0.98];
 
 export interface BenchmarkForm {
   datasetId: BenchmarkDatasetId;
@@ -33,18 +37,24 @@ export interface BenchmarkForm {
   resetCacheBeforeRun: boolean;
   costPerRequestUsd: number;
   costPer1kTokensUsd: number;
+  sweepStart: number;
+  sweepEnd: number;
+  sweepStep: number;
 }
 
 export interface BenchmarkController {
   datasets: BenchmarkDatasetSummary[];
   datasetsLoading: boolean;
   datasetsRefreshing: boolean;
+  canRun: boolean;
   error: string | null;
   form: BenchmarkForm;
   isRunning: boolean;
   result: BenchmarkRunResponse | null;
   selectedDataset: BenchmarkDatasetSummary | null;
   showWarning: boolean;
+  statusMessage: string;
+  sweep: ThresholdSweep;
   cancelRun: () => void;
   confirmRun: () => Promise<void>;
   reviewRun: () => void;
@@ -58,13 +68,19 @@ const DEFAULT_FORM: BenchmarkForm = {
   resetCacheBeforeRun: true,
   costPerRequestUsd: 0,
   costPer1kTokensUsd: 0,
+  sweepStart: 0.7,
+  sweepEnd: 0.98,
+  sweepStep: 0.05,
 };
 
-function requestFromForm(form: BenchmarkForm): BenchmarkRunRequest {
+function requestFromForm(
+  form: BenchmarkForm,
+  evaluationThresholds: number[],
+): BenchmarkRunRequest {
   return {
     dataset_id: form.datasetId,
     threshold: form.threshold,
-    evaluation_thresholds: EVALUATION_THRESHOLDS,
+    evaluation_thresholds: evaluationThresholds,
     repetitions: form.repetitions,
     reset_cache_before_run: form.resetCacheBeforeRun,
     estimated_cost_per_request_usd: form.costPerRequestUsd,
@@ -74,11 +90,13 @@ function requestFromForm(form: BenchmarkForm): BenchmarkRunRequest {
 }
 
 export function useBenchmark(): BenchmarkController {
+  const auth = useAuth();
   const [form, setForm] = useState<BenchmarkForm>(DEFAULT_FORM);
   const [result, setResult] = useState<BenchmarkRunResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
   const activeRun = useRef<AbortController | null>(null);
   const runSequence = useRef(0);
   const hasAppliedDefaultDataset = useRef(false);
@@ -125,8 +143,18 @@ export function useBenchmark(): BenchmarkController {
 
   const selectedDataset =
     datasets.find((dataset) => dataset.dataset_id === form.datasetId) ?? null;
+  const canRun = canRunBenchmarks(auth.status, auth.session);
+  const sweep = compileThresholdSweep(
+    form.sweepStart,
+    form.sweepEnd,
+    form.sweepStep,
+    form.threshold,
+  );
 
   async function confirmRun(): Promise<void> {
+    if (!canRun || sweep.error !== null) {
+      return;
+    }
     const controller = new AbortController();
     const runId = runSequence.current + 1;
     runSequence.current = runId;
@@ -135,10 +163,11 @@ export function useBenchmark(): BenchmarkController {
     setShowWarning(false);
     setIsRunning(true);
     setError(null);
+    setStatusMessage("Evaluation run started.");
 
     try {
       const response = await runBenchmark(
-        requestFromForm(form),
+        requestFromForm(form, sweep.thresholds),
         controller.signal,
       );
       if (
@@ -150,9 +179,11 @@ export function useBenchmark(): BenchmarkController {
 
       if (!response.ok) {
         setError(response.error.detail ?? "The benchmark run failed.");
+        setStatusMessage("Evaluation run failed.");
         return;
       }
       setResult(response.data);
+      setStatusMessage("Evaluation run completed. Results are available below.");
     } finally {
       if (runId === runSequence.current) {
         activeRun.current = null;
@@ -166,15 +197,22 @@ export function useBenchmark(): BenchmarkController {
     datasetsLoading,
     datasetsRefreshing:
       datasetQuery.data !== undefined && datasetQuery.isFetching,
+    canRun,
     error: error ?? datasetError,
     form,
     isRunning,
     result,
     selectedDataset,
     showWarning,
+    statusMessage,
+    sweep,
     cancelRun: () => setShowWarning(false),
     confirmRun,
-    reviewRun: () => setShowWarning(true),
+    reviewRun: () => {
+      if (canRun && sweep.error === null) {
+        setShowWarning(true);
+      }
+    },
     setForm,
   };
 }

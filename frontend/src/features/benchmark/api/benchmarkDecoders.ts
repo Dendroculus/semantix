@@ -18,7 +18,9 @@ import type {
   BenchmarkMetrics,
   BenchmarkOutcome,
   BenchmarkQueryResult,
+  BenchmarkReproducibilityMetadata,
   BenchmarkRunResponse,
+  ProviderCategory,
   ThresholdEvaluation,
 } from '../types';
 
@@ -40,11 +42,25 @@ const OUTCOMES: readonly BenchmarkOutcome[] = [
   'false_positive',
   'false_negative',
 ];
+const PROVIDER_CATEGORIES: readonly ProviderCategory[] = [
+  'huggingface',
+  'openai',
+  'anthropic',
+  'gemini',
+  'ollama',
+  'mock',
+];
+const RESULT_KINDS = ['measured', 'projected'] as const;
+const NORMALIZATION_MODES = ['identity', 'typo_correction'] as const;
 
 const isDatasetId = createEnumGuard(DATASET_IDS);
 const isCategory = createEnumGuard(CATEGORIES);
 const isOutcome = createEnumGuard(OUTCOMES);
+const isProviderCategory = createEnumGuard(PROVIDER_CATEGORIES);
+const isResultKind = createEnumGuard(RESULT_KINDS);
+const isNormalizationMode = createEnumGuard(NORMALIZATION_MODES);
 const RUN_ID_PATTERN = /^[a-f0-9]{32}$/;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const TIMEZONE_SUFFIX_PATTERN = /(Z|[+-]\d{2}:\d{2})$/i;
 
 function isTimezoneAwareIsoDate(value: unknown): value is string {
@@ -58,6 +74,10 @@ function dataset(value: unknown): BenchmarkDatasetSummary {
   if (
     !isRecord(value) ||
     !isDatasetId(value.dataset_id) ||
+    !isNonEmptyString(value.version) ||
+    value.version.length > 50 ||
+    typeof value.digest !== 'string' ||
+    !SHA256_PATTERN.test(value.digest) ||
     !isNonEmptyString(value.name) ||
     value.name.length > 100 ||
     !isNonEmptyString(value.description) ||
@@ -79,6 +99,8 @@ function dataset(value: unknown): BenchmarkDatasetSummary {
 
   return {
     dataset_id: value.dataset_id,
+    version: value.version,
+    digest: value.digest,
     name: value.name,
     description: value.description,
     query_count: value.query_count,
@@ -98,10 +120,12 @@ function metrics(value: unknown): BenchmarkMetrics {
   const cacheMisses = value.cache_misses;
   const providerCalls = value.provider_calls;
   const providerCallsAvoided = value.provider_calls_avoided;
+  const truePositiveHits = value.true_positive_hits;
+  const trueNegativeMisses = value.true_negative_misses;
+  const falsePositiveHits = value.false_positive_hits;
+  const falseNegativeMisses = value.false_negative_misses;
   const integers = [
     value.estimated_tokens_saved,
-    value.false_positive_hits,
-    value.false_negative_misses,
   ];
 
   const nonNegativeNumbers = [
@@ -118,6 +142,10 @@ function metrics(value: unknown): BenchmarkMetrics {
     !isNonNegativeInteger(cacheMisses) ||
     !isNonNegativeInteger(providerCalls) ||
     !isNonNegativeInteger(providerCallsAvoided) ||
+    !isNonNegativeInteger(truePositiveHits) ||
+    !isNonNegativeInteger(trueNegativeMisses) ||
+    !isNonNegativeInteger(falsePositiveHits) ||
+    !isNonNegativeInteger(falseNegativeMisses) ||
     !integers.every(isNonNegativeInteger) ||
     totalQueries < 1 ||
     !nonNegativeNumbers.every(isNonNegativeNumber) ||
@@ -133,7 +161,16 @@ function metrics(value: unknown): BenchmarkMetrics {
 
   if (
     cacheHits + cacheMisses !== totalQueries ||
-    providerCalls + providerCallsAvoided !== totalQueries
+    providerCalls + providerCallsAvoided !== totalQueries ||
+    truePositiveHits +
+      trueNegativeMisses +
+      falsePositiveHits +
+      falseNegativeMisses !==
+      totalQueries ||
+    truePositiveHits + falsePositiveHits !== cacheHits ||
+    trueNegativeMisses + falseNegativeMisses !== cacheMisses ||
+    providerCalls !== cacheMisses ||
+    providerCallsAvoided !== cacheHits
   ) {
     throw new Error('Invalid benchmark metric accounting');
   }
@@ -149,6 +186,10 @@ function queryResult(value: unknown): BenchmarkQueryResult {
   const hasValidSimilarityScore =
     value.similarity_score === null ||
     isNumberInRange(value.similarity_score, SIMILARITY_MIN, SIMILARITY_MAX);
+  const hasValidMatchedKey =
+    value.matched_cache_key === null ||
+    (typeof value.matched_cache_key === 'string' &&
+      SHA256_PATTERN.test(value.matched_cache_key));
 
   if (
     !isNonNegativeInteger(value.sequence) ||
@@ -168,11 +209,34 @@ function queryResult(value: unknown): BenchmarkQueryResult {
     !isNonNegativeNumber(value.latency_ms) ||
     typeof value.provider_called !== 'boolean' ||
     !isNullableString(value.matched_prompt) ||
+    !hasValidMatchedKey ||
     (value.matched_prompt !== null &&
       (value.matched_prompt.length === 0 ||
         value.matched_prompt.length > 2_000))
   ) {
     throw new Error('Invalid benchmark query result');
+  }
+
+  let expectedOutcome: BenchmarkOutcome;
+  if (value.actual_cache_hit) {
+    expectedOutcome = value.expected_cache_hit
+      ? 'true_positive'
+      : 'false_positive';
+  } else {
+    expectedOutcome = value.expected_cache_hit
+      ? 'false_negative'
+      : 'true_negative';
+  }
+  if (
+    value.outcome !== expectedOutcome ||
+    value.correct !== (value.expected_cache_hit === value.actual_cache_hit) ||
+    value.provider_called === value.actual_cache_hit ||
+    (value.actual_cache_hit &&
+      (value.matched_prompt === null || value.matched_cache_key === null)) ||
+    (!value.actual_cache_hit &&
+      (value.matched_prompt !== null || value.matched_cache_key !== null))
+  ) {
+    throw new Error('Invalid benchmark query accounting');
   }
 
   return value as unknown as BenchmarkQueryResult;
@@ -182,19 +246,84 @@ function thresholdEvaluation(value: unknown): ThresholdEvaluation {
   if (
     !isRecord(value) ||
     !isNumberInRange(value.threshold, 0, 1) ||
+    !isResultKind(value.result_kind) ||
     !isNumberInRange(value.hit_rate, 0, 1) ||
     !isNumberInRange(value.precision, 0, 1) ||
     !isNumberInRange(value.recall, 0, 1) ||
     !isNumberInRange(value.f1_score, 0, 1) ||
     !isNonNegativeNumber(value.average_latency_ms) ||
     !isNonNegativeInteger(value.provider_calls_avoided) ||
+    !isNonNegativeInteger(value.true_positive_hits) ||
+    !isNonNegativeInteger(value.true_negative_misses) ||
     !isNonNegativeInteger(value.false_positive_hits) ||
     !isNonNegativeInteger(value.false_negative_misses)
   ) {
     throw new Error('Invalid threshold evaluation');
   }
 
+  if (
+    value.true_positive_hits + value.false_positive_hits !==
+    value.provider_calls_avoided
+  ) {
+    throw new Error('Invalid threshold evaluation accounting');
+  }
+
   return value as unknown as ThresholdEvaluation;
+}
+
+function reproducibility(
+  value: unknown,
+): BenchmarkReproducibilityMetadata {
+  if (
+    !isRecord(value) ||
+    !isNonEmptyString(value.application_version) ||
+    value.application_version.length > 50 ||
+    !isDatasetId(value.dataset_id) ||
+    !isNonEmptyString(value.dataset_version) ||
+    value.dataset_version.length > 50 ||
+    typeof value.dataset_digest !== 'string' ||
+    !SHA256_PATTERN.test(value.dataset_digest) ||
+    !isProviderCategory(value.embedding_provider_category) ||
+    !isProviderCategory(value.generation_provider_category) ||
+    !isNonNegativeInteger(value.embedding_dimensions) ||
+    value.embedding_dimensions < 1 ||
+    typeof value.embedding_space_fingerprint !== 'string' ||
+    !SHA256_PATTERN.test(value.embedding_space_fingerprint) ||
+    !isNormalizationMode(value.normalization_mode) ||
+    typeof value.normalization_fingerprint !== 'string' ||
+    !SHA256_PATTERN.test(value.normalization_fingerprint) ||
+    !Array.isArray(value.evaluation_thresholds) ||
+    value.evaluation_thresholds.length < 2 ||
+    value.evaluation_thresholds.length > 15 ||
+    !value.evaluation_thresholds.every((threshold) =>
+      isNumberInRange(threshold, 0, 1),
+    ) ||
+    !isNonNegativeInteger(value.repetitions) ||
+    !isNumberInRange(value.repetitions, 1, 5) ||
+    typeof value.reset_cache_before_run !== 'boolean' ||
+    !isNumberInRange(value.estimated_cost_per_request_usd, 0, 100) ||
+    !isNumberInRange(value.estimated_cost_per_1k_tokens_usd, 0, 100) ||
+    !isNonNegativeNumber(value.evaluation_timeout_seconds) ||
+    value.evaluation_timeout_seconds <= 0 ||
+    value.evaluation_timeout_seconds > 3_600 ||
+    typeof value.configuration_fingerprint !== 'string' ||
+    !SHA256_PATTERN.test(value.configuration_fingerprint)
+  ) {
+    throw new Error('Invalid benchmark reproducibility metadata');
+  }
+
+  const thresholds = value.evaluation_thresholds as number[];
+  if (
+    thresholds.some(
+      (threshold, index) =>
+        index > 0 &&
+        threshold <= (thresholds[index - 1] ?? threshold),
+    )
+  ) {
+    throw new Error('Invalid benchmark reproducibility thresholds');
+  }
+
+  return value as unknown as BenchmarkReproducibilityMetadata;
 }
 
 export function decodeBenchmarkDatasets(
@@ -234,9 +363,11 @@ export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
     typeof value.reset_cache_before_run !== 'boolean' ||
     !isNonNegativeNumber(value.estimated_cost_per_request_usd) ||
     !isNonNegativeNumber(value.estimated_cost_per_1k_tokens_usd) ||
+    !isRecord(value.reproducibility) ||
     value.threshold_evaluation_mode !== 'frozen_candidate_projection' ||
     !Array.isArray(value.threshold_evaluations) ||
     value.threshold_evaluations.length < 2 ||
+    value.threshold_evaluations.length > 15 ||
     !Array.isArray(value.query_results) ||
     value.query_results.length === 0
   ) {
@@ -244,17 +375,60 @@ export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
   }
 
   const decodedDataset = dataset(value.dataset);
+  const decodedReproducibility = reproducibility(value.reproducibility);
   const decodedMetrics = metrics(value.metrics);
   const thresholdEvaluations =
     value.threshold_evaluations.map(thresholdEvaluation);
   const queryResults = value.query_results.map(queryResult);
   const expectedResultCount =
     decodedDataset.query_count * value.repetitions;
+  const thresholds = thresholdEvaluations.map(
+    (evaluation) => evaluation.threshold,
+  );
+  const measured = thresholdEvaluations.filter(
+    (evaluation) => evaluation.result_kind === 'measured',
+  );
+  const outcomeCount = (outcome: BenchmarkOutcome): number =>
+    queryResults.filter((query) => query.outcome === outcome).length;
 
   if (
     Date.parse(value.completed_at) < Date.parse(value.started_at) ||
     queryResults.length !== expectedResultCount ||
-    decodedMetrics.total_queries !== queryResults.length
+    decodedMetrics.total_queries !== queryResults.length ||
+    decodedMetrics.true_positive_hits !== outcomeCount('true_positive') ||
+    decodedMetrics.true_negative_misses !== outcomeCount('true_negative') ||
+    decodedMetrics.false_positive_hits !== outcomeCount('false_positive') ||
+    decodedMetrics.false_negative_misses !== outcomeCount('false_negative') ||
+    decodedMetrics.provider_calls !==
+      queryResults.filter((query) => query.provider_called).length ||
+    measured.length !== 1 ||
+    measured[0]?.threshold !== value.threshold ||
+    thresholds.some(
+      (threshold, index) =>
+        index > 0 && threshold <= (thresholds[index - 1] ?? threshold),
+    ) ||
+    thresholdEvaluations.some(
+      (evaluation) =>
+        evaluation.true_positive_hits +
+          evaluation.true_negative_misses +
+          evaluation.false_positive_hits +
+          evaluation.false_negative_misses !==
+        queryResults.length,
+    ) ||
+    decodedReproducibility.dataset_id !== decodedDataset.dataset_id ||
+    decodedReproducibility.dataset_version !== decodedDataset.version ||
+    decodedReproducibility.dataset_digest !== decodedDataset.digest ||
+    decodedReproducibility.repetitions !== value.repetitions ||
+    decodedReproducibility.reset_cache_before_run !==
+      value.reset_cache_before_run ||
+    decodedReproducibility.estimated_cost_per_request_usd !==
+      value.estimated_cost_per_request_usd ||
+    decodedReproducibility.estimated_cost_per_1k_tokens_usd !==
+      value.estimated_cost_per_1k_tokens_usd ||
+    decodedReproducibility.evaluation_thresholds.length !== thresholds.length ||
+    decodedReproducibility.evaluation_thresholds.some(
+      (threshold, index) => threshold !== thresholds[index],
+    )
   ) {
     throw new Error('Invalid benchmark run accounting');
   }
@@ -269,6 +443,7 @@ export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
     reset_cache_before_run: value.reset_cache_before_run,
     estimated_cost_per_request_usd: value.estimated_cost_per_request_usd,
     estimated_cost_per_1k_tokens_usd: value.estimated_cost_per_1k_tokens_usd,
+    reproducibility: decodedReproducibility,
     metrics: decodedMetrics,
     threshold_evaluation_mode: value.threshold_evaluation_mode,
     threshold_evaluations: thresholdEvaluations,

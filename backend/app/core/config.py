@@ -103,6 +103,7 @@ class Settings(BaseSettings):
     mock_embedding_dimensions: int = Field(default=384, gt=0)
 
     provider_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+    evaluation_timeout_seconds: float = Field(default=300.0, gt=0, le=3_600)
     provider_max_response_bytes: int = Field(
         default=DEFAULT_PROVIDER_MAX_RESPONSE_BYTES,
         ge=1,

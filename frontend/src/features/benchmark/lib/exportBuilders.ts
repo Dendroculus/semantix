@@ -17,6 +17,7 @@ const CSV_COLUMNS: ReadonlyArray<keyof BenchmarkQueryResult> = [
   "latency_ms",
   "provider_called",
   "matched_prompt",
+  "matched_cache_key",
 ];
 
 function csvCell(value: string | number | boolean | null): string {

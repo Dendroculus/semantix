@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from app.benchmark.api.schemas import (
     BenchmarkCategory,
     BenchmarkDatasetSummary,
+    NormalizationMode,
+    ProviderCategory,
 )
 
 
@@ -28,3 +30,15 @@ class BenchmarkObservation:
     provider_called: bool
     similarity_score: float | None
     estimated_tokens_saved: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class BenchmarkRuntimeConfiguration:
+    application_version: str
+    embedding_provider_category: ProviderCategory
+    generation_provider_category: ProviderCategory
+    embedding_dimensions: int
+    embedding_space_fingerprint: str
+    normalization_mode: NormalizationMode
+    normalization_fingerprint: str
+    evaluation_timeout_seconds: float
