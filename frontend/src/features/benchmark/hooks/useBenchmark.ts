@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useEffect,
   useMemo,
@@ -6,7 +6,10 @@ import {
   useState,
 } from "react";
 
-import { canRunBenchmarks } from "@/features/auth/permissions";
+import {
+  canPersistEvaluationDatasets,
+  canRunBenchmarks,
+} from "@/features/auth/permissions";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { ApiValidationIssue } from "@/shared/api/types";
 import {
@@ -16,6 +19,7 @@ import {
 import { benchmarkDatasetKeys } from "@/shared/query/queryKeys";
 import {
   getBenchmarkDatasets,
+  persistEvaluationDataset,
   runBenchmark,
   validateEvaluationDataset,
 } from "../api/benchmarkApi";
@@ -29,6 +33,7 @@ import type {
   BenchmarkRunResponse,
   EvaluationDatasetPreview,
   EvaluationRunRequest,
+  PersistedEvaluationDatasetDetail,
 } from "../types";
 
 export const BENCHMARK_DATASET_STALE_TIME_MS = 10 * 60 * 1_000;
@@ -37,7 +42,9 @@ export const EVALUATION_IMPORT_FILE_MAX_BYTES = 65_536;
 
 export interface BenchmarkForm {
   datasetId: BenchmarkDatasetId;
-  datasetSource: "builtin" | "custom";
+  datasetSource: "builtin" | "custom" | "persisted";
+  persistedDatasetId: string;
+  persistedNamespace: string;
   threshold: number;
   repetitions: number;
   resetCacheBeforeRun: boolean;
@@ -53,23 +60,34 @@ export interface BenchmarkController {
   datasetsLoading: boolean;
   datasetsRefreshing: boolean;
   canRun: boolean;
+  canSaveImport: boolean;
   error: string | null;
   form: BenchmarkForm;
   importError: string | null;
   importFileName: string | null;
   importIssues: ApiValidationIssue[];
   isRunning: boolean;
+  isSavingImport: boolean;
   isValidatingImport: boolean;
   preview: EvaluationDatasetPreview | null;
+  persistedDataset: PersistedEvaluationDatasetDetail | null;
   result: BenchmarkRunResponse | null;
   selectedDataset: BenchmarkDatasetSummary | null;
   showWarning: boolean;
   statusMessage: string;
   sweep: ThresholdSweep;
   cancelRun: () => void;
+  clearPersistedSelection: (datasetId: string) => void;
   confirmRun: () => Promise<void>;
   removeImport: () => void;
   reviewRun: () => Promise<void>;
+  saveImport: (
+    namespace: string | undefined,
+    retentionDays: number,
+  ) => Promise<PersistedEvaluationDatasetDetail | null>;
+  selectPersistedDataset: (
+    dataset: PersistedEvaluationDatasetDetail,
+  ) => void;
   selectImportFile: (file: File) => Promise<void>;
   setForm: React.Dispatch<React.SetStateAction<BenchmarkForm>>;
 }
@@ -77,6 +95,8 @@ export interface BenchmarkController {
 const DEFAULT_FORM: BenchmarkForm = {
   datasetId: "quick",
   datasetSource: "builtin",
+  persistedDatasetId: "",
+  persistedNamespace: "",
   threshold: 0.92,
   repetitions: 1,
   resetCacheBeforeRun: true,
@@ -106,16 +126,53 @@ function customSummary(
   };
 }
 
+function persistedSummary(
+  detail: PersistedEvaluationDatasetDetail,
+): BenchmarkDatasetSummary {
+  const expectedHits = detail.cases.filter(
+    (item) => item.expected_cache_hit,
+  ).length;
+  const categories = [
+    ...new Set(
+      detail.cases.map((item) => item.category ?? "uncategorized"),
+    ),
+  ];
+  return {
+    dataset_id: detail.dataset_id,
+    dataset_source: "persisted",
+    schema_version: detail.schema_version,
+    version: String(detail.schema_version),
+    digest: detail.digest,
+    name: detail.name,
+    description:
+      detail.description ?? "Persisted imported evaluation dataset.",
+    query_count: detail.case_count,
+    expected_hits: expectedHits,
+    expected_misses: detail.case_count - expectedHits,
+    categories,
+  };
+}
+
 function requestFromForm(
   form: BenchmarkForm,
   evaluationThresholds: number[],
   importedDefinition: unknown,
 ): EvaluationRunRequest {
+  let datasetSource: EvaluationRunRequest["dataset_source"];
+  if (form.datasetSource === "custom") {
+    datasetSource = { kind: "inline", definition: importedDefinition };
+  } else if (form.datasetSource === "persisted") {
+    datasetSource = {
+      kind: "persisted",
+      dataset_id: form.persistedDatasetId,
+      namespace: form.persistedNamespace,
+    };
+  } else {
+    datasetSource = { kind: "builtin", dataset_id: form.datasetId };
+  }
+
   return {
-    dataset_source:
-      form.datasetSource === "custom"
-        ? { kind: "inline", definition: importedDefinition }
-        : { kind: "builtin", dataset_id: form.datasetId },
+    dataset_source: datasetSource,
     threshold: form.threshold,
     evaluation_thresholds: evaluationThresholds,
     repetitions: form.repetitions,
@@ -128,6 +185,7 @@ function requestFromForm(
 
 export function useBenchmark(): BenchmarkController {
   const auth = useAuth();
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<BenchmarkForm>(DEFAULT_FORM);
   const [result, setResult] = useState<BenchmarkRunResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +198,9 @@ export function useBenchmark(): BenchmarkController {
   const [importError, setImportError] = useState<string | null>(null);
   const [importIssues, setImportIssues] = useState<ApiValidationIssue[]>([]);
   const [isValidatingImport, setIsValidatingImport] = useState(false);
+  const [isSavingImport, setIsSavingImport] = useState(false);
+  const [persistedDataset, setPersistedDataset] =
+    useState<PersistedEvaluationDatasetDetail | null>(null);
   const activeRun = useRef<AbortController | null>(null);
   const activeValidation = useRef<AbortController | null>(null);
   const runSequence = useRef(0);
@@ -200,6 +261,13 @@ export function useBenchmark(): BenchmarkController {
     if (previousPrincipal.current !== authIdentity) {
       previousPrincipal.current = authIdentity;
       clearImport();
+      setPersistedDataset(null);
+      setForm((current) => ({
+        ...current,
+        datasetSource: "builtin",
+        persistedDatasetId: "",
+        persistedNamespace: "",
+      }));
     }
   }, [authIdentity]);
 
@@ -227,12 +295,24 @@ export function useBenchmark(): BenchmarkController {
   let selectedDataset = builtinDataset;
   if (form.datasetSource === "custom") {
     selectedDataset = preview === null ? null : customSummary(preview);
+  } else if (form.datasetSource === "persisted") {
+    selectedDataset =
+      persistedDataset === null ? null : persistedSummary(persistedDataset);
   }
-  const hasRunnableDataset =
-    form.datasetSource === "builtin"
-      ? builtinDataset !== null
-      : importedDefinition !== null && preview !== null;
+  let hasRunnableDataset = builtinDataset !== null;
+  if (form.datasetSource === "custom") {
+    hasRunnableDataset = importedDefinition !== null && preview !== null;
+  } else if (form.datasetSource === "persisted") {
+    hasRunnableDataset =
+      persistedDataset !== null &&
+      persistedDataset.dataset_id === form.persistedDatasetId &&
+      persistedDataset.namespace === form.persistedNamespace;
+  }
   const canRun = canRunBenchmarks(auth.status, auth.session);
+  const canSaveImport = canPersistEvaluationDatasets(
+    auth.status,
+    auth.session,
+  );
   const sweep = compileThresholdSweep(
     form.sweepStart,
     form.sweepEnd,
@@ -321,7 +401,8 @@ export function useBenchmark(): BenchmarkController {
   async function reviewRun(): Promise<void> {
     if (
       !canRunBenchmarks(auth.status, auth.session) ||
-      sweep.error !== null
+      sweep.error !== null ||
+      !hasRunnableDataset
     ) {
       return;
     }
@@ -333,10 +414,84 @@ export function useBenchmark(): BenchmarkController {
       if (validated === null) {
         return;
       }
-    } else if (builtinDataset === null) {
-      return;
     }
     setShowWarning(true);
+  }
+
+  async function saveImport(
+    namespace: string | undefined,
+    retentionDays: number,
+  ): Promise<PersistedEvaluationDatasetDetail | null> {
+    if (
+      !canSaveImport ||
+      importedDefinition === null ||
+      preview === null ||
+      !Number.isSafeInteger(retentionDays) ||
+      retentionDays < 1
+    ) {
+      return null;
+    }
+    setIsSavingImport(true);
+    setError(null);
+    setStatusMessage("Saving the validated dataset...");
+    try {
+      const response = await persistEvaluationDataset({
+        ...(namespace === undefined ? {} : { namespace }),
+        dataset: importedDefinition,
+        retention_days: retentionDays,
+      });
+      if (!response.ok) {
+        setError(
+          response.error.detail ?? "The validated dataset could not be saved.",
+        );
+        setStatusMessage("Dataset save failed.");
+        return null;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: benchmarkDatasetKeys.persisted(),
+      });
+      setStatusMessage(
+        `Saved ${response.data.name} in namespace ${response.data.namespace}.`,
+      );
+      return response.data;
+    } finally {
+      setIsSavingImport(false);
+    }
+  }
+
+  function selectPersistedDataset(
+    dataset: PersistedEvaluationDatasetDetail,
+  ): void {
+    setPersistedDataset(dataset);
+    setForm((current) => ({
+      ...current,
+      datasetSource: "persisted",
+      persistedDatasetId: dataset.dataset_id,
+      persistedNamespace: dataset.namespace,
+    }));
+    setResult(null);
+    setShowWarning(false);
+    setError(null);
+    setStatusMessage(
+      `Selected persisted dataset ${dataset.name} for the next run.`,
+    );
+  }
+
+  function clearPersistedSelection(datasetId: string): void {
+    setPersistedDataset((current) =>
+      current?.dataset_id === datasetId ? null : current,
+    );
+    setForm((current) =>
+      current.persistedDatasetId === datasetId
+        ? {
+            ...current,
+            datasetSource: "builtin",
+            persistedDatasetId: "",
+            persistedNamespace: "",
+          }
+        : current,
+    );
+    setShowWarning(false);
   }
 
   async function confirmRun(): Promise<void> {
@@ -388,23 +543,29 @@ export function useBenchmark(): BenchmarkController {
     datasetsRefreshing:
       datasetQuery.data !== undefined && datasetQuery.isFetching,
     canRun,
+    canSaveImport,
     error: error ?? datasetError,
     form,
     importError,
     importFileName,
     importIssues,
     isRunning,
+    isSavingImport,
     isValidatingImport,
     preview,
+    persistedDataset,
     result,
     selectedDataset,
     showWarning,
     statusMessage,
     sweep,
     cancelRun: () => setShowWarning(false),
+    clearPersistedSelection,
     confirmRun,
     removeImport: clearImport,
     reviewRun,
+    saveImport,
+    selectPersistedDataset,
     selectImportFile,
     setForm,
   };

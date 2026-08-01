@@ -100,6 +100,10 @@ describe("authentication query isolation", () => {
       benchmarkDatasetKeys.catalog(),
       "old datasets",
     );
+    const persistedKey = benchmarkDatasetKeys.persistedDetail(
+      "123e4567-e89b-42d3-a456-426614174000",
+    );
+    queryClient.setQueryData(persistedKey, "old persisted detail");
     queryClient.setQueryData(["public-preference"], "preserve me");
 
     render(
@@ -124,6 +128,7 @@ describe("authentication query isolation", () => {
     expect(
       queryClient.getQueryData(benchmarkDatasetKeys.catalog()),
     ).toBeUndefined();
+    expect(queryClient.getQueryData(persistedKey)).toBeUndefined();
     expect(queryClient.getQueryData(["public-preference"])).toBe(
       "preserve me",
     );

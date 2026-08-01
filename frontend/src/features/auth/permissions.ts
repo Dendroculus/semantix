@@ -29,3 +29,21 @@ export function canRunBenchmarks(
     (session?.role === "operator" || session?.role === "admin")
   );
 }
+
+export function canPersistEvaluationDatasets(
+  status: AuthContextValue["status"],
+  session: AuthSession | null,
+): boolean {
+  return canRunBenchmarks(status, session);
+}
+
+export function canDeleteEvaluationDatasets(
+  status: AuthContextValue["status"],
+  session: AuthSession | null,
+): boolean {
+  if (status === "disabled") {
+    return true;
+  }
+
+  return status === "authenticated" && session?.role === "admin";
+}
