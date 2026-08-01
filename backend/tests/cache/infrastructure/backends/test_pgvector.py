@@ -98,6 +98,7 @@ async def test_embedding_spaces_remain_isolated_across_restarts() -> None:
         assert metadata is not None
         assert metadata.hit_count == 1
         assert metadata.last_accessed_at is not None
+        assert metadata.response == "first response"
         assert (await first.stats(None)).model_dump() == {
             "size": 1,
             "hits": 1,
