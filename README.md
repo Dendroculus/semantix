@@ -53,7 +53,9 @@ Core capabilities:
 - run-local evaluation caches, complete confusion-matrix accounting, and
   configurable bounded frozen-candidate threshold sweeps;
 - versioned session-local JSON evaluation datasets with provider-free preview,
-  strict validation, and no browser or server persistence.
+  strict validation, and no browser persistence;
+- optional namespace-authorized PostgreSQL evaluation dataset catalog with
+  explicit save, bounded retention, and no stored run results.
 
 ## ⚙️ How it works
 
@@ -114,6 +116,8 @@ MOCK_EMBEDDING_DIMENSIONS=384
 CACHE_BACKEND=pgvector
 DATABASE_URL=postgresql://semantix:semantix@postgres:5432/semantix
 DATABASE_MIGRATION_MODE=auto
+EVALUATION_DATASET_STORAGE=postgres
+EVALUATION_DATASET_DEFAULT_RETENTION_DAYS=30
 
 AUTH_MODE=disabled
 AUTH_PRINCIPALS=[]

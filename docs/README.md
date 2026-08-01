@@ -20,7 +20,7 @@ root [README](../README.md) remains the short project overview and quick start.
 | Reference | Use it for |
 |---|---|
 | [API](reference/api.md) | Endpoints, authentication, requests, responses, and error contracts |
-| [Evaluation dataset schema v1](reference/evaluation-dataset-schema-v1.md) | Session-local JSON fields, validation codes, limits, and retention |
+| [Evaluation dataset schema v1](reference/evaluation-dataset-schema-v1.md) | Imported JSON fields, validation codes, limits, persistence, and retention |
 | [Architecture](reference/architecture.md) | Runtime flow, feature ownership, boundaries, and deployment constraints |
 | [Accessibility](reference/accessibility.md) | Accessibility expectations and verification commands |
 

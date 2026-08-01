@@ -66,20 +66,23 @@ display names and descriptions do not affect it.
 1. Open <http://localhost:4173/evaluations>.
 2. Select a built-in dataset, or choose **Custom JSON dataset** and select a
    schema version 1 file.
-3. Optionally disclose the advanced sweep controls and choose a start, end,
+3. To reuse a validated import later, open **Datasets** and explicitly save it
+   to an authorized namespace. This control appears only when PostgreSQL
+   evaluation storage is enabled and the principal has Operator access.
+4. Optionally disclose the advanced sweep controls and choose a start, end,
    and step. The UI shows the resulting explicit list and includes the measured
    threshold exactly once.
-4. Keep one repetition and reset enabled for a short independent run.
-5. Review the bounded case count and maximum generation-call warning.
-6. Confirm the run.
-7. Select a confusion-matrix outcome or use the false-positive and
+5. Keep one repetition and reset enabled for a short independent run.
+6. Review the bounded case count and maximum generation-call warning.
+7. Confirm the run.
+8. Select a confusion-matrix outcome or use the false-positive and
    false-negative quick filters.
-8. Search the measured cases and open a case detail to inspect its expected and
+9. Search the measured cases and open a case detail to inspect its expected and
    actual decisions, match evidence, threshold, provider-call state, latency,
    and dataset identity.
-9. Inspect threshold projections and similarity distributions separately from
+10. Inspect threshold projections and similarity distributions separately from
    measured case evidence.
-10. Export JSON for the complete response or CSV revision 3 for independently
+11. Export JSON for the complete response or CSV revision 3 for independently
     interpretable per-case evidence.
 
 Benchmark requests may call the selected generation provider. Review provider
@@ -97,17 +100,40 @@ The preview makes zero embedding or generation calls. It shows the transient
 digest, expected hit/miss counts, decoded size, warnings, bounded query work,
 and maximum possible provider calls.
 
-The imported object remains only in the mounted Evaluations feature. Removal,
-reload, sign-out, and an authentication-principal change clear it. Semantix
-does not use `localStorage`, `sessionStorage`, IndexedDB, a service worker, a
-server catalog, or a database for imported datasets. During execution, prompts
-may leave the system through the configured providers; the review warning
-makes that boundary explicit.
+The imported object remains only in the mounted Evaluations feature unless an
+Operator explicitly saves it. Removal, reload, sign-out, and an
+authentication-principal change clear the session copy. Semantix does not use
+`localStorage`, `sessionStorage`, IndexedDB, or a service worker for imported
+datasets. During execution, prompts may leave the system through the configured
+providers; the review warning makes that boundary explicit.
 
 The server revalidates the inline definition in the run request. A successful
 preview is not a reusable authorization or integrity proof. Read the
 [schema version 1 reference](../reference/evaluation-dataset-schema-v1.md)
 before producing files.
+
+### Persistent dataset catalog
+
+Set `EVALUATION_DATASET_STORAGE=postgres` and configure `DATABASE_URL` to
+enable the Datasets catalog. Session-only remains the default and displays a
+clear disabled-persistence fallback without opening a database connection.
+
+The catalog distinguishes Built-in, Session, and Persisted sources. Viewer
+principals can list and inspect permitted persisted metadata and cases.
+Operators can explicitly save a validated session import and select persisted
+detail for a later run. Admins can delete a dataset after an inline
+confirmation names its exact dataset, namespace, case count, and consequence.
+Principals with multiple namespaces must choose one for save; wildcard
+administrators must type an explicit namespace.
+
+Every persisted record includes an immutable UUID, namespace, schema version,
+digest, decoded size, case count, creation timestamp, and expiry timestamp.
+The default retention is 30 days, the maximum is 365 days, and the default
+capacity is 100 active records per namespace. Identical content may be saved
+again as a separate record with the same digest. Expired content disappears
+from catalog and run access and is purged opportunistically in bounded batches.
+No run summary, per-query result, generated response, embedding, or live-cache
+entry is persisted.
 
 The backend separately applies `EVALUATION_TIMEOUT_SECONDS` (300 seconds by
 default, validated from greater than zero through 3,600). A timeout returns the
@@ -190,8 +216,8 @@ workspace. Case details also distinguish the measured threshold from the
 frozen-candidate projection charts and never offer automatic threshold
 application.
 
-Results and filters are discarded on reload. Export is the only durable action
-in this phase.
+Results and filters are discarded on reload. Export remains the only durable
+action for run evidence; saving a dataset never saves a run.
 
 ## Export formats
 
