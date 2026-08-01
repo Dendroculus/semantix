@@ -20,6 +20,8 @@ export interface CacheEntryMetadata {
   namespace: string;
   prompt: string;
   response_preview: string;
+  response_preview_truncated: boolean;
+  response: string | null;
   created_at: string;
   expires_at: string | null;
   remaining_ttl_seconds: number | null;

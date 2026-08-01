@@ -16,6 +16,9 @@ export const runtimeMetricsKeys = {
 export const cacheEntryKeys = {
   all: ["cache-entries"] as const,
   lists: () => [...cacheEntryKeys.all, "list"] as const,
+  details: () => [...cacheEntryKeys.all, "detail"] as const,
+  detail: (cacheKey: string) =>
+    [...cacheEntryKeys.details(), cacheKey] as const,
   list: (params: CacheEntryListParams) =>
     [
       ...cacheEntryKeys.lists(),

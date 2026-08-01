@@ -22,6 +22,8 @@ import {
   isSha256Hex,
 } from "@/shared/api/validators";
 
+const LEGACY_RESPONSE_PREVIEW_LENGTH = 240;
+
 function decodeCacheStats(value: unknown): CacheStatsResponse {
   if (
     !isRecord(value) ||
@@ -49,6 +51,11 @@ function decodeCacheEntry(value: unknown): CacheEntryMetadata {
     !isCacheNamespace(value.namespace) ||
     !isNonEmptyString(value.prompt) ||
     !isNonEmptyString(value.response_preview) ||
+    (value.response_preview_truncated !== undefined &&
+      typeof value.response_preview_truncated !== "boolean") ||
+    (value.response !== undefined &&
+      value.response !== null &&
+      !isNonEmptyString(value.response)) ||
     !isIsoDate(value.created_at) ||
     !isNullableIsoDate(value.expires_at) ||
     !isNullableNonNegativeNumber(value.remaining_ttl_seconds) ||
@@ -75,6 +82,11 @@ function decodeCacheEntry(value: unknown): CacheEntryMetadata {
     namespace: value.namespace,
     prompt: value.prompt,
     response_preview: value.response_preview,
+    response_preview_truncated:
+      value.response_preview_truncated ??
+      (value.response_preview.length === LEGACY_RESPONSE_PREVIEW_LENGTH &&
+        value.response_preview.endsWith("...")),
+    response: value.response ?? null,
     created_at: value.created_at,
     expires_at: value.expires_at,
     remaining_ttl_seconds: value.remaining_ttl_seconds,
@@ -189,6 +201,17 @@ export function listCacheEntries(
   return request(
     `/api/v1/cache/entries?${query.toString()}`,
     decodeCacheEntryList,
+    withSignal({ method: "GET" }, signal),
+  );
+}
+
+export function getCacheEntry(
+  cacheKey: string,
+  signal?: AbortSignal,
+): Promise<ApiResult<CacheEntryMetadata>> {
+  return request(
+    `/api/v1/cache/entries/${encodeURIComponent(cacheKey)}`,
+    decodeCacheEntry,
     withSignal({ method: "GET" }, signal),
   );
 }
