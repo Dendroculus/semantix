@@ -202,8 +202,10 @@ export function useBenchmark(): BenchmarkController {
   const [persistedDataset, setPersistedDataset] =
     useState<PersistedEvaluationDatasetDetail | null>(null);
   const activeRun = useRef<AbortController | null>(null);
+  const activeSave = useRef<AbortController | null>(null);
   const activeValidation = useRef<AbortController | null>(null);
   const runSequence = useRef(0);
+  const saveSequence = useRef(0);
   const validationSequence = useRef(0);
   const hasAppliedDefaultDataset = useRef(false);
   const previousPrincipal = useRef<string | null>(null);
@@ -260,8 +262,18 @@ export function useBenchmark(): BenchmarkController {
     }
     if (previousPrincipal.current !== authIdentity) {
       previousPrincipal.current = authIdentity;
+      runSequence.current += 1;
+      activeRun.current?.abort();
+      activeRun.current = null;
+      setIsRunning(false);
+      saveSequence.current += 1;
+      activeSave.current?.abort();
+      activeSave.current = null;
+      setIsSavingImport(false);
       clearImport();
       setPersistedDataset(null);
+      setError(null);
+      setStatusMessage("");
       setForm((current) => ({
         ...current,
         datasetSource: "builtin",
@@ -274,10 +286,13 @@ export function useBenchmark(): BenchmarkController {
   useEffect(
     () => () => {
       runSequence.current += 1;
+      saveSequence.current += 1;
       validationSequence.current += 1;
       activeRun.current?.abort();
+      activeSave.current?.abort();
       activeValidation.current?.abort();
       activeRun.current = null;
+      activeSave.current = null;
       activeValidation.current = null;
     },
     [],
@@ -431,15 +446,26 @@ export function useBenchmark(): BenchmarkController {
     ) {
       return null;
     }
+    const controller = new AbortController();
+    const saveId = saveSequence.current + 1;
+    saveSequence.current = saveId;
+    activeSave.current?.abort();
+    activeSave.current = controller;
     setIsSavingImport(true);
     setError(null);
     setStatusMessage("Saving the validated dataset...");
     try {
-      const response = await persistEvaluationDataset({
-        ...(namespace === undefined ? {} : { namespace }),
-        dataset: importedDefinition,
-        retention_days: retentionDays,
-      });
+      const response = await persistEvaluationDataset(
+        {
+          ...(namespace === undefined ? {} : { namespace }),
+          dataset: importedDefinition,
+          retention_days: retentionDays,
+        },
+        controller.signal,
+      );
+      if (controller.signal.aborted || saveId !== saveSequence.current) {
+        return null;
+      }
       if (!response.ok) {
         setError(
           response.error.detail ?? "The validated dataset could not be saved.",
@@ -450,12 +476,18 @@ export function useBenchmark(): BenchmarkController {
       await queryClient.invalidateQueries({
         queryKey: benchmarkDatasetKeys.persisted(),
       });
+      if (controller.signal.aborted || saveId !== saveSequence.current) {
+        return null;
+      }
       setStatusMessage(
         `Saved ${response.data.name} in namespace ${response.data.namespace}.`,
       );
       return response.data;
     } finally {
-      setIsSavingImport(false);
+      if (saveId === saveSequence.current) {
+        activeSave.current = null;
+        setIsSavingImport(false);
+      }
     }
   }
 

@@ -513,11 +513,14 @@ describe('BenchmarkDashboard', () => {
     );
 
     await waitFor(() =>
-      expect(persistEvaluationDataset).toHaveBeenCalledWith({
-        namespace: 'default',
-        dataset: importedDefinition,
-        retention_days: 30,
-      }),
+      expect(persistEvaluationDataset).toHaveBeenCalledWith(
+        {
+          namespace: 'default',
+          dataset: importedDefinition,
+          retention_days: 30,
+        },
+        expect.any(AbortSignal),
+      ),
     );
     expect(await screen.findByText(/Saved Persisted/)).toBeTruthy();
 
