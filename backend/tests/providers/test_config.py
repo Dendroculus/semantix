@@ -208,6 +208,31 @@ def test_evaluation_timeout_is_bounded() -> None:
         settings(evaluation_timeout_seconds=3_601)
 
 
+def test_evaluation_import_limits_are_bounded_and_configurable() -> None:
+    configured = settings(
+        evaluation_dataset_max_cases=75,
+        evaluation_dataset_max_decoded_bytes=65_536,
+        evaluation_max_workload_queries=300,
+    )
+
+    assert configured.evaluation_dataset_max_cases == 75
+    assert configured.evaluation_dataset_max_decoded_bytes == 65_536
+    assert configured.evaluation_max_workload_queries == 300
+
+    with pytest.raises(ValidationError, match="evaluation_dataset_max_cases"):
+        settings(evaluation_dataset_max_cases=0)
+    with pytest.raises(
+        ValidationError,
+        match="evaluation_dataset_max_decoded_bytes",
+    ):
+        settings(evaluation_dataset_max_decoded_bytes=1_023)
+    with pytest.raises(
+        ValidationError,
+        match="evaluation_max_workload_queries",
+    ):
+        settings(evaluation_max_workload_queries=2_501)
+
+
 @pytest.mark.parametrize("port", ["not-a-port", "-1", "65536"])
 def test_database_url_rejects_invalid_ports(port: str) -> None:
     with pytest.raises(ValidationError, match="DATABASE_URL.*port"):

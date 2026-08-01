@@ -105,6 +105,15 @@ def create_lifespan(settings: Settings) -> Lifespan:
                         evaluation_timeout_seconds=(
                             settings.evaluation_timeout_seconds
                         ),
+                        evaluation_dataset_max_cases=(
+                            settings.evaluation_dataset_max_cases
+                        ),
+                        evaluation_dataset_max_decoded_bytes=(
+                            settings.evaluation_dataset_max_decoded_bytes
+                        ),
+                        evaluation_max_workload_queries=(
+                            settings.evaluation_max_workload_queries
+                        ),
                     ),
                 )
 

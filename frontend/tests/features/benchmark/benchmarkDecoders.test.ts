@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   decodeBenchmarkDatasets,
   decodeBenchmarkRun,
+  decodeEvaluationDatasetPreview,
 } from '@/features/benchmark/api/benchmarkDecoders';
 import type { BenchmarkRunResponse } from '@/features/benchmark/types';
 import {
@@ -96,6 +97,13 @@ const INVALID_RUN_CASES: InvalidRunCase[] = [
     name: 'reproducibility metadata that differs from the run',
     mutate: (value) => {
       value.reproducibility.dataset_digest = 'e'.repeat(64);
+    },
+  },
+  {
+    name: 'a dataset source that differs from reproducibility metadata',
+    mutate: (value) => {
+      value.reproducibility.dataset_source = 'inline';
+      value.reproducibility.dataset_schema_version = 1;
     },
   },
   {
@@ -206,5 +214,77 @@ describe('benchmark decoders', () => {
         default_dataset_id: 'extended',
       }),
     ).toThrow();
+  });
+
+  it('accepts bounded custom categories and a strict imported preview', () => {
+    const custom = structuredClone(benchmarkResult);
+    custom.dataset = {
+      ...custom.dataset,
+      dataset_id: 'custom:1234567890abcdef',
+      dataset_source: 'inline',
+      schema_version: 1,
+      categories: ['domain-specific'],
+    };
+    custom.reproducibility = {
+      ...custom.reproducibility,
+      dataset_id: custom.dataset.dataset_id,
+      dataset_source: 'inline',
+      dataset_schema_version: 1,
+    };
+
+    expect(decodeBenchmarkRun(custom).dataset.categories).toEqual([
+      'domain-specific',
+    ]);
+    expect(
+      decodeEvaluationDatasetPreview({
+        schema_version: 1,
+        dataset_id: 'custom:1234567890abcdef',
+        digest: 'd'.repeat(64),
+        name: 'Custom set',
+        description: null,
+        case_count: 1,
+        expected_hits: 0,
+        expected_misses: 1,
+        categories: ['domain-specific'],
+        decoded_bytes: 120,
+        warnings: [],
+        query_executions: 1,
+        threshold_projection_evaluations: 3,
+        maximum_provider_calls: 1,
+        provider_calls_made: 0,
+        limits: {
+          max_cases: 50,
+          max_decoded_bytes: 49_152,
+          max_workload_queries: 250,
+        },
+      }).provider_calls_made,
+    ).toBe(0);
+  });
+
+  it('rejects inconsistent preview limits and provider-call accounting', () => {
+    const preview = {
+      schema_version: 1,
+      dataset_id: 'custom:1234567890abcdef',
+      digest: 'd'.repeat(64),
+      name: 'Custom set',
+      description: null,
+      case_count: 1,
+      expected_hits: 0,
+      expected_misses: 1,
+      categories: ['domain-specific'],
+      decoded_bytes: 120,
+      warnings: [],
+      query_executions: 1,
+      threshold_projection_evaluations: 3,
+      maximum_provider_calls: 2,
+      provider_calls_made: 0,
+      limits: {
+        max_cases: 50,
+        max_decoded_bytes: 49_152,
+        max_workload_queries: 250,
+      },
+    };
+
+    expect(() => decodeEvaluationDatasetPreview(preview)).toThrow();
   });
 });

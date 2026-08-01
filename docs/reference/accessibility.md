@@ -36,6 +36,12 @@ Check the following at desktop and mobile widths:
 - benchmark controls use no more than two columns at 744, 768, 820, and 834 px
   portrait widths, preserve 44 px interaction targets, and have no page-level
   horizontal overflow at 320, 1024, or 1280 px;
+- the built-in/custom source choice, native JSON file control, validation
+  errors, normalized preview, provider disclosure, and Run action remain in a
+  one-column reading order at 744, 768, 820, and 834 px portrait widths;
+- the file input has a visible label, accepted-format and size instructions,
+  validation status is announced, structured issues include textual pointers,
+  and removal returns focus to the file input;
 - the advanced sweep disclosure works with Enter and Space, reports
   `aria-expanded`, and announces validation and run status without moving
   focus;
@@ -67,7 +73,9 @@ Navigation verification also covers:
 Evaluation workspace review additionally covers long dataset and case names,
 malicious-looking plain text, visible table-scroll affordances, case details at
 320 px and 200% zoom, keyboard-only filtering/detail use, visible focus, and
-the provider warning in normal reading order.
+the provider warning in normal reading order. Import review also covers local
+malformed-JSON feedback, long file/dataset names, safe HTML-looking text,
+warnings, removal, reload/auth cleanup, and zero horizontal overflow.
 
 Run the automated token check with:
 

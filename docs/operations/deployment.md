@@ -19,12 +19,21 @@ Evaluation runs have an independent bounded wall-clock setting:
 
 ```env
 EVALUATION_TIMEOUT_SECONDS=300
+EVALUATION_DATASET_MAX_CASES=50
+EVALUATION_DATASET_MAX_DECODED_BYTES=49152
+EVALUATION_MAX_WORKLOAD_QUERIES=250
 ```
 
 The value must be greater than zero and no more than 3,600 seconds. It bounds
 the serialized run and discards its run-local cache on timeout. Size it for the
 bounded built-in dataset and configured provider latency without treating it as
 proof that remote provider work was cancelled.
+
+The remaining settings independently bound session-local JSON imports: case
+count, canonical decoded UTF-8 content, and `cases × repetitions` query work.
+Accepted ranges are 1–500 cases, 1,024–1,048,576 decoded bytes, and 1–2,500
+query executions. Keep these limits within the capacity and data-handling
+policy of the deployment; threshold projections do not repeat provider work.
 
 Run a TLS reverse proxy on the host and forward to `127.0.0.1:8080`. Public plaintext HTTP is unsupported.
 
@@ -165,8 +174,8 @@ being treated as equivalent protection.
 
 | Role | Allowed operations |
 |---|---|
-| `viewer` | Read permitted cache metadata, threshold state, and benchmark datasets |
-| `operator` | All viewer operations plus provider-backed queries and benchmark runs |
+| `viewer` | Read permitted cache metadata, threshold state, and built-in evaluation datasets |
+| `operator` | All viewer operations plus provider-backed queries, session-local dataset validation, and evaluation runs |
 | `admin` | All operator operations plus cache deletion, namespace clear, and administration |
 
 Updating the global similarity threshold and reading process-wide runtime
@@ -215,6 +224,11 @@ The frontend gateway enforces `client_max_body_size 64k`. The backend independen
 The ASGI limit handles both declared `Content-Length` and streamed/chunked request bodies. Oversized requests return HTTP `413` with the standard JSON error structure.
 
 Keep the proxy and backend values aligned. The backend limit is the final authority when requests bypass or are forwarded by another proxy.
+
+Imported evaluation datasets are not persisted. Validation and run requests
+must fit the global request limit in addition to the decoded-content, case, and
+workload limits above. No database migration, backup, restore, or cleanup step
+is associated with an import.
 
 ## Liveness and readiness
 

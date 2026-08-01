@@ -14,6 +14,11 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.limits import (
+    DEFAULT_EVALUATION_DATASET_MAX_CASES,
+    DEFAULT_EVALUATION_DATASET_MAX_DECODED_BYTES,
+    DEFAULT_EVALUATION_MAX_WORKLOAD_QUERIES,
+)
 from app.providers.configuration import (
     EmbeddingProviderName,
     GenerationProviderName,
@@ -104,6 +109,21 @@ class Settings(BaseSettings):
 
     provider_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
     evaluation_timeout_seconds: float = Field(default=300.0, gt=0, le=3_600)
+    evaluation_dataset_max_cases: int = Field(
+        default=DEFAULT_EVALUATION_DATASET_MAX_CASES,
+        ge=1,
+        le=500,
+    )
+    evaluation_dataset_max_decoded_bytes: int = Field(
+        default=DEFAULT_EVALUATION_DATASET_MAX_DECODED_BYTES,
+        ge=1_024,
+        le=1_048_576,
+    )
+    evaluation_max_workload_queries: int = Field(
+        default=DEFAULT_EVALUATION_MAX_WORKLOAD_QUERIES,
+        ge=1,
+        le=2_500,
+    )
     provider_max_response_bytes: int = Field(
         default=DEFAULT_PROVIDER_MAX_RESPONSE_BYTES,
         ge=1,

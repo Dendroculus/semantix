@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
       json: { authentication_required: false },
     });
   });
-  await page.route('**/api/v1/benchmarks/datasets', async (route) => {
+  await page.route('**/api/v1/evaluations/datasets', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
       json: {
@@ -44,12 +44,104 @@ test.beforeEach(async ({ page }) => {
       },
     });
   });
-  await page.route('**/api/v1/benchmarks/run', async (route) => {
+  await page.route('**/api/v1/evaluations/runs', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
       json: benchmarkAnalysisResult,
     });
   });
+  await page.route(
+    '**/api/v1/evaluations/datasets/validate',
+    async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: {
+          schema_version: 1,
+          dataset_id: 'custom:1234567890abcdef',
+          digest: '9'.repeat(64),
+          name: 'Imported responsive dataset with a long readable name',
+          description: 'Synthetic session-local dataset.',
+          case_count: 1,
+          expected_hits: 0,
+          expected_misses: 1,
+          categories: ['uncategorized'],
+          decoded_bytes: 180,
+          warnings: [
+            {
+              code: 'uncategorized_cases',
+              detail:
+                'Cases without a category are grouped as uncategorized.',
+              count: 1,
+            },
+          ],
+          query_executions: 1,
+          threshold_projection_evaluations: 7,
+          maximum_provider_calls: 1,
+          provider_calls_made: 0,
+          limits: {
+            max_cases: 50,
+            max_decoded_bytes: 49_152,
+            max_workload_queries: 250,
+          },
+        },
+      });
+    },
+  );
+});
+
+test('session-local import remains readable and bounded at required widths', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 820, height: 1_180 });
+  await page.goto('/evaluations');
+  await page.getByLabel('Custom JSON dataset').check();
+  const fileInput = page.getByLabel('JSON dataset file');
+  await fileInput.setInputFiles({
+    name: 'responsive.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify({
+        schema_version: 1,
+        name: 'Imported responsive dataset with a long readable name',
+        cases: [
+          {
+            case_id: 'synthetic',
+            prompt: '<strong>=SUM(A1:A2)</strong>',
+            expected_cache_hit: false,
+          },
+        ],
+      }),
+    ),
+  });
+
+  await expect(page.getByText('Validated preview')).toBeVisible();
+  await expect(page.getByText(/Validation made 0 provider calls/)).toBeVisible();
+
+  for (const width of [320, 744, 768, 820, 834, 1_024, 1_280]) {
+    await test.step(`import-${width}`, async () => {
+      await page.setViewportSize({ width, height: 1_180 });
+      await expect(fileInput).toBeVisible();
+      await expect(page.getByText('Validated preview')).toBeVisible();
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(1);
+    });
+  }
+
+  await page.getByRole('button', { name: 'Review benchmark run' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText(
+    'Imported prompts may leave this system',
+  );
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('button', { name: 'Remove imported dataset' }).click();
+  await expect(fileInput).toBeFocused();
+  await expect(page.getByText('Validated preview')).toHaveCount(0);
 });
 
 test('evaluation controls and projections remain usable at required viewports', async ({

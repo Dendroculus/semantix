@@ -4,6 +4,7 @@ import { Button } from '@/shared/components/ui';
 import { formatDecimal } from '@/shared/lib/formatters';
 
 import type { BenchmarkController, BenchmarkForm } from '../hooks/useBenchmark';
+import { BenchmarkDatasetImport } from './BenchmarkDatasetImport';
 
 interface BenchmarkControlsProps {
   controller: BenchmarkController;
@@ -46,13 +47,45 @@ export function BenchmarkControls({
       className="grid gap-5 border-y border-(--hairline) py-6 sm:grid-cols-2 lg:grid-cols-3"
       data-benchmark-controls
     >
+      <fieldset className="sm:col-span-2 lg:col-span-3">
+        <legend className="ui-label text-(--text-muted)">Dataset source</legend>
+        <div className="font-data mt-3 flex flex-wrap gap-x-6 gap-y-3 text-xs text-(--text-soft)">
+          <label className="flex min-h-11 items-center gap-3">
+            <input
+              checked={form.datasetSource === 'builtin'}
+              className="size-5 accent-(--gold)"
+              disabled={isRunning}
+              name="evaluation-dataset-source"
+              type="radio"
+              onChange={() => update(controller, { datasetSource: 'builtin' })}
+            />
+            <span>Built-in dataset</span>
+          </label>
+          <label className="flex min-h-11 items-center gap-3">
+            <input
+              checked={form.datasetSource === 'custom'}
+              className="size-5 accent-(--gold)"
+              disabled={isRunning}
+              name="evaluation-dataset-source"
+              type="radio"
+              onChange={() => update(controller, { datasetSource: 'custom' })}
+            />
+            <span>Custom JSON dataset</span>
+          </label>
+        </div>
+      </fieldset>
+
       <label className="block">
-        <span className="ui-label text-(--text-muted)">Dataset</span>
+        <span className="ui-label text-(--text-muted)">Built-in dataset</span>
 
         <select
           aria-label="Benchmark dataset"
           className={controlClass}
-          disabled={datasetsLoading || isRunning}
+          disabled={
+            datasetsLoading ||
+            isRunning ||
+            form.datasetSource === 'custom'
+          }
           value={form.datasetId}
           onChange={(event) =>
             update(controller, {
@@ -67,6 +100,12 @@ export function BenchmarkControls({
           ))}
         </select>
       </label>
+
+      {form.datasetSource === 'custom' && (
+        <div className="sm:col-span-2 lg:col-span-3">
+          <BenchmarkDatasetImport controller={controller} />
+        </div>
+      )}
 
       <label className="block">
         <span className="ui-label text-(--text-muted)">
@@ -188,11 +227,12 @@ export function BenchmarkControls({
             isRunning ||
             datasets.length === 0 ||
             !canRun ||
+            controller.selectedDataset === null ||
             sweep.error !== null
           }
           size="large"
           variant="primary"
-          onClick={controller.reviewRun}
+          onClick={() => void controller.reviewRun()}
         >
           {isRunning ? 'Benchmark running...' : 'Review benchmark run'}
         </Button>

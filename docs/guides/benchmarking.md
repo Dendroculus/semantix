@@ -64,7 +64,8 @@ display names and descriptions do not affect it.
 ## Run from the frontend
 
 1. Open <http://localhost:4173/evaluations>.
-2. Select a dataset and threshold.
+2. Select a built-in dataset, or choose **Custom JSON dataset** and select a
+   schema version 1 file.
 3. Optionally disclose the advanced sweep controls and choose a start, end,
    and step. The UI shows the resulting explicit list and includes the measured
    threshold exactly once.
@@ -78,7 +79,7 @@ display names and descriptions do not affect it.
    and dataset identity.
 9. Inspect threshold projections and similarity distributions separately from
    measured case evidence.
-10. Export JSON for the complete response or CSV revision 2 for independently
+10. Export JSON for the complete response or CSV revision 3 for independently
     interpretable per-case evidence.
 
 Benchmark requests may call the selected generation provider. Review provider
@@ -87,6 +88,26 @@ cost, rate limits, and data handling before confirming.
 Leaving the Evaluations workspace aborts the browser request and prevents a late
 response from updating the unmounted page. It does not guarantee that provider
 work already accepted by the backend has stopped.
+
+### Session-local custom datasets
+
+Custom JSON files are parsed locally, then sent to the server validation
+endpoint for authoritative schema, reference, byte, case, and workload checks.
+The preview makes zero embedding or generation calls. It shows the transient
+digest, expected hit/miss counts, decoded size, warnings, bounded query work,
+and maximum possible provider calls.
+
+The imported object remains only in the mounted Evaluations feature. Removal,
+reload, sign-out, and an authentication-principal change clear it. Semantix
+does not use `localStorage`, `sessionStorage`, IndexedDB, a service worker, a
+server catalog, or a database for imported datasets. During execution, prompts
+may leave the system through the configured providers; the review warning
+makes that boundary explicit.
+
+The server revalidates the inline definition in the run request. A successful
+preview is not a reusable authorization or integrity proof. Read the
+[schema version 1 reference](../reference/evaluation-dataset-schema-v1.md)
+before producing files.
 
 The backend separately applies `EVALUATION_TIMEOUT_SECONDS` (300 seconds by
 default, validated from greater than zero through 3,600). A timeout returns the
@@ -99,7 +120,10 @@ PowerShell:
 
 ```powershell
 $body = @{
-    dataset_id = "quick"
+    dataset_source = @{
+        kind = "builtin"
+        dataset_id = "quick"
+    }
     threshold = 0.92
     evaluation_thresholds = @(0.80, 0.90, 0.92, 0.95)
     repetitions = 1
@@ -107,11 +131,11 @@ $body = @{
     estimated_cost_per_request_usd = 0
     estimated_cost_per_1k_tokens_usd = 0
     allow_external_provider_calls = $true
-} | ConvertTo-Json
+} | ConvertTo-Json -Depth 6
 
 Invoke-RestMethod `
     -Method Post `
-    -Uri "http://localhost:8000/api/v1/benchmarks/run" `
+    -Uri "http://localhost:8000/api/v1/evaluations/runs" `
     -ContentType "application/json" `
     -Body $body
 ```
@@ -172,10 +196,12 @@ in this phase.
 ## Export formats
 
 JSON remains a structurally complete copy of the run response. CSV export
-schema revision 2 repeats the run ID, timestamps, dataset identity, measured
+schema revision 3 repeats the run ID, timestamps, dataset source, import schema
+version, dataset identity, measured
 and projected threshold context, safe configuration fingerprint and provider
 metadata on every case row, followed by complete case evidence including
-repetition, outcome, provider-call state, matched prompt, and matched key.
+repetition, expected match reference, note, outcome, provider-call state,
+matched prompt, and matched key.
 
 CSV string cells beginning with `=`, `+`, `-`, or `@` are prefixed with a
 single quote so spreadsheet applications treat them as text. JSON values are

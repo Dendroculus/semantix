@@ -51,7 +51,9 @@ Core capabilities:
 - token roles and namespace authorization for hardened deployments;
 - deterministic mock providers for safe local testing.
 - run-local evaluation caches, complete confusion-matrix accounting, and
-  configurable bounded frozen-candidate threshold sweeps.
+  configurable bounded frozen-candidate threshold sweeps;
+- versioned session-local JSON evaluation datasets with provider-free preview,
+  strict validation, and no browser or server persistence.
 
 ## ⚙️ How it works
 

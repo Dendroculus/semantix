@@ -1,13 +1,5 @@
 export type BenchmarkDatasetId = "quick" | "extended";
-
-export type BenchmarkCategory =
-  | "seed"
-  | "exact_duplicate"
-  | "paraphrase"
-  | "unrelated"
-  | "typo"
-  | "negation"
-  | "different_intent";
+export type EvaluationDatasetSourceKind = "builtin" | "inline";
 
 export type BenchmarkOutcome =
   | "true_positive"
@@ -24,7 +16,9 @@ export type ProviderCategory =
   | "mock";
 
 export interface BenchmarkDatasetSummary {
-  dataset_id: BenchmarkDatasetId;
+  dataset_id: string;
+  dataset_source: EvaluationDatasetSourceKind;
+  schema_version: number | null;
   version: string;
   digest: string;
   name: string;
@@ -32,7 +26,7 @@ export interface BenchmarkDatasetSummary {
   query_count: number;
   expected_hits: number;
   expected_misses: number;
-  categories: BenchmarkCategory[];
+  categories: string[];
 }
 
 export interface BenchmarkDatasetListResponse {
@@ -49,6 +43,48 @@ export interface BenchmarkRunRequest {
   estimated_cost_per_request_usd: number;
   estimated_cost_per_1k_tokens_usd: number;
   allow_external_provider_calls: true;
+}
+
+export interface EvaluationDatasetValidationRequest {
+  dataset: unknown;
+  repetitions: number;
+  threshold_count: number;
+}
+
+export interface EvaluationDatasetWarning {
+  code: string;
+  detail: string;
+  count: number;
+}
+
+export interface EvaluationDatasetPreview {
+  schema_version: 1;
+  dataset_id: string;
+  digest: string;
+  name: string;
+  description: string | null;
+  case_count: number;
+  expected_hits: number;
+  expected_misses: number;
+  categories: string[];
+  decoded_bytes: number;
+  warnings: EvaluationDatasetWarning[];
+  query_executions: number;
+  threshold_projection_evaluations: number;
+  maximum_provider_calls: number;
+  provider_calls_made: 0;
+  limits: {
+    max_cases: number;
+    max_decoded_bytes: number;
+    max_workload_queries: number;
+  };
+}
+
+export interface EvaluationRunRequest
+  extends Omit<BenchmarkRunRequest, "dataset_id"> {
+  dataset_source:
+    | { kind: "builtin"; dataset_id: BenchmarkDatasetId }
+    | { kind: "inline"; definition: unknown };
 }
 
 export interface BenchmarkMetrics {
@@ -79,9 +115,11 @@ export interface BenchmarkQueryResult {
   sequence: number;
   repetition: number;
   case_id: string;
-  category: BenchmarkCategory;
+  category: string;
   prompt: string;
   expected_cache_hit: boolean;
+  expected_match_case_id: string | null;
+  note: string | null;
   actual_cache_hit: boolean;
   correct: boolean;
   outcome: BenchmarkOutcome;
@@ -109,7 +147,9 @@ export interface ThresholdEvaluation {
 
 export interface BenchmarkReproducibilityMetadata {
   application_version: string;
-  dataset_id: BenchmarkDatasetId;
+  dataset_id: string;
+  dataset_source: EvaluationDatasetSourceKind;
+  dataset_schema_version: number | null;
   dataset_version: string;
   dataset_digest: string;
   embedding_provider_category: ProviderCategory;

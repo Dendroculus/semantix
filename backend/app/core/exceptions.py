@@ -1,6 +1,6 @@
 import logging
-from collections.abc import Mapping
-from typing import cast
+from collections.abc import Mapping, Sequence
+from typing import NotRequired, TypedDict, cast
 
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -8,6 +8,14 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 logger = logging.getLogger(__name__)
+
+
+class PublicErrorIssue(TypedDict):
+    code: str
+    detail: str
+    pointer: str
+    case_id: NotRequired[str]
+    case_index: NotRequired[int]
 
 
 class AppError(Exception):
@@ -19,9 +27,11 @@ class AppError(Exception):
         self,
         *args: object,
         headers: Mapping[str, str] | None = None,
+        issues: Sequence[PublicErrorIssue] | None = None,
     ) -> None:
         super().__init__(*args)
         self.headers = dict(headers or {})
+        self.issues = list(issues) if issues is not None else None
 
 
 class AuthenticationRequiredError(AppError):
@@ -123,13 +133,17 @@ def _response(
     detail: str | None,
     *,
     headers: Mapping[str, str] | None = None,
+    issues: Sequence[PublicErrorIssue] | None = None,
 ) -> JSONResponse:
     response_headers = dict(headers or {})
     if status == 401:
         response_headers.setdefault("WWW-Authenticate", "Bearer")
+    content: dict[str, object] = {"error": error, "detail": detail}
+    if issues is not None:
+        content["issues"] = list(issues)
     return JSONResponse(
         status_code=status,
-        content={"error": error, "detail": detail},
+        content=content,
         headers=response_headers or None,
     )
 
@@ -144,6 +158,7 @@ async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
         error.error_code,
         error.public_detail,
         headers=error.headers,
+        issues=error.issues,
     )
 
 

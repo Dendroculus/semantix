@@ -43,7 +43,7 @@ async function installApiFixtures(page: Page): Promise<void> {
   await page.route("**/api/v1/cache/threshold", async (route) => {
     await route.fulfill({ json: { threshold: 0.9 } });
   });
-  await page.route("**/api/v1/benchmarks/datasets", async (route) => {
+  await page.route("**/api/v1/evaluations/datasets", async (route) => {
     await route.fulfill({
       json: {
         datasets: [

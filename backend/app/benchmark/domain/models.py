@@ -6,6 +6,11 @@ from app.benchmark.api.schemas import (
     NormalizationMode,
     ProviderCategory,
 )
+from app.core.limits import (
+    DEFAULT_EVALUATION_DATASET_MAX_CASES,
+    DEFAULT_EVALUATION_DATASET_MAX_DECODED_BYTES,
+    DEFAULT_EVALUATION_MAX_WORKLOAD_QUERIES,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,6 +19,8 @@ class BenchmarkCase:
     category: BenchmarkCategory
     prompt: str
     expected_cache_hit: bool
+    expected_match_case_id: str | None = None
+    note: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,3 +49,8 @@ class BenchmarkRuntimeConfiguration:
     normalization_mode: NormalizationMode
     normalization_fingerprint: str
     evaluation_timeout_seconds: float
+    evaluation_dataset_max_cases: int = DEFAULT_EVALUATION_DATASET_MAX_CASES
+    evaluation_dataset_max_decoded_bytes: int = (
+        DEFAULT_EVALUATION_DATASET_MAX_DECODED_BYTES
+    )
+    evaluation_max_workload_queries: int = DEFAULT_EVALUATION_MAX_WORKLOAD_QUERIES
