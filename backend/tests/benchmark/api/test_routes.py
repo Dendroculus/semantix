@@ -5,8 +5,10 @@ from fastapi.testclient import TestClient
 
 from app.benchmark.application.service import BenchmarkService
 from app.benchmark.domain.models import BenchmarkRuntimeConfiguration
+from app.benchmark.domain.protocols import EvaluationDatasetRepository
 from app.core.config import Settings
 from app.factory import create_app
+from tests.benchmark.support import InMemoryEvaluationDatasetRepository
 from tests.support import TEST_EMBEDDING_DIMENSIONS
 
 
@@ -36,6 +38,7 @@ def benchmark_service(
     provider: Provider,
     *,
     evaluation_timeout_seconds: float = 30,
+    dataset_repository: EvaluationDatasetRepository | None = None,
 ) -> BenchmarkService:
     return BenchmarkService(
         SameEmbeddings(),
@@ -52,7 +55,11 @@ def benchmark_service(
             normalization_mode="identity",
             normalization_fingerprint="2" * 64,
             evaluation_timeout_seconds=evaluation_timeout_seconds,
+            evaluation_dataset_storage=(
+                "session" if dataset_repository is None else "postgres"
+            ),
         ),
+        dataset_repository=dataset_repository,
     )
 
 
@@ -145,6 +152,88 @@ def test_validates_inline_dataset_without_provider_calls(settings: Settings) -> 
     assert payload["maximum_provider_calls"] == 4
     assert payload["provider_calls_made"] == 0
     assert provider.call_count == 0
+
+
+def test_persisted_catalog_crud_and_run_contracts(settings: Settings) -> None:
+    app = create_app(settings)
+    provider = Provider()
+    repository = InMemoryEvaluationDatasetRepository()
+
+    with TestClient(app) as client:
+        app.state.benchmark_service = benchmark_service(
+            provider,
+            dataset_repository=repository,
+        )
+        created = client.post(
+            "/api/v1/evaluations/datasets/persisted",
+            json={
+                "namespace": "default",
+                "dataset": inline_definition(),
+                "retention_days": 7,
+            },
+        )
+        dataset_id = created.json()["dataset_id"]
+        catalog = client.get("/api/v1/evaluations/datasets/persisted")
+        detail = client.get(f"/api/v1/evaluations/datasets/persisted/{dataset_id}")
+
+        assert provider.call_count == 0
+
+        run = client.post(
+            "/api/v1/evaluations/runs",
+            json={
+                "dataset_source": {
+                    "kind": "persisted",
+                    "dataset_id": dataset_id,
+                    "namespace": "default",
+                },
+                "threshold": 0.9,
+                "evaluation_thresholds": [0.8, 0.9],
+                "allow_external_provider_calls": True,
+            },
+        )
+        deleted = client.delete(
+            f"/api/v1/evaluations/datasets/persisted/{dataset_id}",
+            params={"namespace": "default"},
+        )
+        missing = client.get(f"/api/v1/evaluations/datasets/persisted/{dataset_id}")
+
+    assert created.status_code == 201
+    assert created.json()["namespace"] == "default"
+    assert catalog.status_code == 200
+    assert catalog.json()["storage_mode"] == "postgres"
+    assert catalog.json()["items"][0]["dataset_id"] == dataset_id
+    assert detail.status_code == 200
+    assert [item["case_id"] for item in detail.json()["cases"]] == [
+        "seed",
+        "repeat",
+    ]
+    assert run.status_code == 200
+    assert run.json()["dataset"]["dataset_source"] == "persisted"
+    assert provider.call_count == run.json()["metrics"]["provider_calls"] == 1
+    assert deleted.status_code == 200
+    assert deleted.json() == {
+        "deleted": True,
+        "dataset_id": dataset_id,
+        "namespace": "default",
+    }
+    assert missing.status_code == 404
+    assert missing.json()["error"] == "evaluation_dataset_not_found"
+
+
+def test_session_catalog_fallback_is_explicit(settings: Settings) -> None:
+    with TestClient(create_app(settings)) as client:
+        catalog = client.get("/api/v1/evaluations/datasets/persisted")
+        save = client.post(
+            "/api/v1/evaluations/datasets/persisted",
+            json={"namespace": "default", "dataset": inline_definition()},
+        )
+
+    assert catalog.status_code == 200
+    assert catalog.json()["storage_mode"] == "session"
+    assert catalog.json()["persistence_enabled"] is False
+    assert catalog.json()["items"] == []
+    assert save.status_code == 409
+    assert save.json()["error"] == "evaluation_dataset_persistence_disabled"
 
 
 def test_inline_validation_returns_safe_structured_issues(

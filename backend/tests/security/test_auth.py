@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 from app.cache.domain.keys import prompt_cache_key
 from app.core.config import Settings
 from app.factory import create_app
+from tests.benchmark.api.test_routes import Provider, benchmark_service
+from tests.benchmark.support import InMemoryEvaluationDatasetRepository
 
 VIEWER_TOKEN = "viewer-secret"
 OPERATOR_TOKEN = "operator-secret"
@@ -199,6 +201,81 @@ def test_evaluation_import_roles_match_viewer_operator_capabilities() -> None:
     assert viewer_validate.status_code == viewer_run.status_code == 403
     assert operator_validate.status_code == 200
     assert operator_run.status_code == 200
+
+
+def test_persisted_dataset_roles_and_explicit_wildcard_namespace() -> None:
+    definition = {
+        "schema_version": 1,
+        "name": "Authorization catalog set",
+        "cases": [
+            {
+                "case_id": "case",
+                "prompt": "Synthetic persisted authorization prompt",
+                "expected_cache_hit": False,
+            }
+        ],
+    }
+    app = create_app(settings())
+    repository = InMemoryEvaluationDatasetRepository()
+    with TestClient(app) as client:
+        app.state.benchmark_service = benchmark_service(
+            Provider(),
+            dataset_repository=repository,
+        )
+        viewer_list = client.get(
+            "/api/v1/evaluations/datasets/persisted",
+            headers=authorization(VIEWER_TOKEN),
+        )
+        viewer_create = client.post(
+            "/api/v1/evaluations/datasets/persisted",
+            headers=authorization(VIEWER_TOKEN),
+            json={"dataset": definition},
+        )
+        operator_create = client.post(
+            "/api/v1/evaluations/datasets/persisted",
+            headers=authorization(OPERATOR_TOKEN),
+            json={"dataset": definition},
+        )
+        dataset_id = operator_create.json()["dataset_id"]
+        viewer_detail = client.get(
+            f"/api/v1/evaluations/datasets/persisted/{dataset_id}",
+            headers=authorization(VIEWER_TOKEN),
+        )
+        operator_delete = client.delete(
+            f"/api/v1/evaluations/datasets/persisted/{dataset_id}",
+            headers=authorization(OPERATOR_TOKEN),
+        )
+        wildcard_create_without_namespace = client.post(
+            "/api/v1/evaluations/datasets/persisted",
+            headers=authorization(ADMIN_TOKEN),
+            json={"dataset": definition},
+        )
+        wildcard_create = client.post(
+            "/api/v1/evaluations/datasets/persisted",
+            headers=authorization(ADMIN_TOKEN),
+            json={"namespace": "tenant-a", "dataset": definition},
+        )
+        wildcard_dataset_id = wildcard_create.json()["dataset_id"]
+        wildcard_delete_without_namespace = client.delete(
+            (f"/api/v1/evaluations/datasets/persisted/{wildcard_dataset_id}"),
+            headers=authorization(ADMIN_TOKEN),
+        )
+        wildcard_delete = client.delete(
+            (f"/api/v1/evaluations/datasets/persisted/{wildcard_dataset_id}"),
+            params={"namespace": "tenant-a"},
+            headers=authorization(ADMIN_TOKEN),
+        )
+        namespace_admin_delete = client.delete(
+            f"/api/v1/evaluations/datasets/persisted/{dataset_id}",
+            headers=authorization(NAMESPACE_ADMIN_TOKEN),
+        )
+
+    assert viewer_list.status_code == viewer_detail.status_code == 200
+    assert viewer_create.status_code == operator_delete.status_code == 403
+    assert operator_create.status_code == wildcard_create.status_code == 201
+    assert wildcard_create_without_namespace.status_code == 403
+    assert wildcard_delete_without_namespace.status_code == 403
+    assert wildcard_delete.status_code == namespace_admin_delete.status_code == 200
 
 
 def test_global_admin_can_update_the_threshold() -> None:

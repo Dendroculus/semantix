@@ -19,7 +19,14 @@ from app.benchmark.api.schemas import (
     EvaluationDatasetValidationRequest,
     EvaluationRunOptions,
     EvaluationRunRequest,
+    ImportedEvaluationCase,
     InlineEvaluationDatasetSource,
+    PersistedEvaluationDatasetCatalogLimits,
+    PersistedEvaluationDatasetDetail,
+    PersistedEvaluationDatasetListResponse,
+    PersistedEvaluationDatasetMetadata,
+    PersistedEvaluationDatasetSource,
+    PersistEvaluationDatasetRequest,
 )
 from app.benchmark.domain.datasets import (
     DEFAULT_DATASET_ID,
@@ -35,14 +42,22 @@ from app.benchmark.domain.models import (
     BenchmarkDataset,
     BenchmarkObservation,
     BenchmarkRuntimeConfiguration,
+    PersistedEvaluationDataset,
 )
+from app.benchmark.domain.protocols import EvaluationDatasetRepository
 from app.benchmark.domain.validation import (
     ValidatedImportedDataset,
     validate_imported_dataset,
 )
 from app.cache.application.service import SemanticCache
+from app.cache.domain.namespaces import AuthorizedNamespaceScope
 from app.cache.infrastructure.backends.memory import InMemoryCacheBackend
-from app.core.exceptions import EvaluationTimeoutError
+from app.core.exceptions import (
+    EvaluationDatasetNotFoundError,
+    EvaluationDatasetPersistenceDisabledError,
+    EvaluationDatasetRetentionError,
+    EvaluationTimeoutError,
+)
 from app.providers.protocols import EmbeddingGenerator, GenerationProvider
 from app.providers.shared.responses import validate_generation_response
 
@@ -60,6 +75,43 @@ def estimate_tokens(text: str) -> int:
     return max(1, math.ceil(len(text) / 4))
 
 
+def _persisted_metadata(
+    record: PersistedEvaluationDataset,
+) -> PersistedEvaluationDatasetMetadata:
+    metadata = record.metadata
+    return PersistedEvaluationDatasetMetadata(
+        dataset_id=metadata.dataset_id,
+        namespace=metadata.namespace,
+        name=metadata.name,
+        description=metadata.description,
+        schema_version=metadata.schema_version,
+        digest=metadata.digest,
+        case_count=metadata.case_count,
+        decoded_bytes=metadata.decoded_bytes,
+        created_at=metadata.created_at,
+        expires_at=metadata.expires_at,
+    )
+
+
+def _persisted_detail(
+    record: PersistedEvaluationDataset,
+) -> PersistedEvaluationDatasetDetail:
+    return PersistedEvaluationDatasetDetail(
+        **_persisted_metadata(record).model_dump(),
+        cases=[
+            ImportedEvaluationCase(
+                case_id=case.case_id,
+                prompt=case.prompt,
+                expected_cache_hit=case.expected_cache_hit,
+                expected_match_case_id=case.expected_match_case_id,
+                category=case.category,
+                note=case.note,
+            )
+            for case in record.dataset.cases
+        ],
+    )
+
+
 class BenchmarkService:
     def __init__(
         self,
@@ -70,6 +122,7 @@ class BenchmarkService:
         cache_ttl_seconds: int | None,
         prompt_normalizer: Callable[[str], str],
         runtime_configuration: BenchmarkRuntimeConfiguration,
+        dataset_repository: EvaluationDatasetRepository | None = None,
     ) -> None:
         if runtime_configuration.evaluation_timeout_seconds <= 0:
             raise ValueError("evaluation_timeout_seconds must be positive")
@@ -79,6 +132,7 @@ class BenchmarkService:
         self._cache_ttl_seconds = cache_ttl_seconds
         self._prompt_normalizer = prompt_normalizer
         self._runtime_configuration = runtime_configuration
+        self._dataset_repository = dataset_repository
         self._run_lock = asyncio.Lock()
 
     def datasets(self) -> BenchmarkDatasetListResponse:
@@ -103,6 +157,8 @@ class BenchmarkService:
     async def run_evaluation(
         self,
         request: EvaluationRunRequest,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope = frozenset(),
     ) -> BenchmarkRunResponse:
         source = request.dataset_source
         if isinstance(source, InlineEvaluationDatasetSource):
@@ -111,9 +167,136 @@ class BenchmarkService:
                 repetitions=request.repetitions,
                 threshold_count=len(request.evaluation_thresholds),
             ).dataset
+        elif isinstance(source, PersistedEvaluationDatasetSource):
+            repository = self._require_dataset_repository()
+            record = await repository.get_dataset(
+                str(source.dataset_id),
+                authorized_namespaces=authorized_namespaces,
+            )
+            if record is None:
+                raise EvaluationDatasetNotFoundError
+            dataset = record.dataset
         else:
             dataset = get_dataset(source.dataset_id)
         return await self._run_bounded(request, dataset)
+
+    async def list_persisted_datasets(
+        self,
+        *,
+        namespace: str | None,
+        offset: int,
+        limit: int,
+    ) -> PersistedEvaluationDatasetListResponse:
+        runtime = self._runtime_configuration
+        limits = PersistedEvaluationDatasetCatalogLimits(
+            default_retention_days=(runtime.evaluation_dataset_default_retention_days),
+            max_retention_days=runtime.evaluation_dataset_max_retention_days,
+            max_persisted_per_namespace=(
+                runtime.evaluation_dataset_max_persisted_per_namespace
+            ),
+        )
+        if self._dataset_repository is None:
+            return PersistedEvaluationDatasetListResponse(
+                storage_mode="session",
+                persistence_enabled=False,
+                items=[],
+                total=0,
+                offset=offset,
+                limit=limit,
+                has_more=False,
+                limits=limits,
+            )
+        page = await self._dataset_repository.list_datasets(
+            namespace=namespace,
+            offset=offset,
+            limit=limit,
+        )
+        items = [
+            PersistedEvaluationDatasetMetadata(
+                dataset_id=item.dataset_id,
+                namespace=item.namespace,
+                name=item.name,
+                description=item.description,
+                schema_version=item.schema_version,
+                digest=item.digest,
+                case_count=item.case_count,
+                decoded_bytes=item.decoded_bytes,
+                created_at=item.created_at,
+                expires_at=item.expires_at,
+            )
+            for item in page.items
+        ]
+        return PersistedEvaluationDatasetListResponse(
+            storage_mode="postgres",
+            persistence_enabled=True,
+            items=items,
+            total=page.total,
+            offset=offset,
+            limit=limit,
+            has_more=offset + len(items) < page.total,
+            limits=limits,
+        )
+
+    async def persisted_dataset_detail(
+        self,
+        dataset_id: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> PersistedEvaluationDatasetDetail:
+        repository = self._require_dataset_repository()
+        record = await repository.get_dataset(
+            dataset_id,
+            authorized_namespaces=authorized_namespaces,
+        )
+        if record is None:
+            raise EvaluationDatasetNotFoundError
+        return _persisted_detail(record)
+
+    async def persist_dataset(
+        self,
+        request: PersistEvaluationDatasetRequest,
+        *,
+        namespace: str,
+    ) -> PersistedEvaluationDatasetDetail:
+        repository = self._require_dataset_repository()
+        runtime = self._runtime_configuration
+        retention_days = (
+            runtime.evaluation_dataset_default_retention_days
+            if request.retention_days is None
+            else request.retention_days
+        )
+        if retention_days > runtime.evaluation_dataset_max_retention_days:
+            raise EvaluationDatasetRetentionError
+        validated = self._validate_inline(
+            request.dataset,
+            repetitions=1,
+            threshold_count=2,
+        )
+        record = await repository.create_dataset(
+            namespace=namespace,
+            validated=validated,
+            retention_days=retention_days,
+        )
+        return _persisted_detail(record)
+
+    async def delete_persisted_dataset(
+        self,
+        dataset_id: str,
+        *,
+        namespace: str,
+    ) -> None:
+        repository = self._require_dataset_repository()
+        if not await repository.delete_dataset(dataset_id, namespace=namespace):
+            raise EvaluationDatasetNotFoundError
+
+    async def dataset_catalog_readiness(self) -> None:
+        if self._dataset_repository is not None:
+            await self._dataset_repository.readiness()
+
+    def _require_dataset_repository(self) -> EvaluationDatasetRepository:
+        if self._dataset_repository is None:
+            raise EvaluationDatasetPersistenceDisabledError
+        return self._dataset_repository
 
     def _validate_inline(
         self,
