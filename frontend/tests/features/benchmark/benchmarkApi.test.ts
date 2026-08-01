@@ -2,11 +2,15 @@ import type { MockedFunction } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  deletePersistedEvaluationDataset,
   getBenchmarkDatasets,
+  getPersistedEvaluationDataset,
+  getPersistedEvaluationDatasets,
+  persistEvaluationDataset,
   runBenchmark,
   validateEvaluationDataset,
 } from "@/features/benchmark/api/benchmarkApi";
-import { benchmarkResult } from "./support";
+import { benchmarkResult, persistedDataset } from "./support";
 
 const dataset = {
   dataset_id: "quick",
@@ -163,5 +167,77 @@ describe("benchmark API client", () => {
         case_index: 1,
       });
     }
+  });
+
+  it("uses the scoped persisted catalog CRUD routes", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            storage_mode: "postgres",
+            persistence_enabled: true,
+            items: [persistedDataset],
+            total: 1,
+            offset: 0,
+            limit: 20,
+            has_more: false,
+            limits: {
+              default_retention_days: 30,
+              max_retention_days: 365,
+              max_persisted_per_namespace: 100,
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(persistedDataset), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(persistedDataset), { status: 201 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            deleted: true,
+            dataset_id: persistedDataset.dataset_id,
+            namespace: persistedDataset.namespace,
+          }),
+          { status: 200 },
+        ),
+      );
+
+    const catalog = await getPersistedEvaluationDatasets({
+      namespace: "tenant-a",
+    });
+    const detail = await getPersistedEvaluationDataset(
+      persistedDataset.dataset_id,
+    );
+    const created = await persistEvaluationDataset({
+      namespace: "tenant-a",
+      dataset: { schema_version: 1 },
+      retention_days: 30,
+    });
+    const deleted = await deletePersistedEvaluationDataset(
+      persistedDataset.dataset_id,
+      "tenant-a",
+    );
+
+    expect(catalog.ok && catalog.data.total).toBe(1);
+    expect(detail.ok && detail.data.cases[1]?.case_id).toBe("repeat");
+    expect(created.ok && created.data.namespace).toBe("tenant-a");
+    expect(deleted.ok && deleted.data.deleted).toBe(true);
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      "namespace=tenant-a&offset=0&limit=20",
+    );
+    expect(fetchMock.mock.calls[2]?.[1]).toEqual(
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining('"retention_days":30'),
+      }),
+    );
+    expect(fetchMock.mock.calls[3]?.[0]).toContain(
+      `/${persistedDataset.dataset_id}?namespace=tenant-a`,
+    );
   });
 });

@@ -4,12 +4,15 @@ import {
   decodeBenchmarkDatasets,
   decodeBenchmarkRun,
   decodeEvaluationDatasetPreview,
+  decodePersistedEvaluationDatasetDetail,
+  decodePersistedEvaluationDatasets,
 } from '@/features/benchmark/api/benchmarkDecoders';
 import type { BenchmarkRunResponse } from '@/features/benchmark/types';
 import {
   benchmarkAnalysisResult,
   benchmarkDataset,
   benchmarkResult,
+  persistedDataset,
 } from './support';
 
 interface InvalidRunCase {
@@ -259,6 +262,68 @@ describe('benchmark decoders', () => {
         },
       }).provider_calls_made,
     ).toBe(0);
+  });
+
+  it('strictly decodes persisted catalog metadata and ordered detail', () => {
+    const catalog = {
+      storage_mode: 'postgres',
+      persistence_enabled: true,
+      items: [
+        {
+          ...persistedDataset,
+          cases: undefined,
+        },
+      ],
+      total: 1,
+      offset: 0,
+      limit: 20,
+      has_more: false,
+      limits: {
+        default_retention_days: 30,
+        max_retention_days: 365,
+        max_persisted_per_namespace: 100,
+      },
+    };
+
+    expect(decodePersistedEvaluationDatasets(catalog).items[0]?.name).toBe(
+      persistedDataset.name,
+    );
+    expect(
+      decodePersistedEvaluationDatasetDetail(persistedDataset).cases[1]
+        ?.expected_match_case_id,
+    ).toBe('seed');
+  });
+
+  it('rejects inconsistent catalog capability, expiry, and case ordering', () => {
+    expect(() =>
+      decodePersistedEvaluationDatasets({
+        storage_mode: 'session',
+        persistence_enabled: false,
+        items: [persistedDataset],
+        total: 1,
+        offset: 0,
+        limit: 20,
+        has_more: false,
+        limits: {
+          default_retention_days: 30,
+          max_retention_days: 365,
+          max_persisted_per_namespace: 100,
+        },
+      }),
+    ).toThrow();
+
+    expect(() =>
+      decodePersistedEvaluationDatasetDetail({
+        ...persistedDataset,
+        expires_at: persistedDataset.created_at,
+      }),
+    ).toThrow();
+
+    const reordered = structuredClone(persistedDataset);
+    reordered.cases.reverse();
+    expect(() =>
+      decodePersistedEvaluationDatasetDetail(reordered),
+    ).toThrow();
   });
 
   it('rejects inconsistent preview limits and provider-call accounting', () => {

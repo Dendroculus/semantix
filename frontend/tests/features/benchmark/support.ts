@@ -1,6 +1,7 @@
 import type {
   BenchmarkDatasetSummary,
   BenchmarkRunResponse,
+  PersistedEvaluationDatasetDetail,
 } from '@/features/benchmark/types';
 
 export const benchmarkDataset: BenchmarkDatasetSummary = {
@@ -153,6 +154,38 @@ export const benchmarkResult: BenchmarkRunResponse = {
       provider_called: false,
       matched_prompt: 'Explain semantic caching.',
       matched_cache_key: 'f'.repeat(64),
+    },
+  ],
+};
+
+export const persistedDataset: PersistedEvaluationDatasetDetail = {
+  dataset_id: '123e4567-e89b-42d3-a456-426614174000',
+  namespace: 'tenant-a',
+  name: 'Persisted <synthetic> set',
+  description: 'Stored synthetic prompts.',
+  source_type: 'imported',
+  schema_version: 1,
+  digest: '9'.repeat(64),
+  case_count: 2,
+  decoded_bytes: 1_536,
+  created_at: '2026-07-20T10:00:00Z',
+  expires_at: '2026-08-19T10:00:00Z',
+  cases: [
+    {
+      case_id: 'seed',
+      prompt: '=SUM(A1:A2)',
+      expected_cache_hit: false,
+      expected_match_case_id: null,
+      category: 'synthetic',
+      note: null,
+    },
+    {
+      case_id: 'repeat',
+      prompt: '=SUM(A1:A2)',
+      expected_cache_hit: true,
+      expected_match_case_id: 'seed',
+      category: 'synthetic',
+      note: 'Expected repeat.',
     },
   ],
 };
