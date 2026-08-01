@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearCache,
   deleteCacheEntry,
+  getCacheEntry,
   listCacheEntries,
 } from "@/features/cache/api/cacheApi";
 
@@ -29,6 +30,8 @@ describe("cache inspector API client", () => {
               namespace: "tenant-alpha",
               prompt: "Explain semantic caching",
               response_preview: "A safe response preview",
+              response_preview_truncated: false,
+              response: null,
               created_at: "2026-07-17T10:00:00Z",
               expires_at: "2026-07-17T11:00:00Z",
               remaining_ttl_seconds: 120,
@@ -63,6 +66,43 @@ describe("cache inspector API client", () => {
       expect.stringContaining(
         "/api/v1/cache/entries?offset=0&limit=10&sort=most_hit&namespace=tenant-alpha&search=semantic+cache",
       ),
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("requests and strictly decodes one complete cache entry", async () => {
+    const cacheKey = "c".repeat(64);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          cache_key: cacheKey,
+          namespace: "tenant-alpha",
+          prompt: "Explain semantic caching",
+          response_preview:
+            "Response exceeds the preview limit. Inspect the complete response.",
+          response_preview_truncated: true,
+          response: "**Complete cached response**",
+          created_at: "2026-07-17T10:00:00Z",
+          expires_at: null,
+          remaining_ttl_seconds: null,
+          hit_count: 3,
+          last_accessed_at: null,
+          recency_rank: 1,
+          is_expired: false,
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await getCacheEntry(cacheKey);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.response).toBe("**Complete cached response**");
+      expect(result.data.response_preview_truncated).toBe(true);
+    }
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/api/v1/cache/entries/${cacheKey}`),
       expect.objectContaining({ method: "GET" }),
     );
   });

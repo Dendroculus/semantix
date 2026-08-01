@@ -67,12 +67,15 @@ def test_cache_inspector_routes(settings: Settings) -> None:
         assert listing["items"][0]["namespace"] == "default"
         assert listing["items"][0]["hit_count"] == 1
         assert listing["items"][0]["last_accessed_at"] is not None
+        assert listing["items"][0]["response_preview_truncated"] is False
+        assert listing["items"][0]["response"] is None
         assert "embedding" not in listing["items"][0]
 
         cache_key = prompt_cache_key("source prompt")
         detail_response = client.get(f"/api/v1/cache/entries/{cache_key}")
         assert detail_response.status_code == 200
         assert detail_response.json()["cache_key"] == cache_key
+        assert detail_response.json()["response"] == "Generated for source prompt"
         assert "embedding" not in detail_response.json()
 
         delete_response = client.delete(f"/api/v1/cache/entries/{cache_key}")

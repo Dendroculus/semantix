@@ -7,12 +7,12 @@ from uuid import uuid4
 import pytest
 
 from app.cache.domain.keys import prompt_cache_key
+from app.cache.domain.metadata import TRUNCATED_RESPONSE_PREVIEW_MESSAGE
 from app.cache.domain.namespaces import DEFAULT_CACHE_NAMESPACE
 from app.cache.domain.protocols import CacheBackend
 from app.cache.infrastructure.factory import cache_backend_lifespan
 from app.core.config import Settings
 from app.core.exceptions import CacheStorageError
-from app.core.limits import MAX_RESPONSE_PREVIEW_LENGTH
 from tests.cache.infrastructure.backends.support import cache_entry
 from tests.support import TEST_EMBEDDING_DIMENSIONS, unit_vector
 
@@ -109,12 +109,22 @@ async def test_similarity_and_entry_metadata(
         assert metadata.hit_count == 1
         assert metadata.last_accessed_at is not None
         assert metadata.recency_rank == 1
-        assert len(metadata.response_preview) == MAX_RESPONSE_PREVIEW_LENGTH
-        assert metadata.response_preview.endswith("...")
+        assert metadata.response_preview == TRUNCATED_RESPONSE_PREVIEW_MESSAGE
+        assert metadata.response_preview_truncated is True
+        assert metadata.response is None
         assert metadata.expires_at is not None
         assert metadata.remaining_ttl_seconds is not None
         assert metadata.remaining_ttl_seconds > 0
         assert "embedding" not in metadata.model_dump()
+
+        detail = await backend.get_entry(
+            alpha.cache_key,
+            authorized_namespaces=None,
+        )
+        assert detail is not None
+        assert detail.response == "a" * 300
+        assert detail.response_preview == TRUNCATED_RESPONSE_PREVIEW_MESSAGE
+        assert detail.response_preview_truncated is True
 
 
 @pytest.mark.asyncio

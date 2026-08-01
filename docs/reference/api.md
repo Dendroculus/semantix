@@ -12,7 +12,7 @@ Application errors use a stable object containing `error` and `detail`.
 | `GET` | `/api/v1/cache/threshold` | Read the active similarity threshold |
 | `PUT` | `/api/v1/cache/threshold` | Update the active threshold |
 | `GET` | `/api/v1/cache/entries` | Search, sort, and paginate safe cache metadata |
-| `GET` | `/api/v1/cache/entries/{cache_key}` | Read one safe cache metadata record |
+| `GET` | `/api/v1/cache/entries/{cache_key}` | Read one authorized cache entry with its complete response |
 | `DELETE` | `/api/v1/cache/entries/{cache_key}` | Delete one entry |
 | `DELETE` | `/api/v1/cache` | Clear all entries or one namespace |
 | `GET` | `/api/v1/benchmarks/datasets` | List controlled benchmark datasets |
@@ -249,8 +249,19 @@ limits, response projections, or live-cache behavior.
 - `limit`: page size from 1 through 100.
 
 The response contains `items`, `total`, `offset`, `limit`, and `has_more`.
-Items include the original prompt and a truncated response preview, but not the
-embedding or full cached response.
+Items include the original prompt, `response_preview`,
+`response_preview_truncated`, and a null `response`, but never the embedding.
+Responses that fit the 240-character preview limit retain their complete
+Markdown source. Longer responses use a neutral preview message instead of
+cutting Markdown syntax.
+
+`GET /api/v1/cache/entries/{cache_key}` returns the same metadata plus the
+complete cached `response`. It applies the existing Viewer authentication and
+namespace authorization rules and returns the same non-disclosing not-found
+response for missing and unauthorized entries. The Cache Inspector requests
+this detail only when a user explicitly opens the complete response. Provider
+output remains untrusted text: the frontend Markdown renderer does not execute
+raw HTML and continues to reject unsafe link and image URLs.
 
 `GET /api/v1/cache/stats?namespace=...` and
 `DELETE /api/v1/cache?namespace=...` target one namespace. Omitting the
