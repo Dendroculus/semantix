@@ -1,6 +1,8 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from asyncpg.pool import Pool
+
 from app.cache.domain.protocols import CacheBackend, CacheEventRecorder
 from app.cache.infrastructure.backends.memory import InMemoryCacheBackend
 from app.cache.infrastructure.backends.pgvector import PgVectorCacheBackend
@@ -14,6 +16,7 @@ async def cache_backend_lifespan(
     *,
     dimensions: int,
     events: CacheEventRecorder | None = None,
+    pool: Pool | None = None,
 ) -> AsyncIterator[CacheBackend]:
     if settings.cache_backend == "memory":
         yield InMemoryCacheBackend(
@@ -24,10 +27,7 @@ async def cache_backend_lifespan(
         )
         return
 
-    pool = await create_database_pool(settings)
-    try:
-        if settings.database_migration_mode == "auto":
-            await apply_migrations(pool)
+    if pool is not None:
         yield PgVectorCacheBackend(
             pool,
             settings.max_cache_size,
@@ -36,5 +36,19 @@ async def cache_backend_lifespan(
             embedding_space=settings.embedding_space,
             events=events,
         )
+        return
+
+    owned_pool = await create_database_pool(settings)
+    try:
+        if settings.database_migration_mode == "auto":
+            await apply_migrations(owned_pool)
+        yield PgVectorCacheBackend(
+            owned_pool,
+            settings.max_cache_size,
+            settings.cache_ttl_seconds,
+            dimensions=dimensions,
+            embedding_space=settings.embedding_space,
+            events=events,
+        )
     finally:
-        await pool.close()
+        await owned_pool.close()
