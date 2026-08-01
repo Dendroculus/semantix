@@ -237,6 +237,7 @@ class InMemoryCacheBackend:
             )
             return entry_metadata(
                 item,
+                include_response=True,
                 now_monotonic=now_monotonic,
                 recency_rank=recency_rank,
             )

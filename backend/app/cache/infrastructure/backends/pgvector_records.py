@@ -4,7 +4,10 @@ from typing import cast
 from asyncpg import Record
 
 from app.cache.api.schemas import CacheEntryMetadata
-from app.cache.domain.metadata import response_preview
+from app.cache.domain.metadata import (
+    response_preview,
+    response_preview_is_truncated,
+)
 from app.cache.domain.models import CacheEntry
 from app.cache.domain.vector_validation import parse_vector_literal
 
@@ -27,7 +30,11 @@ def cache_entry_from_record(
     )
 
 
-def cache_metadata_from_record(row: Record) -> CacheEntryMetadata:
+def cache_metadata_from_record(
+    row: Record,
+    *,
+    include_response: bool = False,
+) -> CacheEntryMetadata:
     expires_at = cast(datetime | None, row["expires_at"])
     observed_at = cast(datetime, row["observed_at"])
     remaining_ttl_seconds = (
@@ -40,6 +47,10 @@ def cache_metadata_from_record(row: Record) -> CacheEntryMetadata:
         namespace=cast(str, row["namespace"]),
         prompt=cast(str, row["prompt"]),
         response_preview=response_preview(cast(str, row["response"])),
+        response_preview_truncated=response_preview_is_truncated(
+            cast(str, row["response"])
+        ),
+        response=cast(str, row["response"]) if include_response else None,
         created_at=cast(datetime, row["created_at"]),
         expires_at=expires_at,
         remaining_ttl_seconds=remaining_ttl_seconds,

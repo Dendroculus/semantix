@@ -34,6 +34,8 @@ class CacheEntryMetadata(StrictModel):
     namespace: CacheNamespace
     prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
     response_preview: str = Field(min_length=1, max_length=MAX_RESPONSE_PREVIEW_LENGTH)
+    response_preview_truncated: bool
+    response: str | None = Field(default=None, min_length=1)
     created_at: datetime
     expires_at: datetime | None = None
     remaining_ttl_seconds: float | None = Field(default=None, ge=0)

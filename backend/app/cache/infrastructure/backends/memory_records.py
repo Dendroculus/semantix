@@ -5,7 +5,10 @@ from app.cache.api.schemas import (
     CacheEntryMetadata,
     CacheEntrySort,
 )
-from app.cache.domain.metadata import response_preview
+from app.cache.domain.metadata import (
+    response_preview,
+    response_preview_is_truncated,
+)
 from app.cache.domain.models import CacheEntry
 
 
@@ -27,6 +30,7 @@ class CacheCounters:
 def entry_metadata(
     item: StoredCacheItem,
     *,
+    include_response: bool = False,
     now_monotonic: float,
     recency_rank: int,
 ) -> CacheEntryMetadata:
@@ -40,6 +44,8 @@ def entry_metadata(
         namespace=item.entry.namespace,
         prompt=item.entry.prompt,
         response_preview=response_preview(item.entry.response),
+        response_preview_truncated=response_preview_is_truncated(item.entry.response),
+        response=item.entry.response if include_response else None,
         created_at=item.entry.created_at,
         expires_at=item.expires_at,
         remaining_ttl_seconds=remaining_ttl,

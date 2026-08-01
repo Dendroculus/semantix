@@ -245,7 +245,11 @@ class PgVectorCacheBackend:
                     else list(authorized_namespaces)
                 ),
             )
-        return None if row is None else cache_metadata_from_record(row)
+        return (
+            None
+            if row is None
+            else cache_metadata_from_record(row, include_response=True)
+        )
 
     async def delete_entry(
         self,
