@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test';
 import {
   benchmarkAnalysisResult,
   benchmarkDataset,
+  persistedDataset,
 } from '../features/benchmark/support';
 
 const VIEWPORTS = [
@@ -51,6 +52,50 @@ test.beforeEach(async ({ page }) => {
     });
   });
   await page.route(
+    `**/api/v1/evaluations/datasets/persisted/${persistedDataset.dataset_id}`,
+    async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: {
+          ...persistedDataset,
+          name: `${persistedDataset.name} with an intentionally long responsive label`,
+          description:
+            '<script>alert("catalog")</script> remains inert dataset text.',
+        },
+      });
+    },
+  );
+  await page.route(
+    '**/api/v1/evaluations/datasets/persisted?*',
+    async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: {
+          storage_mode: 'postgres',
+          persistence_enabled: true,
+          items: [
+            {
+              ...persistedDataset,
+              name: `${persistedDataset.name} with an intentionally long responsive label`,
+              description:
+                '<script>alert("catalog")</script> remains inert dataset text.',
+              cases: undefined,
+            },
+          ],
+          total: 1,
+          offset: 0,
+          limit: 12,
+          has_more: false,
+          limits: {
+            default_retention_days: 30,
+            max_retention_days: 365,
+            max_persisted_per_namespace: 100,
+          },
+        },
+      });
+    },
+  );
+  await page.route(
     '**/api/v1/evaluations/datasets/validate',
     async (route) => {
       await route.fulfill({
@@ -87,6 +132,55 @@ test.beforeEach(async ({ page }) => {
       });
     },
   );
+});
+
+test('persistent catalog remains readable and bounded at required widths', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 820, height: 1_180 });
+  await page.goto('/evaluations');
+
+  const datasetsView = page.getByRole('button', { name: 'Datasets' });
+  await datasetsView.focus();
+  await page.keyboard.press('Enter');
+  await expect(datasetsView).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByRole('heading', { name: 'Evaluation datasets' }),
+  ).toBeVisible();
+  await expect(page.getByText('<script>alert("catalog")</script>', {
+    exact: false,
+  })).toBeVisible();
+  await expect(
+    page.locator('script').filter({ hasText: 'alert("catalog")' }),
+  ).toHaveCount(0);
+
+  for (const width of [320, 744, 768, 820, 834, 1_024, 1_280]) {
+    await test.step(`catalog-${width}`, async () => {
+      await page.setViewportSize({ width, height: 1_180 });
+      await expect(
+        page.getByRole('heading', { name: 'Persisted catalog' }),
+      ).toBeVisible();
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(1);
+    });
+  }
+
+  const detailTrigger = page.getByRole('button', { name: 'View details' });
+  await detailTrigger.focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('heading', { name: 'Dataset detail' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Expected repeat.', { exact: true }),
+  ).toBeVisible();
+
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations).toEqual([]);
 });
 
 test('session-local import remains readable and bounded at required widths', async ({

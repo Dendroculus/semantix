@@ -47,9 +47,11 @@ export function BenchmarkRunWarning({
       </p>
 
       <p className="font-data mt-3 text-[10px]/5 text-(--text-faint)">
-        {dataset?.dataset_source === 'inline' && (
+        {(dataset?.dataset_source === 'inline' ||
+          dataset?.dataset_source === 'persisted') && (
           <>
-            Imported dataset {dataset.name}, schema v{dataset.schema_version},
+            {dataset.dataset_source === 'persisted' ? 'Persisted' : 'Imported'}{' '}
+            dataset {dataset.name}, schema v{dataset.schema_version},
             digest {dataset.digest.slice(0, 16)}... ·{' '}
             {formatCount(dataset.query_count)} cases (
             {formatCount(dataset.expected_hits)} expected hits /{' '}
