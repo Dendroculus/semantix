@@ -20,8 +20,14 @@ from app.benchmark.infrastructure.database import (
 from app.benchmark.infrastructure.postgres_repository import (
     PostgresEvaluationDatasetRepository,
 )
-from app.cache.infrastructure.database import apply_migrations as apply_cache_migrations
+from app.cache.infrastructure.database import (
+    apply_migrations as apply_cache_migrations,
+)
+from app.cache.infrastructure.database import (
+    load_migrations as load_cache_migrations,
+)
 from app.core.exceptions import (
+    CacheStorageError,
     EvaluationDatasetCapacityError,
     EvaluationDatasetStorageError,
 )
@@ -137,6 +143,82 @@ async def test_evaluation_migration_upgrades_cache_schema_additively(
 
     assert [row["version"] for row in versions] == ["0001", "0002"]
     assert cache_table is dataset_table is True
+
+
+@pytest.mark.asyncio
+async def test_cache_migration_can_follow_evaluation_only_install(
+    evaluation_pool: Pool,
+) -> None:
+    evaluation_migration = load_migrations()[0]
+    cache_migration = load_cache_migrations()[0]
+
+    await apply_migrations(evaluation_pool)
+    async with evaluation_pool.acquire() as connection:
+        evaluation_only_versions = await connection.fetch(
+            """
+            SELECT version, checksum
+            FROM semantix.schema_migrations
+            ORDER BY version
+            """
+        )
+        evaluation_table = await connection.fetchval(
+            "SELECT to_regclass('semantix.evaluation_datasets') IS NOT NULL"
+        )
+        cache_table = await connection.fetchval(
+            "SELECT to_regclass('semantix.cache_entries') IS NOT NULL"
+        )
+
+    assert [(row["version"], row["checksum"]) for row in evaluation_only_versions] == [
+        ("0002", evaluation_migration.checksum)
+    ]
+    assert evaluation_table is True
+    assert cache_table is False
+
+    await apply_cache_migrations(evaluation_pool)
+    await apply_cache_migrations(evaluation_pool)
+    await apply_migrations(evaluation_pool)
+
+    async with evaluation_pool.acquire() as connection:
+        combined_versions = await connection.fetch(
+            """
+            SELECT version, checksum
+            FROM semantix.schema_migrations
+            ORDER BY version
+            """
+        )
+        relations = await connection.fetch(
+            """
+            SELECT relation, to_regclass(relation) IS NOT NULL AS exists
+            FROM unnest($1::text[]) AS expected(relation)
+            ORDER BY relation
+            """,
+            [
+                "semantix.cache_entries",
+                "semantix.cache_namespace_counters",
+                "semantix.evaluation_dataset_cases",
+                "semantix.evaluation_datasets",
+                "semantix.schema_migrations",
+            ],
+        )
+
+    assert [(row["version"], row["checksum"]) for row in combined_versions] == [
+        ("0001", cache_migration.checksum),
+        ("0002", evaluation_migration.checksum),
+    ]
+    assert all(row["exists"] for row in relations)
+
+    async with evaluation_pool.acquire() as connection:
+        await connection.execute(
+            """
+            UPDATE semantix.schema_migrations
+            SET checksum = $1
+            WHERE version = '0001'
+            """,
+            "0" * 64,
+        )
+
+    with pytest.raises(CacheStorageError, match="0001 checksum mismatch"):
+        await apply_cache_migrations(evaluation_pool)
 
 
 @pytest.mark.asyncio

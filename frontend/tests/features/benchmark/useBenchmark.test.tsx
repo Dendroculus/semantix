@@ -7,11 +7,19 @@ import { QueryTestProvider } from "../QueryTestProvider";
 import { createTestQueryClient } from "../queryClient";
 import {
   getBenchmarkDatasets,
+  persistEvaluationDataset,
   runBenchmark,
+  validateEvaluationDataset,
 } from "@/features/benchmark/api/benchmarkApi";
+import type { AuthContextValue } from "@/features/auth/context/AuthContext";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useBenchmark } from "@/features/benchmark/hooks/useBenchmark";
 import { deferred } from "../support";
-import { benchmarkDataset, benchmarkResult } from "./support";
+import {
+  benchmarkDataset,
+  benchmarkResult,
+  persistedDataset,
+} from "./support";
 
 vi.mock("@/features/benchmark/api/benchmarkApi");
 
@@ -25,6 +33,41 @@ function renderBenchmarkHook(client: QueryClient) {
   });
 }
 
+const principalA: AuthContextValue = {
+  authenticate: vi.fn(async () => false),
+  error: null,
+  lockedUntil: null,
+  logout: vi.fn(),
+  retryAccessPolicy: vi.fn(),
+  session: {
+    name: "operator-a",
+    role: "operator",
+    namespaces: ["tenant-a"],
+  },
+  status: "authenticated",
+};
+
+const principalB: AuthContextValue = {
+  ...principalA,
+  session: {
+    name: "operator-b",
+    role: "operator",
+    namespaces: ["tenant-b"],
+  },
+};
+
+const importedDefinition = {
+  schema_version: 1,
+  name: "Principal-bound dataset",
+  cases: [
+    {
+      case_id: "seed",
+      prompt: "Synthetic principal-bound prompt",
+      expected_cache_hit: false,
+    },
+  ],
+};
+
 describe("useBenchmark", () => {
   let queryClient: QueryClient;
 
@@ -35,6 +78,31 @@ describe("useBenchmark", () => {
       data: {
         datasets: [benchmarkDataset],
         default_dataset_id: "quick",
+      },
+    });
+    vi.mocked(validateEvaluationDataset).mockResolvedValue({
+      ok: true,
+      data: {
+        schema_version: 1,
+        dataset_id: "custom:1234567890abcdef",
+        digest: "9".repeat(64),
+        name: "Principal-bound dataset",
+        description: null,
+        case_count: 1,
+        expected_hits: 0,
+        expected_misses: 1,
+        categories: ["uncategorized"],
+        decoded_bytes: 160,
+        warnings: [],
+        query_executions: 1,
+        threshold_projection_evaluations: 7,
+        maximum_provider_calls: 1,
+        provider_calls_made: 0,
+        limits: {
+          max_cases: 50,
+          max_decoded_bytes: 49_152,
+          max_workload_queries: 250,
+        },
       },
     });
   });
@@ -111,6 +179,142 @@ describe("useBenchmark", () => {
       data: benchmarkResult,
     });
     await completion;
+  });
+
+  it.each([
+    ["a different principal", principalB],
+    [
+      "logout",
+      {
+        ...principalA,
+        session: null,
+        status: "unauthenticated",
+      } satisfies AuthContextValue,
+    ],
+    [
+      "authentication becoming disabled",
+      {
+        ...principalA,
+        session: null,
+        status: "disabled",
+      } satisfies AuthContextValue,
+    ],
+  ])(
+    "invalidates an active run on %s and ignores its late response",
+    async (_transition, nextAuth) => {
+      vi.mocked(useAuth).mockReturnValue(principalA);
+      const pendingRun =
+        deferred<Awaited<ReturnType<typeof runBenchmark>>>();
+      vi.mocked(runBenchmark).mockReturnValue(pendingRun.promise);
+      const rendered = renderBenchmarkHook(queryClient);
+
+      await waitFor(() =>
+        expect(rendered.result.current.datasetsLoading).toBe(false),
+      );
+
+      act(() => {
+        rendered.result.current.selectPersistedDataset(persistedDataset);
+      });
+      await waitFor(() =>
+        expect(rendered.result.current.form.datasetSource).toBe("persisted"),
+      );
+
+      let completion: Promise<void> | undefined;
+      act(() => {
+        completion = rendered.result.current.confirmRun();
+      });
+      await waitFor(() =>
+        expect(rendered.result.current.isRunning).toBe(true),
+      );
+      const signal = vi.mocked(runBenchmark).mock.calls[0]?.[1];
+
+      vi.mocked(useAuth).mockReturnValue(nextAuth);
+      rendered.rerender();
+
+      await waitFor(() => {
+        expect(signal?.aborted).toBe(true);
+        expect(rendered.result.current.isRunning).toBe(false);
+        expect(rendered.result.current.form.datasetSource).toBe("builtin");
+      });
+      expect(rendered.result.current.persistedDataset).toBeNull();
+      expect(rendered.result.current.result).toBeNull();
+      expect(rendered.result.current.error).toBeNull();
+      expect(rendered.result.current.statusMessage).toBe("");
+
+      await act(async () => {
+        pendingRun.resolve({
+          ok: true,
+          data: benchmarkResult,
+        });
+        await completion;
+      });
+
+      expect(rendered.result.current.persistedDataset).toBeNull();
+      expect(rendered.result.current.result).toBeNull();
+      expect(rendered.result.current.error).toBeNull();
+      expect(rendered.result.current.statusMessage).toBe("");
+    },
+  );
+
+  it("invalidates an active save on principal change and ignores its late response", async () => {
+    vi.mocked(useAuth).mockReturnValue(principalA);
+    const pendingSave =
+      deferred<Awaited<ReturnType<typeof persistEvaluationDataset>>>();
+    vi.mocked(persistEvaluationDataset).mockReturnValue(pendingSave.promise);
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
+    const rendered = renderBenchmarkHook(queryClient);
+
+    await waitFor(() =>
+      expect(rendered.result.current.datasetsLoading).toBe(false),
+    );
+    await act(async () => {
+      await rendered.result.current.selectImportFile(
+        new File(
+          [JSON.stringify(importedDefinition)],
+          "principal-bound.json",
+          { type: "application/json" },
+        ),
+      );
+    });
+    expect(rendered.result.current.preview).not.toBeNull();
+
+    let completion: Promise<typeof persistedDataset | null> | undefined;
+    act(() => {
+      completion = rendered.result.current.saveImport("tenant-a", 30);
+    });
+    await waitFor(() =>
+      expect(rendered.result.current.isSavingImport).toBe(true),
+    );
+    const signal = vi.mocked(persistEvaluationDataset).mock.calls[0]?.[1];
+
+    vi.mocked(useAuth).mockReturnValue(principalB);
+    rendered.rerender();
+
+    await waitFor(() => {
+      expect(signal?.aborted).toBe(true);
+      expect(rendered.result.current.isSavingImport).toBe(false);
+      expect(rendered.result.current.form.datasetSource).toBe("builtin");
+    });
+    expect(rendered.result.current.preview).toBeNull();
+    expect(rendered.result.current.persistedDataset).toBeNull();
+    expect(rendered.result.current.error).toBeNull();
+    expect(rendered.result.current.statusMessage).toBe("");
+
+    let saved: typeof persistedDataset | null | undefined;
+    await act(async () => {
+      pendingSave.resolve({
+        ok: true,
+        data: persistedDataset,
+      });
+      saved = await completion;
+    });
+
+    expect(saved).toBeNull();
+    expect(invalidateQueries).not.toHaveBeenCalled();
+    expect(rendered.result.current.preview).toBeNull();
+    expect(rendered.result.current.persistedDataset).toBeNull();
+    expect(rendered.result.current.error).toBeNull();
+    expect(rendered.result.current.statusMessage).toBe("");
   });
 
   it("reuses a fresh dataset catalog when the hook remounts", async () => {
