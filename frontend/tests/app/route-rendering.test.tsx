@@ -52,6 +52,8 @@ const cacheEntry: CacheEntryMetadata = {
   namespace: 'default',
   prompt: 'Explain semantic caching',
   response_preview: 'A cached explanation.',
+  response_preview_truncated: false,
+  response: null,
   created_at: '2026-07-17T09:00:00Z',
   expires_at: '2026-07-17T10:00:00Z',
   remaining_ttl_seconds: 3600,

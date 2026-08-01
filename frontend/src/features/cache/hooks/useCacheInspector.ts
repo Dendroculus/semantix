@@ -94,18 +94,27 @@ export function useCacheInspector({
   const deleteMutation = useMutation({
     mutationFn: async (cacheKey: string) =>
       dataFromApiResult(await deleteCacheEntry(cacheKey)),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
+    onSuccess: async (_response, cacheKey) => {
+      queryClient.removeQueries({
+        queryKey: cacheEntryKeys.detail(cacheKey),
+        exact: true,
+      });
+      await queryClient.invalidateQueries({
         queryKey: cacheEntryKeys.lists(),
-      }),
+      });
+    },
   });
   const clearMutation = useMutation({
     mutationFn: async (selectedNamespace: string | undefined) =>
       dataFromApiResult(await clearCache(selectedNamespace)),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: cacheEntryKeys.all,
-      }),
+    onSuccess: async () => {
+      queryClient.removeQueries({
+        queryKey: cacheEntryKeys.details(),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: cacheEntryKeys.lists(),
+      });
+    },
   });
 
   const data = entriesQuery.data ?? null;
