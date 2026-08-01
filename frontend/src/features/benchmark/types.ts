@@ -1,5 +1,5 @@
 export type BenchmarkDatasetId = "quick" | "extended";
-export type EvaluationDatasetSourceKind = "builtin" | "inline";
+export type EvaluationDatasetSourceKind = "builtin" | "inline" | "persisted";
 
 export type BenchmarkOutcome =
   | "true_positive"
@@ -80,11 +80,69 @@ export interface EvaluationDatasetPreview {
   };
 }
 
+export interface ImportedEvaluationCase {
+  case_id: string;
+  prompt: string;
+  expected_cache_hit: boolean;
+  expected_match_case_id: string | null;
+  category: string | null;
+  note: string | null;
+}
+
+export interface PersistedEvaluationDatasetMetadata {
+  dataset_id: string;
+  namespace: string;
+  name: string;
+  description: string | null;
+  source_type: "imported";
+  schema_version: 1;
+  digest: string;
+  case_count: number;
+  decoded_bytes: number;
+  created_at: string;
+  expires_at: string;
+}
+
+export interface PersistedEvaluationDatasetDetail
+  extends PersistedEvaluationDatasetMetadata {
+  cases: ImportedEvaluationCase[];
+}
+
+export interface PersistedEvaluationDatasetCatalogLimits {
+  default_retention_days: number;
+  max_retention_days: number;
+  max_persisted_per_namespace: number;
+}
+
+export interface PersistedEvaluationDatasetListResponse {
+  storage_mode: "session" | "postgres";
+  persistence_enabled: boolean;
+  items: PersistedEvaluationDatasetMetadata[];
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
+  limits: PersistedEvaluationDatasetCatalogLimits;
+}
+
+export interface PersistEvaluationDatasetRequest {
+  namespace?: string;
+  dataset: unknown;
+  retention_days?: number;
+}
+
+export interface DeletePersistedEvaluationDatasetResponse {
+  deleted: true;
+  dataset_id: string;
+  namespace: string;
+}
+
 export interface EvaluationRunRequest
   extends Omit<BenchmarkRunRequest, "dataset_id"> {
   dataset_source:
     | { kind: "builtin"; dataset_id: BenchmarkDatasetId }
-    | { kind: "inline"; definition: unknown };
+    | { kind: "inline"; definition: unknown }
+    | { kind: "persisted"; dataset_id: string; namespace: string };
 }
 
 export interface BenchmarkMetrics {

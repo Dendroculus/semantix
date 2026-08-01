@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 
 from app.api.schemas import HealthResponse, ReadinessResponse
-from app.core.exceptions import CacheStorageError
+from app.core.exceptions import CacheStorageError, EvaluationDatasetStorageError
 
 router = APIRouter(tags=["health"])
 
@@ -24,15 +24,19 @@ async def health(request: Request) -> HealthResponse:
 async def ready(request: Request) -> ReadinessResponse | JSONResponse:
     try:
         await request.app.state.semantic_cache.stats()
-    except CacheStorageError:
+        await request.app.state.benchmark_service.dataset_catalog_readiness()
+    except (CacheStorageError, EvaluationDatasetStorageError):
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "error": "not_ready",
-                "detail": "A required cache dependency is unavailable.",
+                "detail": "A required storage dependency is unavailable.",
             },
         )
     return ReadinessResponse(
         status="ready",
         cache_backend=request.app.state.settings.cache_backend,
+        evaluation_dataset_storage=(
+            request.app.state.settings.evaluation_dataset_storage
+        ),
     )

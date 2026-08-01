@@ -1,4 +1,5 @@
 export {
+  formatBytes,
   formatCount,
   formatDecimal,
   formatLatency,

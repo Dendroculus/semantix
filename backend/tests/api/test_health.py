@@ -3,8 +3,10 @@ from typing import cast
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.benchmark.application.service import BenchmarkService
+from app.benchmark.domain.protocols import EvaluationDatasetRepository
 from app.core.config import Settings
-from app.core.exceptions import CacheStorageError
+from app.core.exceptions import CacheStorageError, EvaluationDatasetStorageError
 from app.factory import create_app
 
 
@@ -35,7 +37,11 @@ def test_ready_reports_active_cache_backend() -> None:
         response = client.get("/ready")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ready", "cache_backend": "memory"}
+    assert response.json() == {
+        "status": "ready",
+        "cache_backend": "memory",
+        "evaluation_dataset_storage": "session",
+    }
 
 
 def test_ready_returns_503_when_cache_dependency_is_unavailable() -> None:
@@ -50,5 +56,28 @@ def test_ready_returns_503_when_cache_dependency_is_unavailable() -> None:
     assert response.status_code == 503
     assert response.json() == {
         "error": "not_ready",
-        "detail": "A required cache dependency is unavailable.",
+        "detail": "A required storage dependency is unavailable.",
+    }
+
+
+def test_ready_returns_503_when_dataset_storage_is_unavailable() -> None:
+    class FailingDatasetRepository:
+        async def readiness(self) -> None:
+            raise EvaluationDatasetStorageError
+
+    with TestClient(create_app(settings())) as client:
+        benchmark_service = cast(
+            BenchmarkService,
+            cast(FastAPI, client.app).state.benchmark_service,
+        )
+        benchmark_service._dataset_repository = cast(
+            EvaluationDatasetRepository,
+            FailingDatasetRepository(),
+        )
+        response = client.get("/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": "not_ready",
+        "detail": "A required storage dependency is unavailable.",
     }

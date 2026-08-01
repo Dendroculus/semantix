@@ -16,7 +16,11 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { QueryTestProvider } from '../QueryTestProvider';
 import { createTestQueryClient } from '../queryClient';
 import {
+  deletePersistedEvaluationDataset,
   getBenchmarkDatasets,
+  getPersistedEvaluationDataset,
+  getPersistedEvaluationDatasets,
+  persistEvaluationDataset,
   runBenchmark,
   validateEvaluationDataset,
 } from '@/features/benchmark/api/benchmarkApi';
@@ -26,6 +30,7 @@ import { deferred } from '../support';
 import {
   benchmarkDataset as dataset,
   benchmarkResult as result,
+  persistedDataset,
 } from './support';
 
 vi.mock('../../../src/features/benchmark/api/benchmarkApi');
@@ -118,6 +123,39 @@ describe('BenchmarkDashboard', () => {
     vi.mocked(validateEvaluationDataset).mockResolvedValue({
       ok: true,
       data: importedPreview,
+    });
+    vi.mocked(getPersistedEvaluationDatasets).mockResolvedValue({
+      ok: true,
+      data: {
+        storage_mode: 'session',
+        persistence_enabled: false,
+        items: [],
+        total: 0,
+        offset: 0,
+        limit: 12,
+        has_more: false,
+        limits: {
+          default_retention_days: 30,
+          max_retention_days: 365,
+          max_persisted_per_namespace: 100,
+        },
+      },
+    });
+    vi.mocked(getPersistedEvaluationDataset).mockResolvedValue({
+      ok: true,
+      data: persistedDataset,
+    });
+    vi.mocked(persistEvaluationDataset).mockResolvedValue({
+      ok: true,
+      data: persistedDataset,
+    });
+    vi.mocked(deletePersistedEvaluationDataset).mockResolvedValue({
+      ok: true,
+      data: {
+        deleted: true,
+        dataset_id: persistedDataset.dataset_id,
+        namespace: persistedDataset.namespace,
+      },
     });
   });
 
@@ -419,6 +457,238 @@ describe('BenchmarkDashboard', () => {
 
     expect(screen.queryByText('Validated preview')).toBeNull();
     expect(document.activeElement).toBe(input);
+  });
+
+  it('shows the session-only fallback without saving during validation', async () => {
+    renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+    fireEvent.click(screen.getByRole('button', { name: 'Datasets' }));
+
+    expect(
+      await screen.findByText('Persistence is disabled'),
+    ).toBeTruthy();
+    expect(screen.getByText(/session-only evaluation datasets/)).toBeTruthy();
+    expect(persistEvaluationDataset).not.toHaveBeenCalled();
+  });
+
+  it('saves only after an explicit action and selects persisted detail for a run', async () => {
+    vi.mocked(getPersistedEvaluationDatasets).mockResolvedValue({
+      ok: true,
+      data: {
+        storage_mode: 'postgres',
+        persistence_enabled: true,
+        items: [persistedDataset],
+        total: 1,
+        offset: 0,
+        limit: 12,
+        has_more: false,
+        limits: {
+          default_retention_days: 30,
+          max_retention_days: 365,
+          max_persisted_per_namespace: 100,
+        },
+      },
+    });
+    renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+    fireEvent.click(screen.getByLabelText('Custom JSON dataset'));
+    fireEvent.change(screen.getByLabelText('JSON dataset file'), {
+      target: {
+        files: [
+          new File(
+            [JSON.stringify(importedDefinition)],
+            'persist-me.json',
+            { type: 'application/json' },
+          ),
+        ],
+      },
+    });
+    await screen.findByText('Validated preview');
+    expect(persistEvaluationDataset).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Datasets' }));
+    await screen.findByText('Save validated session dataset');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save validated dataset' }),
+    );
+
+    await waitFor(() =>
+      expect(persistEvaluationDataset).toHaveBeenCalledWith({
+        namespace: 'default',
+        dataset: importedDefinition,
+        retention_days: 30,
+      }),
+    );
+    expect(await screen.findByText(/Saved Persisted/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'View details' }));
+    expect(
+      await screen.findByRole('button', { name: 'Use for benchmark' }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Use for benchmark' }));
+
+    expect(
+      screen.getByLabelText(`Persisted dataset: ${persistedDataset.name}`),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Review benchmark run' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Run benchmark now' }));
+
+    await waitFor(() =>
+      expect(runBenchmark).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataset_source: {
+            kind: 'persisted',
+            dataset_id: persistedDataset.dataset_id,
+            namespace: persistedDataset.namespace,
+          },
+        }),
+        expect.any(AbortSignal),
+      ),
+    );
+  });
+
+  it('requires a namespace choice for a multi-namespace operator', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error: null,
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
+      session: {
+        name: 'multi-operator',
+        role: 'operator',
+        namespaces: ['tenant-a', 'tenant-b'],
+      },
+      status: 'authenticated',
+    });
+    vi.mocked(getPersistedEvaluationDatasets).mockResolvedValue({
+      ok: true,
+      data: {
+        storage_mode: 'postgres',
+        persistence_enabled: true,
+        items: [],
+        total: 0,
+        offset: 0,
+        limit: 12,
+        has_more: false,
+        limits: {
+          default_retention_days: 30,
+          max_retention_days: 365,
+          max_persisted_per_namespace: 100,
+        },
+      },
+    });
+    renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+    fireEvent.click(screen.getByLabelText('Custom JSON dataset'));
+    fireEvent.change(screen.getByLabelText('JSON dataset file'), {
+      target: {
+        files: [
+          new File(
+            [JSON.stringify(importedDefinition)],
+            'multi.json',
+            { type: 'application/json' },
+          ),
+        ],
+      },
+    });
+    await screen.findByText('Validated preview');
+    fireEvent.click(screen.getByRole('button', { name: 'Datasets' }));
+
+    const save = await screen.findByRole('button', {
+      name: 'Save validated dataset',
+    });
+    await waitFor(() =>
+      expect(getPersistedEvaluationDatasets).toHaveBeenCalledWith(
+        {
+          namespace: 'tenant-a',
+          offset: 0,
+          limit: 12,
+        },
+        expect.any(AbortSignal),
+      ),
+    );
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Catalog namespace'), {
+      target: { value: 'tenant-b' },
+    });
+    await waitFor(() =>
+      expect(getPersistedEvaluationDatasets).toHaveBeenCalledWith(
+        {
+          namespace: 'tenant-b',
+          offset: 0,
+          limit: 12,
+        },
+        expect.any(AbortSignal),
+      ),
+    );
+    fireEvent.change(await screen.findByLabelText('Namespace'), {
+      target: { value: 'tenant-b' },
+    });
+    expect(
+      (await screen.findByRole('button', {
+        name: 'Save validated dataset',
+      })) as HTMLButtonElement,
+    ).toHaveProperty('disabled', false);
+  });
+
+  it('keeps deletion admin-only and names the exact destructive scope', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error: null,
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
+      session: {
+        name: 'administrator',
+        role: 'admin',
+        namespaces: ['tenant-a'],
+      },
+      status: 'authenticated',
+    });
+    vi.mocked(getPersistedEvaluationDatasets).mockResolvedValue({
+      ok: true,
+      data: {
+        storage_mode: 'postgres',
+        persistence_enabled: true,
+        items: [persistedDataset],
+        total: 1,
+        offset: 0,
+        limit: 12,
+        has_more: false,
+        limits: {
+          default_retention_days: 30,
+          max_retention_days: 365,
+          max_persisted_per_namespace: 100,
+        },
+      },
+    });
+    renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+    fireEvent.click(screen.getByRole('button', { name: 'Datasets' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete dataset' }),
+    );
+
+    const confirmation = screen.getByRole('group', {
+      name: `Confirm deletion of ${persistedDataset.name} from namespace ${persistedDataset.namespace}`,
+    });
+    expect(confirmation.textContent).toContain(persistedDataset.name);
+    expect(confirmation.textContent).toContain(persistedDataset.namespace);
+    expect(confirmation.textContent).toContain('2 cases');
+    fireEvent.click(
+      within(confirmation).getByRole('button', {
+        name: `Confirm delete ${persistedDataset.name} from namespace ${persistedDataset.namespace}`,
+      }),
+    );
+    await waitFor(() =>
+      expect(deletePersistedEvaluationDataset).toHaveBeenCalledWith(
+        persistedDataset.dataset_id,
+        persistedDataset.namespace,
+      ),
+    );
   });
 
   it('ignores a stale local file read after a newer selection', async () => {

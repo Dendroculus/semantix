@@ -1,23 +1,36 @@
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.api.deps import get_benchmark_service
 from app.benchmark.api.schemas import (
     BenchmarkDatasetListResponse,
     BenchmarkRunRequest,
     BenchmarkRunResponse,
+    DeletePersistedEvaluationDatasetResponse,
     EvaluationDatasetPreview,
     EvaluationDatasetValidationRequest,
     EvaluationRunRequest,
+    PersistedEvaluationDatasetDetail,
+    PersistedEvaluationDatasetListResponse,
+    PersistedEvaluationDatasetSource,
+    PersistEvaluationDatasetRequest,
 )
 from app.benchmark.application.service import BenchmarkService
+from app.cache.domain.namespaces import AuthorizedNamespaceScope, CacheNamespace
 from app.middleware.rate_limit import app_rate_limit, limiter
-from app.security.auth import OperatorPrincipal, ViewerPrincipal
+from app.security.auth import (
+    AdminPrincipal,
+    OperatorPrincipal,
+    ViewerPrincipal,
+    resolve_namespace,
+)
 
 router = APIRouter(prefix="/api/v1/benchmarks", tags=["benchmarks"])
 evaluations_router = APIRouter(prefix="/api/v1/evaluations", tags=["evaluations"])
 BenchmarkDependency = Annotated[BenchmarkService, Depends(get_benchmark_service)]
+EvaluationNamespaceQuery = Annotated[CacheNamespace | None, Query()]
 
 
 @router.get("/datasets", response_model=BenchmarkDatasetListResponse)
@@ -68,6 +81,102 @@ async def validate_evaluation_dataset(
     return benchmark.validate_dataset(payload)
 
 
+@evaluations_router.get(
+    "/datasets/persisted",
+    response_model=PersistedEvaluationDatasetListResponse,
+)
+@limiter.limit(app_rate_limit)
+async def list_persisted_evaluation_datasets(
+    request: Request,
+    benchmark: BenchmarkDependency,
+    principal: ViewerPrincipal,
+    namespace: EvaluationNamespaceQuery = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> PersistedEvaluationDatasetListResponse:
+    authorized_namespace = resolve_namespace(
+        principal,
+        namespace,
+        allow_global=True,
+    )
+    return await benchmark.list_persisted_datasets(
+        namespace=authorized_namespace,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@evaluations_router.post(
+    "/datasets/persisted",
+    response_model=PersistedEvaluationDatasetDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+@limiter.limit(app_rate_limit)
+async def persist_evaluation_dataset(
+    request: Request,
+    payload: PersistEvaluationDatasetRequest,
+    benchmark: BenchmarkDependency,
+    principal: OperatorPrincipal,
+) -> PersistedEvaluationDatasetDetail:
+    namespace = resolve_namespace(
+        principal,
+        payload.namespace,
+        allow_global=False,
+    )
+    if namespace is None:
+        raise RuntimeError("Persistent dataset namespace was not resolved")
+    return await benchmark.persist_dataset(payload, namespace=namespace)
+
+
+@evaluations_router.get(
+    "/datasets/persisted/{dataset_id}",
+    response_model=PersistedEvaluationDatasetDetail,
+)
+@limiter.limit(app_rate_limit)
+async def get_persisted_evaluation_dataset(
+    request: Request,
+    dataset_id: UUID,
+    benchmark: BenchmarkDependency,
+    principal: ViewerPrincipal,
+) -> PersistedEvaluationDatasetDetail:
+    return await benchmark.persisted_dataset_detail(
+        str(dataset_id),
+        authorized_namespaces=(
+            None if principal.has_global_namespace_access else principal.namespaces
+        ),
+    )
+
+
+@evaluations_router.delete(
+    "/datasets/persisted/{dataset_id}",
+    response_model=DeletePersistedEvaluationDatasetResponse,
+)
+@limiter.limit(app_rate_limit)
+async def delete_persisted_evaluation_dataset(
+    request: Request,
+    dataset_id: UUID,
+    benchmark: BenchmarkDependency,
+    principal: AdminPrincipal,
+    namespace: EvaluationNamespaceQuery = None,
+) -> DeletePersistedEvaluationDatasetResponse:
+    authorized_namespace = resolve_namespace(
+        principal,
+        namespace,
+        allow_global=False,
+    )
+    if authorized_namespace is None:
+        raise RuntimeError("Persistent dataset namespace was not resolved")
+    await benchmark.delete_persisted_dataset(
+        str(dataset_id),
+        namespace=authorized_namespace,
+    )
+    return DeletePersistedEvaluationDatasetResponse(
+        deleted=True,
+        dataset_id=dataset_id,
+        namespace=authorized_namespace,
+    )
+
+
 @evaluations_router.post("/runs", response_model=BenchmarkRunResponse)
 @limiter.limit(app_rate_limit)
 async def run_evaluation(
@@ -76,4 +185,17 @@ async def run_evaluation(
     benchmark: BenchmarkDependency,
     principal: OperatorPrincipal,
 ) -> BenchmarkRunResponse:
-    return await benchmark.run_evaluation(payload)
+    authorized_namespaces: AuthorizedNamespaceScope = frozenset()
+    if isinstance(payload.dataset_source, PersistedEvaluationDatasetSource):
+        namespace = resolve_namespace(
+            principal,
+            payload.dataset_source.namespace,
+            allow_global=False,
+        )
+        if namespace is None:
+            raise RuntimeError("Persistent dataset namespace was not resolved")
+        authorized_namespaces = frozenset({namespace})
+    return await benchmark.run_evaluation(
+        payload,
+        authorized_namespaces=authorized_namespaces,
+    )

@@ -9,6 +9,7 @@ import {
   isRecord,
 } from '@/shared/api/validators';
 import { SIMILARITY_MAX, SIMILARITY_MIN } from '@/shared/domain/similarity';
+import { isCacheNamespace } from '@/features/cache/namespace';
 import type {
   BenchmarkDatasetId,
   BenchmarkDatasetListResponse,
@@ -21,6 +22,11 @@ import type {
   EvaluationDatasetPreview,
   EvaluationDatasetWarning,
   EvaluationDatasetSourceKind,
+  DeletePersistedEvaluationDatasetResponse,
+  ImportedEvaluationCase,
+  PersistedEvaluationDatasetDetail,
+  PersistedEvaluationDatasetListResponse,
+  PersistedEvaluationDatasetMetadata,
   ProviderCategory,
   ThresholdEvaluation,
 } from '../types';
@@ -46,6 +52,7 @@ const NORMALIZATION_MODES = ['identity', 'typo_correction'] as const;
 const DATASET_SOURCE_KINDS: readonly EvaluationDatasetSourceKind[] = [
   'builtin',
   'inline',
+  'persisted',
 ];
 
 const isDatasetId = createEnumGuard(DATASET_IDS);
@@ -57,6 +64,8 @@ const isDatasetSourceKind = createEnumGuard(DATASET_SOURCE_KINDS);
 const RUN_ID_PATTERN = /^[a-f0-9]{32}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const DATASET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TIMEZONE_SUFFIX_PATTERN = /(Z|[+-]\d{2}:\d{2})$/i;
 
 function isTimezoneAwareIsoDate(value: unknown): value is string {
@@ -103,7 +112,9 @@ function dataset(value: unknown): BenchmarkDatasetSummary {
     value.expected_hits + value.expected_misses !== value.query_count ||
     new Set(value.categories).size !== value.categories.length ||
     (value.dataset_source === 'builtin' && value.schema_version !== null) ||
-    (value.dataset_source === 'inline' && value.schema_version !== 1)
+    ((value.dataset_source === 'inline' ||
+      value.dataset_source === 'persisted') &&
+      value.schema_version !== 1)
   ) {
     throw new Error('Invalid benchmark dataset accounting');
   }
@@ -339,7 +350,8 @@ function reproducibility(
   if (
     (value.dataset_source === 'builtin' &&
       value.dataset_schema_version !== null) ||
-    (value.dataset_source === 'inline' &&
+    ((value.dataset_source === 'inline' ||
+      value.dataset_source === 'persisted') &&
       value.dataset_schema_version !== 1) ||
     thresholds.some(
       (threshold, index) =>
@@ -463,6 +475,144 @@ export function decodeEvaluationDatasetPreview(
     ...value,
     warnings,
   } as unknown as EvaluationDatasetPreview;
+}
+
+function importedCase(value: unknown): ImportedEvaluationCase {
+  if (
+    !isRecord(value) ||
+    !isNonEmptyString(value.case_id) ||
+    value.case_id.length > 100 ||
+    !DATASET_ID_PATTERN.test(value.case_id) ||
+    !isNonEmptyString(value.prompt) ||
+    value.prompt.length > 2_000 ||
+    typeof value.expected_cache_hit !== 'boolean' ||
+    !isNullableBoundedString(value.expected_match_case_id, 100) ||
+    !isNullableBoundedString(value.category, 100) ||
+    !isNullableBoundedString(value.note, 500) ||
+    (!value.expected_cache_hit && value.expected_match_case_id !== null)
+  ) {
+    throw new Error('Invalid persisted evaluation case');
+  }
+
+  return value as unknown as ImportedEvaluationCase;
+}
+
+function persistedMetadata(
+  value: unknown,
+): PersistedEvaluationDatasetMetadata {
+  if (
+    !isRecord(value) ||
+    typeof value.dataset_id !== 'string' ||
+    !UUID_PATTERN.test(value.dataset_id) ||
+    typeof value.namespace !== 'string' ||
+    !isCacheNamespace(value.namespace) ||
+    !isNonEmptyString(value.name) ||
+    value.name.length > 100 ||
+    !isNullableBoundedString(value.description, 300) ||
+    value.source_type !== 'imported' ||
+    value.schema_version !== 1 ||
+    typeof value.digest !== 'string' ||
+    !SHA256_PATTERN.test(value.digest) ||
+    !isNonNegativeInteger(value.case_count) ||
+    value.case_count < 1 ||
+    !isNonNegativeInteger(value.decoded_bytes) ||
+    value.decoded_bytes < 1 ||
+    !isTimezoneAwareIsoDate(value.created_at) ||
+    !isTimezoneAwareIsoDate(value.expires_at) ||
+    Date.parse(value.expires_at) <= Date.parse(value.created_at)
+  ) {
+    throw new Error('Invalid persisted evaluation dataset metadata');
+  }
+
+  return value as unknown as PersistedEvaluationDatasetMetadata;
+}
+
+export function decodePersistedEvaluationDatasets(
+  value: unknown,
+): PersistedEvaluationDatasetListResponse {
+  if (
+    !isRecord(value) ||
+    (value.storage_mode !== 'session' &&
+      value.storage_mode !== 'postgres') ||
+    typeof value.persistence_enabled !== 'boolean' ||
+    !Array.isArray(value.items) ||
+    !isNonNegativeInteger(value.total) ||
+    !isNonNegativeInteger(value.offset) ||
+    !isNonNegativeInteger(value.limit) ||
+    value.limit < 1 ||
+    value.limit > 100 ||
+    typeof value.has_more !== 'boolean' ||
+    !isRecord(value.limits) ||
+    !isNonNegativeInteger(value.limits.default_retention_days) ||
+    value.limits.default_retention_days < 1 ||
+    !isNonNegativeInteger(value.limits.max_retention_days) ||
+    value.limits.max_retention_days < 1 ||
+    !isNonNegativeInteger(value.limits.max_persisted_per_namespace) ||
+    value.limits.max_persisted_per_namespace < 1
+  ) {
+    throw new Error('Invalid persisted evaluation dataset catalog');
+  }
+
+  const items = value.items.map(persistedMetadata);
+  if (
+    value.persistence_enabled !== (value.storage_mode === 'postgres') ||
+    items.length > value.limit ||
+    value.has_more !==
+      (value.offset + items.length < value.total) ||
+    value.limits.default_retention_days >
+      value.limits.max_retention_days ||
+    (!value.persistence_enabled && (items.length > 0 || value.total > 0))
+  ) {
+    throw new Error('Invalid persisted evaluation dataset catalog accounting');
+  }
+
+  return {
+    ...value,
+    items,
+  } as unknown as PersistedEvaluationDatasetListResponse;
+}
+
+export function decodePersistedEvaluationDatasetDetail(
+  value: unknown,
+): PersistedEvaluationDatasetDetail {
+  const metadata = persistedMetadata(value);
+  if (!isRecord(value) || !Array.isArray(value.cases)) {
+    throw new Error('Invalid persisted evaluation dataset detail');
+  }
+  const cases = value.cases.map(importedCase);
+  const caseIds = new Set<string>();
+  for (const item of cases) {
+    if (
+      caseIds.has(item.case_id) ||
+      (item.expected_match_case_id !== null &&
+        !caseIds.has(item.expected_match_case_id))
+    ) {
+      throw new Error('Invalid persisted evaluation dataset case ordering');
+    }
+    caseIds.add(item.case_id);
+  }
+  if (cases.length !== metadata.case_count) {
+    throw new Error('Invalid persisted evaluation dataset case count');
+  }
+
+  return { ...metadata, cases };
+}
+
+export function decodeDeletePersistedEvaluationDataset(
+  value: unknown,
+): DeletePersistedEvaluationDatasetResponse {
+  if (
+    !isRecord(value) ||
+    value.deleted !== true ||
+    typeof value.dataset_id !== 'string' ||
+    !UUID_PATTERN.test(value.dataset_id) ||
+    typeof value.namespace !== 'string' ||
+    !isCacheNamespace(value.namespace)
+  ) {
+    throw new Error('Invalid persisted evaluation dataset deletion');
+  }
+
+  return value as unknown as DeletePersistedEvaluationDatasetResponse;
 }
 
 export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {

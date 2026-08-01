@@ -32,6 +32,15 @@ export const cacheEntryKeys = {
 export const benchmarkDatasetKeys = {
   all: ["benchmark-datasets"] as const,
   catalog: () => [...benchmarkDatasetKeys.all, "catalog"] as const,
+  persisted: () => [...benchmarkDatasetKeys.all, "persisted"] as const,
+  persistedList: (namespace: string, offset: number, limit: number) =>
+    [
+      ...benchmarkDatasetKeys.persisted(),
+      "list",
+      { namespace: namespace.trim(), offset, limit },
+    ] as const,
+  persistedDetail: (datasetId: string) =>
+    [...benchmarkDatasetKeys.persisted(), "detail", datasetId] as const,
 };
 
 export function isProtectedQueryKey(queryKey: QueryKey): boolean {

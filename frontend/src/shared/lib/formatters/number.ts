@@ -10,6 +10,23 @@ export function formatCount(value: NumericValue, fallback = 'n/a'): string {
   return isFiniteNumber(value) ? COUNT_FORMATTER.format(value) : fallback;
 }
 
+export function formatBytes(value: NumericValue, fallback = 'n/a'): string {
+  if (!isFiniteNumber(value) || value < 0) {
+    return fallback;
+  }
+  if (value < 1_024) {
+    return `${formatCount(value)} B`;
+  }
+  const units = ['KB', 'MB', 'GB'];
+  let scaled = value;
+  let unit = -1;
+  do {
+    scaled /= 1_024;
+    unit += 1;
+  } while (scaled >= 1_024 && unit < units.length - 1);
+  return `${scaled.toFixed(scaled >= 10 ? 0 : 1)} ${units[unit]}`;
+}
+
 export function formatDecimal(
   value: NumericValue,
   fractionDigits = 1,

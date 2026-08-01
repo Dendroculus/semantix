@@ -72,6 +72,23 @@ export function BenchmarkControls({
             />
             <span>Custom JSON dataset</span>
           </label>
+          {controller.persistedDataset !== null && (
+            <label className="flex min-h-11 items-center gap-3">
+              <input
+                checked={form.datasetSource === 'persisted'}
+                className="size-5 accent-(--gold)"
+                disabled={isRunning}
+                name="evaluation-dataset-source"
+                type="radio"
+                onChange={() =>
+                  update(controller, { datasetSource: 'persisted' })
+                }
+              />
+              <span>
+                Persisted dataset: {controller.persistedDataset.name}
+              </span>
+            </label>
+          )}
         </div>
       </fieldset>
 
@@ -84,7 +101,7 @@ export function BenchmarkControls({
           disabled={
             datasetsLoading ||
             isRunning ||
-            form.datasetSource === 'custom'
+            form.datasetSource !== 'builtin'
           }
           value={form.datasetId}
           onChange={(event) =>

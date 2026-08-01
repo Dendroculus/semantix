@@ -8,11 +8,16 @@ from fastapi import FastAPI
 
 from app.benchmark.application.service import BenchmarkService
 from app.benchmark.domain.models import BenchmarkRuntimeConfiguration
+from app.benchmark.domain.protocols import EvaluationDatasetRepository
+from app.benchmark.infrastructure.postgres_repository import (
+    PostgresEvaluationDatasetRepository,
+)
 from app.cache.application.service import SemanticCache
 from app.cache.infrastructure.factory import cache_backend_lifespan
 from app.core.config import Settings
 from app.core.version import API_VERSION
 from app.embedding.service import EmbeddingService
+from app.infrastructure.lifecycle import database_pool_lifespan
 from app.observability.metrics import RuntimeMetrics
 from app.providers.factory import create_provider_bundle
 from app.query.application.service import QueryService
@@ -48,11 +53,30 @@ def create_lifespan(settings: Settings) -> Lifespan:
                 dimensions=providers.embedding_dimensions,
             )
 
-            async with cache_backend_lifespan(
-                settings,
-                dimensions=providers.embedding_dimensions,
-                events=runtime_metrics,
-            ) as backend:
+            async with (
+                database_pool_lifespan(settings) as database_pool,
+                cache_backend_lifespan(
+                    settings,
+                    dimensions=providers.embedding_dimensions,
+                    events=runtime_metrics,
+                    pool=database_pool,
+                ) as backend,
+            ):
+                dataset_repository: EvaluationDatasetRepository | None = None
+                if settings.evaluation_dataset_storage == "postgres":
+                    if database_pool is None:
+                        raise RuntimeError(
+                            "Persistent dataset storage requires a database pool"
+                        )
+                    dataset_repository = PostgresEvaluationDatasetRepository(
+                        database_pool,
+                        max_per_namespace=(
+                            settings.evaluation_dataset_max_persisted_per_namespace
+                        ),
+                        cleanup_batch_size=(
+                            settings.evaluation_dataset_cleanup_batch_size
+                        ),
+                    )
                 semantic_cache = SemanticCache(
                     embedding_service,
                     backend,
@@ -114,7 +138,23 @@ def create_lifespan(settings: Settings) -> Lifespan:
                         evaluation_max_workload_queries=(
                             settings.evaluation_max_workload_queries
                         ),
+                        evaluation_dataset_storage=(
+                            settings.evaluation_dataset_storage
+                        ),
+                        evaluation_dataset_max_persisted_per_namespace=(
+                            settings.evaluation_dataset_max_persisted_per_namespace
+                        ),
+                        evaluation_dataset_default_retention_days=(
+                            settings.evaluation_dataset_default_retention_days
+                        ),
+                        evaluation_dataset_max_retention_days=(
+                            settings.evaluation_dataset_max_retention_days
+                        ),
+                        evaluation_dataset_cleanup_batch_size=(
+                            settings.evaluation_dataset_cleanup_batch_size
+                        ),
                     ),
+                    dataset_repository=dataset_repository,
                 )
 
                 yield

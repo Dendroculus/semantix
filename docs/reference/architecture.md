@@ -48,10 +48,14 @@ content.
 - `app/cache/application` exposes semantic lookup and storage behavior.
 - `app/cache/domain` owns keys, namespaces, metadata, vector validation, models,
   and backend ports.
-- `app/cache/infrastructure` owns memory and pgvector adapters, database
-  connectivity, and migrations.
+- `app/cache/infrastructure` owns memory and pgvector adapters plus cache-table
+  migrations.
 - `app/benchmark` mirrors API, application, and domain responsibilities for the
-  isolated evaluation laboratory.
+  isolated evaluation laboratory; its infrastructure adapter owns persistent
+  evaluation-dataset tables and repository behavior.
+- `app/infrastructure` owns only the narrowly shared PostgreSQL pool,
+  checksum/advisory-lock migration runner, runtime grants, and lifecycle
+  composition used by cache and evaluation storage.
 - `app/providers` owns application-facing protocols, startup composition, and
   concrete external adapters.
 - `app/observability` stays flat because it is a small cohesive feature with one
@@ -115,13 +119,35 @@ interactive cache and its runtime counters. Threshold alternatives are
 frozen-candidate projections from one measured run, not repeated provider
 executions.
 
-Imported evaluation definitions follow the same route-local boundary. The
+Imported evaluation definitions begin at the same route-local boundary. The
 frontend holds the selected parsed JSON object only in React state and clears
-it on removal, unmount, sign-out, or principal change. Validation and execution
-carry the object in bounded JSON requests; the backend validates into an
-immutable request-local dataset and retains no catalog entry. Canonical
-`/api/v1/evaluations/*` routes are additive, while legacy built-in
-`/api/v1/benchmarks/*` routes remain compatible.
+it on removal, unmount, sign-out, or principal change. Validation and inline
+execution carry the object in bounded JSON requests. When persistent
+evaluation storage is enabled, an Operator can make a separate explicit save
+to a namespace-authorized PostgreSQL catalog; validation alone never writes.
+The catalog stores immutable imported metadata and ordered cases, not run
+results or generated responses. Canonical `/api/v1/evaluations/*` routes are
+additive, while legacy built-in `/api/v1/benchmarks/*` routes remain
+compatible.
+
+## PostgreSQL lifecycle and migration ownership
+
+The cache and persistent evaluation catalog share one pool only when either
+feature needs PostgreSQL:
+
+| Cache | Evaluation datasets | PostgreSQL lifecycle |
+|---|---|---|
+| `memory` | `session` | No pool and no database requirement |
+| `memory` | `postgres` | One pool; apply evaluation migration `0002` |
+| `pgvector` | `session` | One pool; apply cache migration `0001` |
+| `pgvector` | `postgres` | One reused pool; apply `0001`, then `0002` |
+
+The shared bootstrap creates only the `semantix` schema and checksum-protected
+migration ledger. The cache migration remains responsible for the vector
+extension and cache tables; the evaluation migration remains responsible for
+dataset and case tables. Both use the existing advisory lock and deterministic
+SHA-256 checksums. This keeps feature SQL feature-owned while avoiding two
+independent pools, ledgers, or startup lifecycles.
 
 ## Project structure
 
@@ -159,7 +185,8 @@ semantix/
 The supplied deployment is intentionally single-instance and local-first:
 
 - rate limiting, coalescing, and runtime metrics are process-local;
-- cache-management endpoints are unauthenticated;
+- authentication can be disabled for trusted local development or configured
+  with namespace-scoped token principals;
 - CORS is configured for known local frontend origins;
 - no distributed lock, message bus, or external metrics platform is included.
 

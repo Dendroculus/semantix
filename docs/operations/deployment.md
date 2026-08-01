@@ -22,6 +22,11 @@ EVALUATION_TIMEOUT_SECONDS=300
 EVALUATION_DATASET_MAX_CASES=50
 EVALUATION_DATASET_MAX_DECODED_BYTES=49152
 EVALUATION_MAX_WORKLOAD_QUERIES=250
+EVALUATION_DATASET_STORAGE=session
+EVALUATION_DATASET_DEFAULT_RETENTION_DAYS=30
+EVALUATION_DATASET_MAX_RETENTION_DAYS=365
+EVALUATION_DATASET_MAX_PERSISTED_PER_NAMESPACE=100
+EVALUATION_DATASET_CLEANUP_BATCH_SIZE=100
 ```
 
 The value must be greater than zero and no more than 3,600 seconds. It bounds
@@ -34,6 +39,9 @@ count, canonical decoded UTF-8 content, and `cases × repetitions` query work.
 Accepted ranges are 1–500 cases, 1,024–1,048,576 decoded bytes, and 1–2,500
 query executions. Keep these limits within the capacity and data-handling
 policy of the deployment; threshold projections do not repeat provider work.
+The `session` storage default opens no database when the live cache also uses
+memory. Set storage to `postgres` only after configuring the database,
+retention, namespace capacity, backup, and recovery policy.
 
 Run a TLS reverse proxy on the host and forward to `127.0.0.1:8080`. Public plaintext HTTP is unsupported.
 
@@ -174,9 +182,9 @@ being treated as equivalent protection.
 
 | Role | Allowed operations |
 |---|---|
-| `viewer` | Read permitted cache metadata, threshold state, and built-in evaluation datasets |
-| `operator` | All viewer operations plus provider-backed queries, session-local dataset validation, and evaluation runs |
-| `admin` | All operator operations plus cache deletion, namespace clear, and administration |
+| `viewer` | Read permitted cache metadata, threshold state, built-in datasets, and namespace-authorized persisted dataset metadata/cases |
+| `operator` | All viewer operations plus provider-backed queries, session-local validation, explicit dataset persistence, and evaluation runs |
+| `admin` | All operator operations plus cache deletion, namespace clear, and persisted dataset deletion |
 
 Updating the global similarity threshold and reading process-wide runtime
 metrics require an `admin` principal with `namespaces:["*"]`. A namespace
@@ -187,7 +195,11 @@ administrator remains limited to its authorized cache operations and receives
 
 Every principal receives one or more namespaces. A non-global principal cannot query, inspect, delete, or clear another namespace.
 
-When a principal has exactly one namespace, cache list/stat requests without a namespace are automatically scoped to it. Principals with multiple namespaces must select one. Only `namespaces:["*"]` can perform global operations.
+When a principal has exactly one namespace, scoped operations without a
+namespace are automatically limited to it. Principals with multiple namespaces
+must select one for creation. Only `namespaces:["*"]` can list globally, and a
+wildcard administrator must provide an explicit namespace for persisted
+dataset create, delete, and run operations.
 
 This is server-side authorization. Frontend controls are not treated as a security boundary.
 
@@ -225,31 +237,46 @@ The ASGI limit handles both declared `Content-Length` and streamed/chunked reque
 
 Keep the proxy and backend values aligned. The backend limit is the final authority when requests bypass or are forwarded by another proxy.
 
-Imported evaluation datasets are not persisted. Validation and run requests
-must fit the global request limit in addition to the decoded-content, case, and
-workload limits above. No database migration, backup, restore, or cleanup step
-is associated with an import.
+Imported evaluation datasets remain session-local unless an authorized
+Operator explicitly saves a successfully validated document. Validation and
+inline run requests must fit the global request limit in addition to the
+decoded-content, case, and workload limits above. Persistent storage adds
+metadata and ordered cases only; it stores no run evidence or generated
+responses.
 
 ## Liveness and readiness
 
 `GET /health` confirms the process can answer and reports only configured provider types. It is cheap and unrate-limited.
 
-`GET /ready` verifies the active cache dependency. It does not call hosted embedding or generation providers. A later pgvector outage produces HTTP `503`, preventing the Compose frontend from starting against an unavailable backend.
+`GET /ready` verifies the active cache dependency and, when enabled, the
+persistent evaluation dataset repository. It reports both configured modes and
+does not call hosted embedding or generation providers. A later PostgreSQL
+outage produces HTTP `503`.
 
 ## Database roles and migrations
 
 The production database has two roles. Use URL-safe random passwords for the Compose example, or percent-encode credentials before placing them in a PostgreSQL URL.
 
 - `POSTGRES_MIGRATION_USER` owns extension/schema migration work;
-- `POSTGRES_RUNTIME_USER` receives only schema usage and DML privileges on the runtime cache tables.
+- `POSTGRES_RUNTIME_USER` receives only schema usage and DML privileges on the configured cache and evaluation dataset tables.
 
-The initialization script creates the runtime login. The one-shot `migrate` service connects with `MIGRATION_DATABASE_URL`, installs pgvector, applies versioned migrations, grants runtime privileges, and exits. The backend starts only after that job succeeds.
+The initialization script creates the runtime login. The one-shot `migrate`
+service connects with `MIGRATION_DATABASE_URL`, applies migrations for the
+enabled cache and evaluation storage features, grants their runtime privileges,
+and exits. Cache migration `0001` installs pgvector and cache tables;
+evaluation migration `0002` adds dataset and case tables. The backend starts
+only after that job succeeds.
 
 Applied migrations record a SHA-256 checksum. Startup rejects a packaged
 migration whose contents no longer match its recorded checksum. A legacy
 `0001` row without a checksum is backfilled only after the released cache
 tables and required columns are verified; later checksum-less versions fail
 closed and require operator review.
+
+One PostgreSQL pool is shared when both pgvector cache and persistent
+evaluation storage are enabled. A memory live cache can use PostgreSQL
+evaluation storage independently; conversely, pgvector cache can keep
+evaluation imports session-only.
 
 The backend receives only `DATABASE_URL` for the runtime role and sets:
 

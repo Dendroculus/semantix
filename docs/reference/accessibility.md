@@ -77,6 +77,23 @@ the provider warning in normal reading order. Import review also covers local
 malformed-JSON feedback, long file/dataset names, safe HTML-looking text,
 warnings, removal, reload/auth cleanup, and zero horizontal overflow.
 
+Persistent-catalog review additionally covers:
+
+- the Runs/Datasets subview controls and source labels remain keyboard
+  operable and do not add a fifth top-level navigation item;
+- cards keep namespace, retention, expiry, size, Save, and Delete evidence in
+  normal reading order at 744, 768, 820, and 834 px portrait widths;
+- full digest and timestamp values remain available through accessible labels
+  or titles when their visible forms are abbreviated;
+- multi-namespace selection is explicitly labeled, wildcard namespace entry is
+  validated, and Viewer/Operator/Admin controls match server capability;
+- save/delete status uses polite live regions, errors use alerts, and the
+  inline destructive confirmation names the exact dataset, namespace, case
+  count, and consequence;
+- untrusted names, descriptions, prompts, categories, and notes render as
+  escaped wrapping text with no page-level overflow at 320, 1024, or 1280 px
+  and at 200% zoom.
+
 Run the automated token check with:
 
 ```powershell

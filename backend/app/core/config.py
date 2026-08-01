@@ -15,8 +15,12 @@ from pydantic import (
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.limits import (
+    DEFAULT_EVALUATION_DATASET_CLEANUP_BATCH_SIZE,
+    DEFAULT_EVALUATION_DATASET_DEFAULT_RETENTION_DAYS,
     DEFAULT_EVALUATION_DATASET_MAX_CASES,
     DEFAULT_EVALUATION_DATASET_MAX_DECODED_BYTES,
+    DEFAULT_EVALUATION_DATASET_MAX_PERSISTED_PER_NAMESPACE,
+    DEFAULT_EVALUATION_DATASET_MAX_RETENTION_DAYS,
     DEFAULT_EVALUATION_MAX_WORKLOAD_QUERIES,
 )
 from app.providers.configuration import (
@@ -35,6 +39,7 @@ CacheBackendName = Literal["memory", "pgvector"]
 AuthMode = Literal["disabled", "token"]
 AuthRole = Literal["viewer", "operator", "admin"]
 DatabaseMigrationMode = Literal["auto", "external"]
+EvaluationDatasetStorageMode = Literal["session", "postgres"]
 DEFAULT_PROVIDER_MAX_RESPONSE_BYTES = 4_194_304
 _AUTH_NAMESPACE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 
@@ -123,6 +128,27 @@ class Settings(BaseSettings):
         default=DEFAULT_EVALUATION_MAX_WORKLOAD_QUERIES,
         ge=1,
         le=2_500,
+    )
+    evaluation_dataset_storage: EvaluationDatasetStorageMode = "session"
+    evaluation_dataset_max_persisted_per_namespace: int = Field(
+        default=DEFAULT_EVALUATION_DATASET_MAX_PERSISTED_PER_NAMESPACE,
+        ge=1,
+        le=1_000,
+    )
+    evaluation_dataset_default_retention_days: int = Field(
+        default=DEFAULT_EVALUATION_DATASET_DEFAULT_RETENTION_DAYS,
+        ge=1,
+        le=3_650,
+    )
+    evaluation_dataset_max_retention_days: int = Field(
+        default=DEFAULT_EVALUATION_DATASET_MAX_RETENTION_DAYS,
+        ge=1,
+        le=3_650,
+    )
+    evaluation_dataset_cleanup_batch_size: int = Field(
+        default=DEFAULT_EVALUATION_DATASET_CLEANUP_BATCH_SIZE,
+        ge=1,
+        le=1_000,
     )
     provider_max_response_bytes: int = Field(
         default=DEFAULT_PROVIDER_MAX_RESPONSE_BYTES,
@@ -227,13 +253,21 @@ class Settings(BaseSettings):
     def validate_selected_configuration(self) -> "Settings":
         validate_provider_configuration(self)
 
-        if self.cache_backend == "pgvector":
+        if self.database_required:
             self._require_secret(self.database_url, "DATABASE_URL")
             self._validate_database_url()
             if self.database_pool_min_size > self.database_pool_max_size:
                 raise ValueError(
                     "DATABASE_POOL_MIN_SIZE cannot exceed DATABASE_POOL_MAX_SIZE"
                 )
+        if (
+            self.evaluation_dataset_default_retention_days
+            > self.evaluation_dataset_max_retention_days
+        ):
+            raise ValueError(
+                "EVALUATION_DATASET_DEFAULT_RETENTION_DAYS cannot exceed "
+                "EVALUATION_DATASET_MAX_RETENTION_DAYS"
+            )
 
         if self.auth_mode == "token":
             if not self.auth_principals:
@@ -265,6 +299,13 @@ class Settings(BaseSettings):
         if self.database_url is None:
             raise RuntimeError("DATABASE_URL was not validated")
         return self.database_url.get_secret_value()
+
+    @property
+    def database_required(self) -> bool:
+        return (
+            self.cache_backend == "pgvector"
+            or self.evaluation_dataset_storage == "postgres"
+        )
 
     def configured_secrets(self) -> tuple[str, ...]:
         secrets = (

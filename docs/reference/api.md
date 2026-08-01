@@ -19,7 +19,11 @@ Application errors use a stable object containing `error` and `detail`.
 | `POST` | `/api/v1/benchmarks/run` | Run an isolated benchmark |
 | `GET` | `/api/v1/evaluations/datasets` | List built-in evaluation datasets |
 | `POST` | `/api/v1/evaluations/datasets/validate` | Validate and preview a session-local JSON dataset |
-| `POST` | `/api/v1/evaluations/runs` | Run a built-in or inline evaluation dataset |
+| `GET` | `/api/v1/evaluations/datasets/persisted` | List namespace-authorized persisted datasets |
+| `POST` | `/api/v1/evaluations/datasets/persisted` | Persist one validated schema v1 dataset |
+| `GET` | `/api/v1/evaluations/datasets/persisted/{dataset_id}` | Read persisted metadata and ordered cases |
+| `DELETE` | `/api/v1/evaluations/datasets/persisted/{dataset_id}` | Delete one persisted dataset and its cases |
+| `POST` | `/api/v1/evaluations/runs` | Run a built-in, inline, or persisted evaluation dataset |
 | `GET` | `/api/v1/metrics` | Read process-local aggregate metrics (global admin only) |
 | `GET` | `/health` | Read application and provider-type health |
 
@@ -167,6 +171,72 @@ definition is revalidated inside the run request. Responses preserve the
 existing measured/projection semantics and add source/schema evidence to the
 dataset and reproducibility objects. Per-query evidence can include
 `expected_match_case_id` and `note`.
+
+### Persistent evaluation dataset catalog
+
+Persistence is opt-in with `EVALUATION_DATASET_STORAGE=postgres`; the default
+`session` mode returns a successful empty catalog with
+`persistence_enabled=false` and does not require a database. Catalog operations
+never call embedding or generation providers and never store generated
+responses or run results.
+
+`GET /api/v1/evaluations/datasets/persisted` requires Viewer access. It accepts
+optional `namespace`, `offset`, and `limit` query parameters and returns
+immutable metadata, pagination evidence, storage capability, and configured
+retention/capacity limits. `GET .../{dataset_id}` also returns ordered schema v1
+cases. Missing, expired, and foreign-namespace IDs all use the same
+`evaluation_dataset_not_found` response.
+
+`POST /api/v1/evaluations/datasets/persisted` requires Operator access and
+revalidates the complete dataset before writing it:
+
+```json
+{
+  "namespace": "default",
+  "retention_days": 30,
+  "dataset": {
+    "schema_version": 1,
+    "name": "Domain safety set",
+    "cases": [
+      {
+        "case_id": "seed",
+        "prompt": "Synthetic prompt",
+        "expected_cache_hit": false
+      }
+    ]
+  }
+}
+```
+
+`namespace` may be omitted only when the principal has exactly one authorized
+namespace. A wildcard administrator must supply an explicit namespace for
+create, delete, and persisted runs. Identical content may be saved more than
+once; each explicit save creates a separate immutable UUID record while
+retaining the same content digest.
+
+`DELETE .../{dataset_id}?namespace=default` requires Admin access and deletes
+the dataset and all of its cases transactionally. Expired records are hidden
+immediately and are purged opportunistically in bounded batches during catalog
+operations.
+
+A persisted run uses:
+
+```json
+{
+  "dataset_source": {
+    "kind": "persisted",
+    "dataset_id": "123e4567-e89b-42d3-a456-426614174000",
+    "namespace": "default"
+  },
+  "threshold": 0.92,
+  "evaluation_thresholds": [0.8, 0.92],
+  "allow_external_provider_calls": true
+}
+```
+
+The run still uses a fresh isolated in-memory evaluation cache. Persisting a
+dataset does not change threshold execution, cache decisions, provider calls,
+limits, response projections, or live-cache behavior.
 
 ## Cache inspector query
 

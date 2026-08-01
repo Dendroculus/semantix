@@ -1,10 +1,11 @@
 # Evaluation dataset schema version 1
 
-Semantix accepts one bounded JSON schema for session-local semantic-cache
-evaluation datasets. Imported documents are treated as untrusted and are held
-only for the validation or run request that carries them. The frontend keeps
-the selected document in React memory only; neither side stores it in browser
-storage, a database, a server catalog, logs, or run history.
+Semantix accepts one bounded JSON schema for imported semantic-cache evaluation
+datasets. Imported documents are treated as untrusted. Validation and inline
+runs keep them request-local; when PostgreSQL evaluation storage is enabled,
+an Operator may explicitly save a successfully validated document to an
+authorized namespace. The frontend never writes the document to browser
+storage, and Semantix never stores generated responses or run history with it.
 
 ## Document
 
@@ -61,7 +62,9 @@ present. Display name, description, and note do not affect the digest.
 Reordering cases or changing execution semantics changes it.
 
 The transient ID is evidence, not a lookup key. It cannot retrieve or share an
-import after the request.
+import after the request. An explicit persistent save assigns a separate UUID.
+Saving identical canonical content more than once creates separate immutable
+records with the same digest.
 
 ## Validation and limits
 
@@ -103,6 +106,21 @@ Defaults are 65,536 request bytes, 49,152 decoded dataset bytes, 50 cases, and
 for the validation/run envelope beneath the existing 64 KiB request boundary.
 Threshold projections do not replay provider work.
 
+### Phase 04 entry-gate profile
+
+On August 1, 2026, a synthetic 50-case document with bounded 284-character
+prompts was validated 100 times at the maximum default workload
+(`50 cases x 5 repetitions`, 15 thresholds). The canonical decoded document
+was 18,418 bytes and mapped to 51 PostgreSQL rows. Mean validation time was
+0.393 ms; `pg_column_size` measured 17,666 bytes across the dataset row and 50
+case rows (216 + 17,450 bytes). The disposable environment used Python 3.14.6,
+PostgreSQL 17.10, and an AMD Ryzen 9 5900HX.
+
+This is sizing evidence for the default case, byte, count, and cleanup bounds,
+not a production performance claim. `pg_column_size` excludes relation page,
+index, and backup overhead; deployments must measure their own data and
+retention policy.
+
 ## Stable dataset validation errors
 
 Invalid imported content returns HTTP `422`,
@@ -134,13 +152,30 @@ Invalid imported content returns HTTP `422`,
 Malformed request JSON follows the normal API `validation_error` path.
 Prompts are never copied into dataset-validation issue details.
 
-## Execution and compatibility
+## Persistence, retention, and execution
+
+`POST /api/v1/evaluations/datasets/persisted` revalidates the same strict
+document before writing metadata and ordered cases transactionally. Each
+record includes namespace, schema version, digest, decoded bytes, case count,
+creation time, and expiry time. Default retention is 30 days, maximum retention
+is 365 days, and the default active capacity is 100 datasets per namespace;
+deployments can lower or raise these bounded settings within their configured
+limits.
+
+Expiry makes a record unavailable to list, detail, delete, and run operations.
+Catalog operations opportunistically purge expired rows in bounded batches;
+there is no background worker. Explicit deletion removes the dataset and its
+cases transactionally. Built-in definitions remain code-owned and are never
+copied into the catalog.
 
 `POST /api/v1/evaluations/runs` accepts either a built-in reference or the
-complete inline definition. The server always revalidates inline content at
-execution; a preview is not authorization or an integrity token. The run then
-uses the same fresh, isolated, bounded cache as built-in Evaluations.
+complete inline definition, or a namespace-authorized persisted UUID. The
+server always revalidates inline content at execution; a preview is not
+authorization or an integrity token. Persisted content was revalidated at save
+time and is reconstructed in deterministic case order. Every source uses the
+same fresh, isolated, bounded cache.
 
 The legacy `/api/v1/benchmarks/datasets` and `/api/v1/benchmarks/run`
-contracts remain available for built-in clients. No database migration or
-stored-data migration is required because schema version 1 is request-local.
+contracts remain available for built-in clients. Enabling persistent storage
+adds the checksum-protected `0002` PostgreSQL migration; existing session-only
+clients and schema version 1 documents remain compatible.
