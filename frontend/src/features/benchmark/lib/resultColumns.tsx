@@ -25,9 +25,21 @@ function formatLabel(value: string): string {
 export const BENCHMARK_RESULT_COLUMNS: readonly BenchmarkResultColumn[] = [
   {
     cellClassName: 'px-3 py-4 text-(--text-faint)',
-    header: '#',
+    header: 'Sequence',
     id: 'sequence',
     render: (result) => formatCount(result.sequence),
+  },
+  {
+    cellClassName: 'px-3 py-4 text-(--text-muted)',
+    header: 'Repetition',
+    id: 'repetition',
+    render: (result) => formatCount(result.repetition),
+  },
+  {
+    cellClassName: 'max-w-40 break-words px-3 py-4 text-(--text-soft)',
+    header: 'Case ID',
+    id: 'case-id',
+    render: (result) => result.case_id,
   },
   {
     cellClassName: 'px-3 py-4 capitalize text-(--text-muted)',

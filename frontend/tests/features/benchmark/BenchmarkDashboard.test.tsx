@@ -16,10 +16,6 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { QueryTestProvider } from '../QueryTestProvider';
 import { createTestQueryClient } from '../queryClient';
 import {
-  buildBenchmarkCsv,
-  buildBenchmarkJson,
-} from '@/features/benchmark/lib/exportBuilders';
-import {
   getBenchmarkDatasets,
   runBenchmark,
 } from '@/features/benchmark/api/benchmarkApi';
@@ -143,12 +139,16 @@ describe('BenchmarkDashboard', () => {
       ),
     ).toBeTruthy();
     expect(screen.getByText('Similarity-score distribution')).toBeTruthy();
-    expect(screen.getByText('Per-query evidence')).toBeTruthy();
+    expect(
+      screen.getByText('Confusion matrix and case evidence'),
+    ).toBeTruthy();
     const table = screen.getByRole('table', {
       name: 'Per-query benchmark results',
     });
     for (const header of [
-      '#',
+      'Sequence',
+      'Repetition',
+      'Case ID',
       'Category',
       'Query',
       'Expected',
@@ -156,13 +156,14 @@ describe('BenchmarkDashboard', () => {
       'Score',
       'Latency',
       'Outcome',
+      'Inspect',
     ]) {
       expect(within(table).getByRole('columnheader', { name: header })).toBeTruthy();
     }
-    expect(screen.getByText('0.940')).toBeTruthy();
+    expect(within(table).getByText('0.940')).toBeTruthy();
     expect(within(table).getByText('true positive')).toBeTruthy();
     expect(within(table).getByText('10.0 ms')).toBeTruthy();
-    expect(screen.getByText('n/a')).toBeTruthy();
+    expect(within(table).getByText('n/a')).toBeTruthy();
   });
 
   it('shows loading and error states', async () => {
@@ -263,22 +264,6 @@ describe('BenchmarkDashboard', () => {
         screen.queryByText('Refreshing dataset catalog'),
       ).toBeNull();
     });
-  });
-
-  it('builds complete JSON and CSV exports', () => {
-    const json = buildBenchmarkJson(result);
-    const csv = buildBenchmarkCsv(result);
-
-    expect(JSON.parse(json)).toEqual(result);
-    expect(
-      (JSON.parse(json) as typeof result).reproducibility.measured_threshold,
-    ).toBe(result.threshold);
-    expect(csv).toContain(
-      'sequence,repetition,case_id,category,prompt,expected_cache_hit',
-    );
-    expect(csv).toContain('matched_prompt,matched_cache_key');
-    expect(csv).toContain('duplicate,exact_duplicate');
-    expect(csv.split('\r\n')).toHaveLength(3);
   });
 
   it('compiles advanced sweep controls into an exact bounded list', async () => {

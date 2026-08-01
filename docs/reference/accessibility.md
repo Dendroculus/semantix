@@ -39,6 +39,19 @@ Check the following at desktop and mobile widths:
 - the advanced sweep disclosure works with Enter and Space, reports
   `aria-expanded`, and announces validation and run status without moving
   focus;
+- every confusion-matrix cell is a native button with its outcome, count, and
+  selected state exposed to assistive technology;
+- the confusion matrix uses a readable 2 × 2 layout at 744, 768, 820, and
+  834 px portrait widths rather than four compressed columns;
+- false-positive and false-negative quick filters, bounded case search, and the
+  “All cases” reset announce the visible result count without relying on color;
+- mobile and tablet users receive a compact case list with the same detail
+  action as the wide desktop table;
+- inline case details preserve a logical heading and definition-list order,
+  wrap long prompt and key evidence, do not steal focus when opened, and return
+  focus to the invoking case control when closed;
+- isolated evaluation keys are text evidence only and are not exposed as live
+  Cache links;
 - empty histogram bins have no visible bar.
 
 Navigation verification also covers:
@@ -51,8 +64,10 @@ Navigation verification also covers:
   increased text size, and long navigation labels;
 - no horizontal overflow at any checked viewport.
 
-Evaluation workspace review additionally covers long dataset names, visible
-focus, and the provider warning in normal reading order.
+Evaluation workspace review additionally covers long dataset and case names,
+malicious-looking plain text, visible table-scroll affordances, case details at
+320 px and 200% zoom, keyboard-only filtering/detail use, visible focus, and
+the provider warning in normal reading order.
 
 Run the automated token check with:
 

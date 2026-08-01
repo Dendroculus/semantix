@@ -162,33 +162,35 @@ export function LineChart({
           <span>Projected threshold (filled square)</span>
         </span>
       </div>
-      <table className="sr-only">
-        <caption>{title} data</caption>
-        <thead>
-          <tr>
-            <th scope="col">Series</th>
-            <th scope="col">Value kind</th>
-            <th scope="col">Threshold</th>
-            <th scope="col">Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {series.flatMap((item) =>
-            item.points.map((point, index) => (
-              <tr key={`${item.label}-${point.x}-${index}`}>
-                <th scope="row">{item.label}</th>
-                <td>
-                  {point.kind === 'measured'
-                    ? 'Measured threshold'
-                    : 'Frozen-candidate projection'}
-                </td>
-                <td>{formatDecimal(point.x, 2)}</td>
-                <td>{valueLabel(point.y)}</td>
-              </tr>
-            )),
-          )}
-        </tbody>
-      </table>
+      <div className="sr-only">
+        <table>
+          <caption>{title} data</caption>
+          <thead>
+            <tr>
+              <th scope="col">Series</th>
+              <th scope="col">Value kind</th>
+              <th scope="col">Threshold</th>
+              <th scope="col">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {series.flatMap((item) =>
+              item.points.map((point, index) => (
+                <tr key={`${item.label}-${point.x}-${index}`}>
+                  <th scope="row">{item.label}</th>
+                  <td>
+                    {point.kind === 'measured'
+                      ? 'Measured threshold'
+                      : 'Frozen-candidate projection'}
+                  </td>
+                  <td>{formatDecimal(point.x, 2)}</td>
+                  <td>{valueLabel(point.y)}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

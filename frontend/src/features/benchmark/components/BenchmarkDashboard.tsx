@@ -1,10 +1,10 @@
 import { Alert, EmptyState, PageHeader } from '@/shared/components/ui';
 import { useBenchmark } from '../hooks/useBenchmark';
+import { BenchmarkAnalysis } from './BenchmarkAnalysis';
 import { BenchmarkCharts } from './BenchmarkCharts';
 import { BenchmarkControls } from './BenchmarkControls';
 import { BenchmarkDatasetSkeleton } from './BenchmarkDatasetSkeleton';
 import { BenchmarkExports } from './BenchmarkExports';
-import { BenchmarkResultsTable } from './BenchmarkResultsTable';
 import { BenchmarkResultsSkeleton } from './BenchmarkResultsSkeleton';
 import { BenchmarkRunWarning } from './BenchmarkRunWarning';
 import { BenchmarkSummary } from './BenchmarkSummary';
@@ -91,7 +91,7 @@ export function BenchmarkDashboard(): JSX.Element {
         error === null && (
           <EmptyState
             className="mt-8 py-6"
-            description="Review the selected dataset and threshold to see the expected provider work before starting a controlled run."
+            description="Review the selected dataset and threshold before starting a controlled run. Results remain in this browser session and are discarded on reload."
             title="No measured run yet"
           />
         )}
@@ -100,7 +100,7 @@ export function BenchmarkDashboard(): JSX.Element {
         <>
           <BenchmarkSummary result={result} />
           <BenchmarkCharts result={result} />
-          <BenchmarkResultsTable results={result.query_results} />
+          <BenchmarkAnalysis key={result.run_id} result={result} />
         </>
       )}
     </section>

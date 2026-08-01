@@ -104,6 +104,14 @@ measured threshold is marked `result_kind="measured"` and all alternates are
 marked `result_kind="projected"` under
 `threshold_evaluation_mode="frozen_candidate_projection"`.
 
+Each per-query `outcome` is derived from `expected_cache_hit` and
+`actual_cache_hit`: true positive and false positive are cache hits, while true
+negative and false negative are misses. `correct`, `provider_called`, matched
+prompt, and matched key must agree with that decision. Backend response
+validation and the frontend strict decoder reject inconsistent evidence.
+Matched keys identify only the destroyed run-local evaluation cache and are
+never live Cache-entry links.
+
 The `reproducibility` object is allowlisted: application version, dataset
 identity, provider categories, embedding dimensions, non-secret embedding and
 normalization fingerprints, `measured_threshold`, `evaluation_thresholds`,

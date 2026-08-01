@@ -38,7 +38,7 @@ comparing replaceable AI and storage providers.
 |---|---|
 | **Monitor** | Submit prompts and inspect cache hits, misses, latency, matched prompts, and similarity evidence |
 | **Cache Inspector** | Search entries, inspect metadata, delete records, clear namespaces, and manage the threshold |
-| **Evaluations** | Measure precision, recall, false hits, false misses, latency, and provider calls avoided |
+| **Evaluations** | Measure precision, recall, false hits, false misses, inspect filtered case evidence, and export reproducible runs |
 | **Observability** | Track request volume, provider calls, cache activity, coalescing, expirations, and evictions |
 
 Core capabilities:
