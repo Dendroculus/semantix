@@ -6,6 +6,7 @@ import {
 } from '@/features/benchmark/api/benchmarkDecoders';
 import type { BenchmarkRunResponse } from '@/features/benchmark/types';
 import {
+  benchmarkAnalysisResult,
   benchmarkDataset,
   benchmarkResult,
 } from './support';
@@ -140,6 +141,12 @@ describe('benchmark decoders', () => {
     expect(decodeBenchmarkRun(structuredClone(benchmarkResult))).toEqual(
       benchmarkResult,
     );
+  });
+
+  it('accepts reconciled evidence covering all four confusion outcomes', () => {
+    expect(
+      decodeBenchmarkRun(structuredClone(benchmarkAnalysisResult)),
+    ).toEqual(benchmarkAnalysisResult);
   });
 
   it.each(INVALID_RUN_CASES)('rejects $name', ({ mutate }) => {

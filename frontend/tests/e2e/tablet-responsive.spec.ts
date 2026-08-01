@@ -2,8 +2,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import {
+  benchmarkAnalysisResult,
   benchmarkDataset,
-  benchmarkResult,
 } from '../features/benchmark/support';
 
 const VIEWPORTS = [
@@ -47,7 +47,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/v1/benchmarks/run', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
-      json: benchmarkResult,
+      json: benchmarkAnalysisResult,
     });
   });
 });
@@ -55,6 +55,8 @@ test.beforeEach(async ({ page }) => {
 test('evaluation controls and projections remain usable at required viewports', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
+
   for (const viewport of VIEWPORTS) {
     await test.step(viewport.name, async () => {
       await page.setViewportSize(viewport);
@@ -120,7 +122,9 @@ test('evaluation controls and projections remain usable at required viewports', 
     'may make at most',
   );
   await page.getByRole('button', { name: 'Run benchmark now' }).click();
-  await expect(page.getByText('Measured run')).toBeVisible();
+  await expect(
+    page.getByText('Measured run', { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText('Run identity and safe reproducibility metadata'),
   ).toBeVisible();
@@ -135,6 +139,94 @@ test('evaluation controls and projections remain usable at required viewports', 
     name: /frozen-candidate projection.*data/i,
   });
   await expect(chartTables).toHaveCount(4);
+
+  const falsePositiveFilter = page.getByRole('button', {
+    name: 'False positive: 1 case',
+  });
+  await falsePositiveFilter.focus();
+  await page.keyboard.press('Enter');
+  await expect(falsePositiveFilter).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText(/Showing 1 of 4 cases/)).toBeVisible();
+
+  const detailTrigger = page.getByRole('button', {
+    name: 'View details for case shared-miss, repetition 2',
+  });
+  await detailTrigger.focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('heading', { name: 'Case shared-miss' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/run-local evaluation cache/),
+  ).toBeVisible();
+  await expect(
+    page.locator('#benchmark-case-detail a'),
+  ).toHaveCount(0);
+
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations).toEqual([]);
+
+  await page.getByRole('button', { name: 'Close case details' }).click();
+  await expect(detailTrigger).toBeFocused();
+
+  for (const viewport of VIEWPORTS) {
+    await test.step(`analysis-${viewport.name}`, async () => {
+      await page.setViewportSize(viewport);
+      await expect(
+        page.getByRole('group', {
+          name: 'Measured run confusion matrix',
+        }),
+      ).toBeVisible();
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      const overflowSources = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('body *')]
+          .filter(
+            (element) =>
+              element.getBoundingClientRect().right >
+              document.documentElement.clientWidth + 1,
+          )
+          .slice(0, 10)
+          .map((element) => ({
+            className: element.className,
+            right: Math.round(element.getBoundingClientRect().right),
+            tag: element.tagName,
+            text: element.textContent?.trim().slice(0, 80),
+          })),
+      );
+      expect(
+        overflow,
+        JSON.stringify(overflowSources),
+      ).toBeLessThanOrEqual(1);
+
+      if ([744, 768, 820, 834].includes(viewport.width)) {
+        const columns = await page
+          .locator('[data-confusion-matrix] > button')
+          .evaluateAll((buttons) => {
+            const positions = buttons.map((button) =>
+              Math.round(button.getBoundingClientRect().left),
+            );
+            return new Set(positions).size;
+          });
+        expect(columns).toBeLessThanOrEqual(2);
+      }
+    });
+  }
+
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.getByRole('button', {
+    name: 'View details for case shared-miss, repetition 2',
+  }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Case shared-miss' }),
+  ).toBeVisible();
+  const detailOverflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+  expect(detailOverflow).toBeLessThanOrEqual(1);
 });

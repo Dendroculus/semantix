@@ -71,9 +71,15 @@ display names and descriptions do not affect it.
 4. Keep one repetition and reset enabled for a short independent run.
 5. Review the bounded case count and maximum generation-call warning.
 6. Confirm the run.
-7. Inspect summary metrics, per-query evidence, threshold projections, and
-   similarity distributions.
-8. Export JSON for the complete result or CSV for per-query evidence.
+7. Select a confusion-matrix outcome or use the false-positive and
+   false-negative quick filters.
+8. Search the measured cases and open a case detail to inspect its expected and
+   actual decisions, match evidence, threshold, provider-call state, latency,
+   and dataset identity.
+9. Inspect threshold projections and similarity distributions separately from
+   measured case evidence.
+10. Export JSON for the complete response or CSV revision 2 for independently
+    interpretable per-case evidence.
 
 Benchmark requests may call the selected generation provider. Review provider
 cost, rate limits, and data handling before confirming.
@@ -138,6 +144,44 @@ writes at each alternate threshold. Because the candidate set does not evolve,
 their quality, provider-savings, and latency estimates can differ from a real
 ordered run at that threshold. The projection makes no additional provider
 calls and uses the original run's average hit and miss latency.
+
+## Error analysis and case details
+
+The four-cell confusion matrix is an interactive filter over the measured
+cases. Each cell has a text label, count, explanation, and selected state.
+False-positive and false-negative quick filters provide direct paths to the
+two correctness errors, while search remains bounded to the current
+session-local result. Selecting “All cases” restores the complete deterministic
+sequence and repetition order.
+
+Compact cards expose the essential evidence on mobile and tablet widths. The
+wide comparison table remains available inside an explicit scroll region on
+larger viewports. Both presentations open the same inline case detail. Prompts,
+case IDs, categories, and matched prompts are rendered as escaped plain text,
+not Markdown or HTML.
+
+A matched evaluation key is evidence from the destroyed run-local cache. It is
+shown without a link and does not identify a record in the live Cache
+workspace. Case details also distinguish the measured threshold from the
+frozen-candidate projection charts and never offer automatic threshold
+application.
+
+Results and filters are discarded on reload. Export is the only durable action
+in this phase.
+
+## Export formats
+
+JSON remains a structurally complete copy of the run response. CSV export
+schema revision 2 repeats the run ID, timestamps, dataset identity, measured
+and projected threshold context, safe configuration fingerprint and provider
+metadata on every case row, followed by complete case evidence including
+repetition, outcome, provider-call state, matched prompt, and matched key.
+
+CSV string cells beginning with `=`, `+`, `-`, or `@` are prefixed with a
+single quote so spreadsheet applications treat them as text. JSON values are
+not modified. New downloads use the `semantix-evaluation-<run-id>` filename
+stem; the former `semantix-benchmark-<run-id>` download name was a UI filename,
+not a stable API contract.
 
 ## Reproducibility metadata
 

@@ -4,7 +4,12 @@ from collections.abc import Sequence
 import pytest
 from pydantic import ValidationError
 
-from app.benchmark.api.schemas import BenchmarkRunRequest, BenchmarkRunResponse
+from app.benchmark.api.schemas import (
+    BenchmarkOutcome,
+    BenchmarkQueryResult,
+    BenchmarkRunRequest,
+    BenchmarkRunResponse,
+)
 from app.benchmark.application.service import BenchmarkService
 from app.benchmark.domain.models import BenchmarkRuntimeConfiguration
 from app.core.exceptions import EvaluationTimeoutError, InvalidProviderResponseError
@@ -85,6 +90,51 @@ def test_benchmark_service_exposes_the_default_dataset() -> None:
     assert datasets.default_dataset_id in {
         dataset.dataset_id for dataset in datasets.datasets
     }
+
+
+@pytest.mark.parametrize(
+    (
+        "expected_cache_hit",
+        "actual_cache_hit",
+        "outcome",
+        "correct",
+        "provider_called",
+    ),
+    [
+        (True, True, "true_positive", True, False),
+        (False, False, "true_negative", True, True),
+        (False, True, "false_positive", False, False),
+        (True, False, "false_negative", False, True),
+    ],
+)
+def test_query_evidence_accepts_all_four_confusion_outcomes(
+    expected_cache_hit: bool,
+    actual_cache_hit: bool,
+    outcome: BenchmarkOutcome,
+    correct: bool,
+    provider_called: bool,
+) -> None:
+    matched_prompt = "matched prompt" if actual_cache_hit else None
+    matched_cache_key = "f" * 64 if actual_cache_hit else None
+
+    result = BenchmarkQueryResult(
+        sequence=1,
+        repetition=1,
+        case_id="case",
+        category="seed",
+        prompt="prompt",
+        expected_cache_hit=expected_cache_hit,
+        actual_cache_hit=actual_cache_hit,
+        correct=correct,
+        outcome=outcome,
+        similarity_score=0.95 if actual_cache_hit else None,
+        latency_ms=1,
+        provider_called=provider_called,
+        matched_prompt=matched_prompt,
+        matched_cache_key=matched_cache_key,
+    )
+
+    assert result.outcome == outcome
 
 
 @pytest.mark.asyncio

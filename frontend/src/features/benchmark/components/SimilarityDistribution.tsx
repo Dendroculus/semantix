@@ -93,27 +93,29 @@ export function SimilarityDistribution({
         {unscoredCount} unscored seed quer{unscored === 1 ? 'y' : 'ies'}{' '}
         excluded from the histogram.
       </p>
-      <table className="sr-only">
-        <caption>Similarity-score distribution data</caption>
-        <thead>
-          <tr>
-            <th scope="col">Score range</th>
-            <th scope="col">Queries</th>
-          </tr>
-        </thead>
-        <tbody>
-          {bins.map((bin) => (
-            <tr key={bin.label}>
-              <th scope="row">{bin.label}</th>
-              <td>{formatCount(bin.count)}</td>
+      <div className="sr-only">
+        <table>
+          <caption>Similarity-score distribution data</caption>
+          <thead>
+            <tr>
+              <th scope="col">Score range</th>
+              <th scope="col">Queries</th>
             </tr>
-          ))}
-          <tr>
-            <th scope="row">Unscored</th>
-            <td>{unscoredCount}</td>
-          </tr>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {bins.map((bin) => (
+              <tr key={bin.label}>
+                <th scope="row">{bin.label}</th>
+                <td>{formatCount(bin.count)}</td>
+              </tr>
+            ))}
+            <tr>
+              <th scope="row">Unscored</th>
+              <td>{unscoredCount}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }
