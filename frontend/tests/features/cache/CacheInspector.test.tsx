@@ -15,6 +15,7 @@ import { CacheInspector } from "@/features/cache/components/CacheInspector";
 import {
   clearCache,
   deleteCacheEntry,
+  getCacheEntry,
   listCacheEntries,
 } from "@/features/cache/api/cacheApi";
 import type {
@@ -32,6 +33,8 @@ const alphaEntry: CacheEntryMetadata = {
   namespace: "tenant-alpha",
   prompt: "Explain semantic caching",
   response_preview: "Semantic caching reuses related responses.",
+  response_preview_truncated: false,
+  response: null,
   created_at: "2026-07-17T10:00:00Z",
   expires_at: "2026-07-17T11:00:00Z",
   remaining_ttl_seconds: 125,
@@ -46,6 +49,8 @@ const betaEntry: CacheEntryMetadata = {
   namespace: "tenant-beta",
   prompt: "How does cosine similarity work?",
   response_preview: "Cosine similarity compares vector direction.",
+  response_preview_truncated: false,
+  response: null,
   created_at: "2026-07-17T09:00:00Z",
   expires_at: "2026-07-17T10:30:00Z",
   remaining_ttl_seconds: 60,
@@ -92,6 +97,13 @@ describe("CacheInspector", () => {
     vi.mocked(deleteCacheEntry).mockResolvedValue({
       ok: true,
       data: { deleted: true, cache_key: alphaEntry.cache_key },
+    });
+    vi.mocked(getCacheEntry).mockResolvedValue({
+      ok: true,
+      data: {
+        ...alphaEntry,
+        response: alphaEntry.response_preview,
+      },
     });
     vi.mocked(clearCache).mockResolvedValue({
       ok: true,
@@ -148,6 +160,77 @@ describe("CacheInspector", () => {
     expect(strongText.tagName).toBe("STRONG");
     expect(screen.getByText("First item").closest("ul")).not.toBeNull();
     expect(container.querySelector(".katex")).not.toBeNull();
+  });
+
+  it("loads complete Markdown instead of rendering a sliced raw preview", async () => {
+    const completeMarkdown = [
+      `${"a".repeat(232)} **Bold crossing the old boundary**`,
+      "",
+      "*Italic evidence*",
+      "",
+      "- First complete item",
+      "- Second complete item",
+      "",
+      "Use `inlineValue` and read the [safe link](https://example.com/cache).",
+      "",
+      "```ts",
+      "const complete = true;",
+      "```",
+      "",
+      "Plain text remains readable.",
+      "",
+      '<script>alert("unsafe")</script>',
+    ].join("\n");
+    const truncatedEntry: CacheEntryMetadata = {
+      ...alphaEntry,
+      response_preview:
+        "Response exceeds the preview limit. Inspect the complete response.",
+      response_preview_truncated: true,
+    };
+    vi.mocked(listCacheEntries).mockImplementation(async (params) =>
+      successfulPage([truncatedEntry], params),
+    );
+    vi.mocked(getCacheEntry).mockResolvedValue({
+      ok: true,
+      data: {
+        ...truncatedEntry,
+        response: completeMarkdown,
+      },
+    });
+
+    const { container } = renderInspector();
+
+    const disclosure = await screen.findByRole("button", {
+      name: "Inspect complete response",
+    });
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Bold crossing the old boundary")).toBeNull();
+
+    fireEvent.click(disclosure);
+
+    const bold = await screen.findByText("Bold crossing the old boundary");
+    expect(bold.tagName).toBe("STRONG");
+    expect(screen.getByText("Italic evidence").tagName).toBe("EM");
+    expect(screen.getByText("First complete item").closest("ul")).not.toBeNull();
+    expect(screen.getByText("inlineValue").tagName).toBe("CODE");
+    expect(
+      screen.getByRole("link", { name: "safe link" }).getAttribute("href"),
+    ).toBe("https://example.com/cache");
+    expect(
+      screen.getByText("const complete = true;").closest("pre"),
+    ).not.toBeNull();
+    expect(screen.getByText("Plain text remains readable.")).toBeTruthy();
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.textContent).toContain('<script>alert("unsafe")</script>');
+    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+    expect(getCacheEntry).toHaveBeenCalledWith(
+      alphaEntry.cache_key,
+      expect.any(AbortSignal),
+    );
+
+    fireEvent.click(disclosure);
+    expect(screen.queryByText("Bold crossing the old boundary")).toBeNull();
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("searches cached prompts through the inspector API", async () => {
@@ -402,11 +485,16 @@ describe("CacheInspector", () => {
     };
     const otherKey = cacheEntryKeys.list(otherParams);
     const datasetKey = benchmarkDatasetKeys.catalog();
+    const detailKey = cacheEntryKeys.detail(alphaEntry.cache_key);
     queryClient.setQueryData(
       otherKey,
       successfulPage([alphaEntry], otherParams).data,
     );
     queryClient.setQueryData(datasetKey, { catalog: "unchanged" });
+    queryClient.setQueryData(detailKey, {
+      ...alphaEntry,
+      response: alphaEntry.response_preview,
+    });
     vi.mocked(listCacheEntries).mockImplementation(async (params) =>
       successfulPage([alphaEntry], params),
     );
@@ -424,6 +512,7 @@ describe("CacheInspector", () => {
 
     await waitFor(() => expect(deleteCacheEntry).toHaveBeenCalledOnce());
     expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryData(detailKey)).toBeUndefined();
     expect(queryClient.getQueryState(datasetKey)?.isInvalidated).toBe(false);
   });
 
@@ -436,10 +525,15 @@ describe("CacheInspector", () => {
       sort: "most_hit",
     };
     const otherKey = cacheEntryKeys.list(otherParams);
+    const detailKey = cacheEntryKeys.detail(betaEntry.cache_key);
     queryClient.setQueryData(
       otherKey,
       successfulPage([betaEntry], otherParams).data,
     );
+    queryClient.setQueryData(detailKey, {
+      ...betaEntry,
+      response: betaEntry.response_preview,
+    });
     vi.mocked(listCacheEntries).mockImplementation(async (params) =>
       successfulPage([alphaEntry], params),
     );
@@ -455,5 +549,6 @@ describe("CacheInspector", () => {
 
     await waitFor(() => expect(clearCache).toHaveBeenCalledOnce());
     expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryData(detailKey)).toBeUndefined();
   });
 });
