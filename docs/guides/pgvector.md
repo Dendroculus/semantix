@@ -17,8 +17,11 @@ DATABASE_CONNECT_TIMEOUT_SECONDS=10
 DATABASE_COMMAND_TIMEOUT_SECONDS=30
 ```
 
-`DATABASE_URL` is required only when `CACHE_BACKEND=pgvector`. The memory
-backend does not connect to PostgreSQL, even when a database URL is present.
+`DATABASE_URL` is required when `CACHE_BACKEND=pgvector` or
+`EVALUATION_DATASET_STORAGE=postgres`. A memory live cache does not use
+PostgreSQL for cache operations, but it can share the database lifecycle with
+the persistent evaluation catalog. When both settings remain
+`memory`/`session`, the backend opens no pool even if a database URL is present.
 The minimum pool size cannot exceed the maximum. The connection timeout bounds
 pool connection establishment; the command timeout independently bounds SQL
 statements after a connection is available. Increase the command timeout for
@@ -110,22 +113,26 @@ change.
 
 ## Automatic migrations and startup behavior
 
-The backend obtains a PostgreSQL advisory lock and runs pending cache migrations
-during FastAPI startup. The migration bootstrap and first version:
+The backend obtains a PostgreSQL advisory lock and runs pending migrations for
+the configured cache and evaluation-storage features during FastAPI startup.
+The shared bootstrap creates the `semantix` schema and migration-history table.
+Cache version `0001`:
 
 1. enables the `vector` extension;
-2. creates the `semantix` schema and migration-history table;
-3. creates cache entries and namespace counters;
-4. creates indexes for scope, expiry, and recency filtering.
+2. creates cache entries and namespace counters;
+3. creates indexes for scope, expiry, and recency filtering.
+
+Evaluation version `0002` creates persistent dataset metadata, ordered cases,
+foreign-key constraints, and catalog indexes without adding run-history tables.
 
 The configured database role therefore needs permission to create the pgvector
 extension and the `semantix` schema on first startup. Migrations finish before
 the application lifespan becomes ready. If `DATABASE_URL` is missing, invalid,
 or unreachable, or a migration fails, the backend does not start.
 
-Applied versions are recorded in `semantix.schema_migrations`. Migration SQL is
-stored with the cache feature under
-`app/cache/infrastructure/migrations`.
+Applied versions are recorded in `semantix.schema_migrations`. Cache SQL stays
+under `app/cache/infrastructure/migrations`; evaluation SQL stays under
+`app/benchmark/infrastructure/migrations`.
 
 ## Storage behavior
 

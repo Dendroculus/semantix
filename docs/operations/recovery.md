@@ -11,6 +11,12 @@ derived data. Provider responses remain the source of truth. Deleting the cache
 does not delete provider-side data, authentication configuration, or application
 configuration.
 
+Persisted evaluation datasets are different: they can contain sensitive,
+operator-supplied prompts and notes that may not exist elsewhere. When
+`EVALUATION_DATASET_STORAGE=postgres`, the deployment owner must choose whether
+these records are recoverable or intentionally disposable and apply that policy
+to backups, access, retention, and deletion.
+
 A cold cache has operational consequences:
 
 - the first eligible request for each semantic group calls the provider;
@@ -18,10 +24,13 @@ A cold cache has operational consequences:
 - cache entries, hit counters, and miss counters start from zero;
 - historical cache-inspector data is lost.
 
-Take a backup only when preserving warm-cache state or inspection history is
-worth the recovery time. The operator performing a deployment owns backup,
-rotation, rollback, and verification. Provider owners must be informed before a
-destructive rebuild that can increase provider traffic or cost.
+Take a backup when preserving warm-cache state or persisted evaluation
+datasets is worth the security and recovery cost. A backup can retain dataset
+content after application expiry or explicit deletion, so backup retention and
+secure erasure are separate operator responsibilities. The operator performing
+a deployment owns backup, rotation, rollback, and verification. Provider owners
+must be informed before a destructive rebuild that can increase provider
+traffic or cost.
 
 ## Safety rules
 
@@ -144,7 +153,7 @@ If role rotation commits but the recreated stack fails:
 Do not restore only the environment file after the database roles changed; that
 creates the same credential mismatch in reverse.
 
-## Back up a warm cache
+## Back up PostgreSQL data
 
 Create a custom-format dump without ownership or access-control statements:
 
@@ -160,9 +169,11 @@ backups` and use `"${PostgresContainer}:/tmp/semantix.dump"` as the `docker cp`
 source.
 
 Record the application commit, migration list, embedding provider/model,
-embedding dimensions, database name, and dump checksum beside the backup. A
-backup made for one embedding space is not automatically useful after changing
-the embedding model or dimensions.
+embedding dimensions, evaluation-dataset storage/retention settings, database
+name, and dump checksum beside the backup. Treat the dump as sensitive because
+it can contain cached provider responses plus persisted dataset prompts and
+notes. A backup made for one embedding space is not automatically useful after
+changing the embedding model or dimensions.
 
 ## Restore a backup
 
@@ -187,15 +198,21 @@ SELECT extversion FROM pg_extension WHERE extname = 'vector';
 SELECT version, checksum FROM semantix.schema_migrations ORDER BY version;
 SELECT COUNT(*) FROM semantix.cache_entries;
 SELECT COUNT(*) FROM semantix.cache_namespace_counters;
+SELECT COUNT(*) FROM semantix.evaluation_datasets;
+SELECT COUNT(*) FROM semantix.evaluation_dataset_cases;
 ```
 
-Then start the backend and frontend, check `/ready`, and execute a cache round
-trip. Keep the old volume and backup until verification completes.
+Then start the backend and frontend, check `/ready`, execute a cache round trip,
+and verify a namespace-authorized dataset list/detail request when persistence
+is enabled. Expired dataset rows restored from an older backup remain hidden
+and are purged opportunistically. Keep the old volume and backup until
+verification completes.
 
 ## Discard and rebuild the cache
 
-This is the default recovery path when cache preservation is unnecessary.
-Double-check the volume label before deletion:
+This is the default recovery path only when cache preservation is unnecessary
+and persisted evaluation datasets are disabled, separately backed up, or
+intentionally disposable. Double-check the volume label before deletion:
 
 ```bash
 docker compose --env-file .env.production -f docker-compose.prod.yml down
@@ -206,7 +223,8 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up --build 
 
 Do not substitute a wildcard or delete every Docker volume. The next startup
 creates the roles, runs migrations, and starts with empty cache tables and
-counters. Plan for cold-cache latency and provider usage while entries warm.
+counters. It also permanently removes the volume's persisted evaluation
+datasets. Plan for cold-cache latency and provider usage while entries warm.
 
 ## Migration rollback
 
@@ -218,7 +236,8 @@ For an application regression without destructive schema changes, redeploy the
 previous application image and leave the database intact. For an incompatible
 schema regression:
 
-- discard and rebuild the volume when cache data is disposable; or
+- discard and rebuild the volume only when cache and persisted dataset data are
+  disposable; or
 - restore the pre-deployment dump into a fresh volume when it must be retained.
 
 Never rewrite an applied migration, remove its checksum row, or improvise a

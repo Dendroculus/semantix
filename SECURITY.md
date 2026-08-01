@@ -27,7 +27,8 @@ Remove API keys, access tokens, database passwords, private prompts, complete re
 
 Useful reports include concrete issues involving:
 
-- exposure of provider credentials, access tokens, prompts, or cached responses;
+- exposure of provider credentials, access tokens, imported dataset prompts or
+  notes, or cached responses;
 - authentication or role bypass;
 - namespace authorization failures;
 - cross-embedding-space data leakage;
@@ -52,7 +53,8 @@ The hardened stack requires:
 - a single backend process unless shared rate-limit storage is added;
 - separate migration and runtime database roles;
 - no direct public backend or database ports;
-- operator review of provider data handling and retention.
+- operator review of provider data handling, persistent dataset retention,
+  deletion, backup retention, and recovery.
 
 The supplied hardened stack is not a complete multi-tenant service. It does not add distributed coordination, deployment-wide metrics, tenant billing, or a general identity provider.
 
@@ -62,6 +64,10 @@ The supplied hardened stack is not a complete multi-tenant service. It does not 
   metrics are a global operational surface restricted to global
   administrators; namespace users have scoped cache statistics instead.
 - Hosted providers receive prompts selected by authorized operators.
+- When explicitly enabled, the PostgreSQL evaluation catalog stores
+  namespace-authorized prompts and notes until expiry or deletion. Database
+  backups may outlive application retention and require a separate secure
+  erasure policy.
 - Semantic similarity remains probabilistic and needs threshold evaluation.
 - Access tokens configured through `AUTH_PRINCIPALS` are operator-managed credentials rather than federated identity.
 - The default production frontend binds to loopback and depends on an external TLS reverse proxy.
