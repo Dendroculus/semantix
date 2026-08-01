@@ -21,6 +21,8 @@ def test_memory_backend_does_not_require_database_configuration() -> None:
 
     assert settings.cache_backend == "memory"
     assert settings.database_url is None
+    assert settings.evaluation_dataset_storage == "session"
+    assert settings.database_required is False
 
 
 def test_pgvector_requires_a_postgresql_database_url() -> None:
@@ -36,6 +38,83 @@ def test_pgvector_requires_a_postgresql_database_url() -> None:
         Settings(
             cache_backend="pgvector",
             database_url="https://database.example.test/semantix",
+            hf_api_key="test-only-placeholder",
+            allowed_origins=ORIGINS,
+        )
+
+
+def test_postgres_evaluation_storage_requires_database_with_memory_cache() -> None:
+    with pytest.raises(ValidationError, match="DATABASE_URL"):
+        Settings(
+            cache_backend="memory",
+            evaluation_dataset_storage="postgres",
+            database_url=None,
+            hf_api_key="test-only-placeholder",
+            allowed_origins=ORIGINS,
+        )
+
+    configured = Settings(
+        cache_backend="memory",
+        evaluation_dataset_storage="postgres",
+        database_url="postgresql://user:secret@database:5432/semantix",
+        hf_api_key="test-only-placeholder",
+        allowed_origins=ORIGINS,
+    )
+
+    assert configured.database_required is True
+    assert configured.database_dsn.endswith("/semantix")
+
+
+@pytest.mark.parametrize(
+    ("cache_backend", "dataset_storage", "database_required"),
+    [
+        ("memory", "session", False),
+        ("memory", "postgres", True),
+        ("pgvector", "session", True),
+        ("pgvector", "postgres", True),
+    ],
+)
+def test_database_requirement_matrix(
+    cache_backend: str,
+    dataset_storage: str,
+    database_required: bool,
+) -> None:
+    database_url = (
+        "postgresql://user:secret@database:5432/semantix" if database_required else None
+    )
+    configured = Settings.model_validate(
+        {
+            "cache_backend": cache_backend,
+            "evaluation_dataset_storage": dataset_storage,
+            "database_url": database_url,
+            "hf_api_key": "test-only-placeholder",
+            "allowed_origins": ORIGINS,
+        }
+    )
+
+    assert configured.database_required is database_required
+
+
+def test_persisted_dataset_retention_bounds_are_consistent() -> None:
+    configured = Settings(
+        cache_backend="memory",
+        evaluation_dataset_default_retention_days=30,
+        evaluation_dataset_max_retention_days=365,
+        hf_api_key="test-only-placeholder",
+        allowed_origins=ORIGINS,
+    )
+
+    assert configured.evaluation_dataset_default_retention_days == 30
+    assert configured.evaluation_dataset_max_retention_days == 365
+
+    with pytest.raises(
+        ValidationError,
+        match="EVALUATION_DATASET_DEFAULT_RETENTION_DAYS",
+    ):
+        Settings(
+            cache_backend="memory",
+            evaluation_dataset_default_retention_days=366,
+            evaluation_dataset_max_retention_days=365,
             hf_api_key="test-only-placeholder",
             allowed_origins=ORIGINS,
         )

@@ -79,6 +79,54 @@ class CacheStorageError(AppError):
     )
 
 
+class DatabaseStorageError(AppError):
+    status_code, error_code, public_detail = (
+        500,
+        "database_error",
+        "A required database operation could not be completed.",
+    )
+
+
+class EvaluationDatasetStorageError(AppError):
+    status_code, error_code, public_detail = (
+        500,
+        "evaluation_dataset_storage_error",
+        "The persistent evaluation dataset catalog could not process the request.",
+    )
+
+
+class EvaluationDatasetPersistenceDisabledError(AppError):
+    status_code, error_code, public_detail = (
+        409,
+        "evaluation_dataset_persistence_disabled",
+        "Persistent evaluation dataset storage is not enabled.",
+    )
+
+
+class EvaluationDatasetCapacityError(AppError):
+    status_code, error_code, public_detail = (
+        409,
+        "evaluation_dataset_capacity_exceeded",
+        "The namespace has reached its persistent evaluation dataset limit.",
+    )
+
+
+class EvaluationDatasetRetentionError(AppError):
+    status_code, error_code, public_detail = (
+        422,
+        "evaluation_dataset_retention_invalid",
+        "The requested dataset retention exceeds the configured bound.",
+    )
+
+
+class EvaluationDatasetNotFoundError(AppError):
+    status_code, error_code, public_detail = (
+        404,
+        "evaluation_dataset_not_found",
+        "The requested evaluation dataset does not exist or has expired.",
+    )
+
+
 class CacheEntryNotFoundError(AppError):
     status_code, error_code, public_detail = (
         404,
