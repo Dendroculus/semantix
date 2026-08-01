@@ -115,6 +115,14 @@ interactive cache and its runtime counters. Threshold alternatives are
 frozen-candidate projections from one measured run, not repeated provider
 executions.
 
+Imported evaluation definitions follow the same route-local boundary. The
+frontend holds the selected parsed JSON object only in React state and clears
+it on removal, unmount, sign-out, or principal change. Validation and execution
+carry the object in bounded JSON requests; the backend validates into an
+immutable request-local dataset and retains no catalog entry. Canonical
+`/api/v1/evaluations/*` routes are additive, while legacy built-in
+`/api/v1/benchmarks/*` routes remain compatible.
+
 ## Project structure
 
 ```text

@@ -104,6 +104,13 @@ export function BenchmarkCaseDetail({
           label="Expected decision"
           value={cacheDecisionLabel(query.expected_cache_hit)}
         />
+        {query.expected_match_case_id !== null && (
+          <EvidenceItem
+            label="Expected match case"
+            value={query.expected_match_case_id}
+            wrap
+          />
+        )}
         <EvidenceItem
           label="Actual decision"
           value={cacheDecisionLabel(query.actual_cache_hit)}
@@ -139,6 +146,14 @@ export function BenchmarkCaseDetail({
           value={query.prompt}
           wrap
         />
+        {query.note !== null && (
+          <EvidenceItem
+            className="sm:col-span-2"
+            label="Dataset note"
+            value={query.note}
+            wrap
+          />
+        )}
         <EvidenceItem
           className="sm:col-span-2"
           label="Matched prompt"

@@ -9,6 +9,8 @@ from app.benchmark.api.schemas import (
     BenchmarkQueryResult,
     BenchmarkRunRequest,
     BenchmarkRunResponse,
+    EvaluationRunRequest,
+    InlineEvaluationDatasetSource,
 )
 from app.benchmark.application.service import BenchmarkService
 from app.benchmark.domain.models import BenchmarkRuntimeConfiguration
@@ -231,6 +233,8 @@ async def test_safe_reproducibility_metadata_uses_an_explicit_allowlist() -> Non
     assert set(payload) == {
         "application_version",
         "dataset_id",
+        "dataset_source",
+        "dataset_schema_version",
         "dataset_version",
         "dataset_digest",
         "embedding_provider_category",
@@ -262,6 +266,46 @@ async def test_safe_reproducibility_metadata_uses_an_explicit_allowlist() -> Non
     )
     assert payload["measured_threshold"] == result.threshold == 0.91
     assert payload["evaluation_thresholds"] == [0.80, 0.91, 0.95]
+
+
+@pytest.mark.asyncio
+async def test_inline_run_revalidates_and_preserves_custom_case_evidence() -> None:
+    definition = {
+        "schema_version": 1,
+        "name": "Inline service set",
+        "cases": [
+            {
+                "case_id": "seed",
+                "prompt": "Synthetic seed",
+                "expected_cache_hit": False,
+            },
+            {
+                "case_id": "repeat",
+                "prompt": "Synthetic repeat",
+                "expected_cache_hit": True,
+                "expected_match_case_id": "seed",
+                "note": "Human-readable evidence",
+            },
+        ],
+    }
+
+    result = await benchmark_service(Provider()).run_evaluation(
+        EvaluationRunRequest(
+            dataset_source=InlineEvaluationDatasetSource(
+                kind="inline",
+                definition=definition,
+            ),
+            evaluation_thresholds=[0.80, 0.92],
+            allow_external_provider_calls=True,
+        )
+    )
+
+    assert result.dataset.dataset_source == "inline"
+    assert result.dataset.schema_version == 1
+    assert result.reproducibility.dataset_source == "inline"
+    assert result.reproducibility.dataset_schema_version == 1
+    assert result.query_results[1].expected_match_case_id == "seed"
+    assert result.query_results[1].note == "Human-readable evidence"
 
 
 @pytest.mark.asyncio

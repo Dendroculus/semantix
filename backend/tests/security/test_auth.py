@@ -145,6 +145,62 @@ def test_benchmark_dataset_and_run_roles_match_viewer_operator_capabilities() ->
     assert operator_run.status_code == 200
 
 
+def test_evaluation_import_roles_match_viewer_operator_capabilities() -> None:
+    definition = {
+        "schema_version": 1,
+        "name": "Authorization set",
+        "cases": [
+            {
+                "case_id": "case",
+                "prompt": "Synthetic authorization prompt",
+                "expected_cache_hit": False,
+            }
+        ],
+    }
+    with TestClient(create_app(settings())) as client:
+        viewer_catalog = client.get(
+            "/api/v1/evaluations/datasets",
+            headers=authorization(VIEWER_TOKEN),
+        )
+        viewer_validate = client.post(
+            "/api/v1/evaluations/datasets/validate",
+            headers=authorization(VIEWER_TOKEN),
+            json={"dataset": definition},
+        )
+        operator_validate = client.post(
+            "/api/v1/evaluations/datasets/validate",
+            headers=authorization(OPERATOR_TOKEN),
+            json={"dataset": definition},
+        )
+        viewer_run = client.post(
+            "/api/v1/evaluations/runs",
+            headers=authorization(VIEWER_TOKEN),
+            json={
+                "dataset_source": {
+                    "kind": "inline",
+                    "definition": definition,
+                },
+                "allow_external_provider_calls": True,
+            },
+        )
+        operator_run = client.post(
+            "/api/v1/evaluations/runs",
+            headers=authorization(OPERATOR_TOKEN),
+            json={
+                "dataset_source": {
+                    "kind": "inline",
+                    "definition": definition,
+                },
+                "allow_external_provider_calls": True,
+            },
+        )
+
+    assert viewer_catalog.status_code == 200
+    assert viewer_validate.status_code == viewer_run.status_code == 403
+    assert operator_validate.status_code == 200
+    assert operator_run.status_code == 200
+
+
 def test_global_admin_can_update_the_threshold() -> None:
     with TestClient(create_app(settings())) as client:
         response = client.put(

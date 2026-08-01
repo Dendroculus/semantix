@@ -14,11 +14,19 @@ interface CsvColumn {
 }
 
 const CSV_COLUMNS: readonly CsvColumn[] = [
-  { header: 'export_schema_version', value: () => '2' },
+  { header: 'export_schema_version', value: () => '3' },
   { header: 'run_id', value: (result) => result.run_id },
   { header: 'started_at', value: (result) => result.started_at },
   { header: 'completed_at', value: (result) => result.completed_at },
   { header: 'dataset_id', value: (result) => result.dataset.dataset_id },
+  {
+    header: 'dataset_source',
+    value: (result) => result.dataset.dataset_source,
+  },
+  {
+    header: 'dataset_schema_version',
+    value: (result) => result.dataset.schema_version,
+  },
   {
     header: 'dataset_version',
     value: (result) => result.dataset.version,
@@ -93,6 +101,11 @@ const CSV_COLUMNS: readonly CsvColumn[] = [
     header: 'expected_cache_hit',
     value: (_result, query) => query.expected_cache_hit,
   },
+  {
+    header: 'expected_match_case_id',
+    value: (_result, query) => query.expected_match_case_id,
+  },
+  { header: 'note', value: (_result, query) => query.note },
   {
     header: 'actual_cache_hit',
     value: (_result, query) => query.actual_cache_hit,

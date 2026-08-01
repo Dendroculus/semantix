@@ -17,12 +17,16 @@ Application errors use a stable object containing `error` and `detail`.
 | `DELETE` | `/api/v1/cache` | Clear all entries or one namespace |
 | `GET` | `/api/v1/benchmarks/datasets` | List controlled benchmark datasets |
 | `POST` | `/api/v1/benchmarks/run` | Run an isolated benchmark |
+| `GET` | `/api/v1/evaluations/datasets` | List built-in evaluation datasets |
+| `POST` | `/api/v1/evaluations/datasets/validate` | Validate and preview a session-local JSON dataset |
+| `POST` | `/api/v1/evaluations/runs` | Run a built-in or inline evaluation dataset |
 | `GET` | `/api/v1/metrics` | Read process-local aggregate metrics (global admin only) |
 | `GET` | `/health` | Read application and provider-type health |
 
 The frontend exposes the evaluation laboratory at canonical route
 `/evaluations`; `/benchmarks` is a replace-redirect kept for compatibility.
-The backend API paths retain the `/api/v1/benchmarks/*` namespace.
+Canonical backend contracts use `/api/v1/evaluations/*`. The existing
+`/api/v1/benchmarks/*` built-in contracts remain available for compatibility.
 
 ## Query request
 
@@ -125,6 +129,44 @@ embeddings.
 Runs use fresh in-memory evaluation caches and cannot modify the live cache or
 runtime counters. `EVALUATION_TIMEOUT_SECONDS` bounds wall-clock execution.
 Timeouts return HTTP `504` with `error="evaluation_timeout"`.
+
+## Canonical Evaluations contracts
+
+`GET /api/v1/evaluations/datasets` returns the same Viewer-accessible built-in
+catalog as the legacy dataset endpoint. Dataset summaries now identify
+`dataset_source` and nullable `schema_version`.
+
+`POST /api/v1/evaluations/datasets/validate` requires Operator access and
+accepts a parsed JSON dataset plus the intended repetition and threshold
+counts. It returns a normalized preview and makes zero provider calls.
+Structured import failures use safe `issues` with stable codes and JSON
+pointers. See [evaluation dataset schema version 1](evaluation-dataset-schema-v1.md)
+for the complete contract and limits.
+
+`POST /api/v1/evaluations/runs` requires Operator access,
+`allow_external_provider_calls=true`, and a discriminated source:
+
+```json
+{
+  "dataset_source": {
+    "kind": "builtin",
+    "dataset_id": "quick"
+  },
+  "threshold": 0.92,
+  "evaluation_thresholds": [0.8, 0.9, 0.92, 0.95],
+  "repetitions": 1,
+  "reset_cache_before_run": true,
+  "estimated_cost_per_request_usd": 0,
+  "estimated_cost_per_1k_tokens_usd": 0,
+  "allow_external_provider_calls": true
+}
+```
+
+For an import, use `{"kind":"inline","definition":{...}}`. The full
+definition is revalidated inside the run request. Responses preserve the
+existing measured/projection semantics and add source/schema evidence to the
+dataset and reproducibility objects. Per-query evidence can include
+`expected_match_case_id` and `note`.
 
 ## Cache inspector query
 

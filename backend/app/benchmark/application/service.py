@@ -8,13 +8,18 @@ from time import perf_counter
 from uuid import uuid4
 
 from app.benchmark.api.schemas import (
-    BenchmarkDatasetId,
     BenchmarkDatasetListResponse,
     BenchmarkOutcome,
     BenchmarkQueryResult,
     BenchmarkReproducibilityMetadata,
     BenchmarkRunRequest,
     BenchmarkRunResponse,
+    EvaluationDatasetPreview,
+    EvaluationDatasetSourceKind,
+    EvaluationDatasetValidationRequest,
+    EvaluationRunOptions,
+    EvaluationRunRequest,
+    InlineEvaluationDatasetSource,
 )
 from app.benchmark.domain.datasets import (
     DEFAULT_DATASET_ID,
@@ -27,8 +32,13 @@ from app.benchmark.domain.metrics import (
 )
 from app.benchmark.domain.models import (
     BenchmarkCase,
+    BenchmarkDataset,
     BenchmarkObservation,
     BenchmarkRuntimeConfiguration,
+)
+from app.benchmark.domain.validation import (
+    ValidatedImportedDataset,
+    validate_imported_dataset,
 )
 from app.cache.application.service import SemanticCache
 from app.cache.infrastructure.backends.memory import InMemoryCacheBackend
@@ -78,12 +88,61 @@ class BenchmarkService:
         )
 
     async def run(self, request: BenchmarkRunRequest) -> BenchmarkRunResponse:
+        return await self._run_bounded(request, get_dataset(request.dataset_id))
+
+    def validate_dataset(
+        self,
+        request: EvaluationDatasetValidationRequest,
+    ) -> EvaluationDatasetPreview:
+        return self._validate_inline(
+            request.dataset,
+            repetitions=request.repetitions,
+            threshold_count=request.threshold_count,
+        ).preview
+
+    async def run_evaluation(
+        self,
+        request: EvaluationRunRequest,
+    ) -> BenchmarkRunResponse:
+        source = request.dataset_source
+        if isinstance(source, InlineEvaluationDatasetSource):
+            dataset = self._validate_inline(
+                source.definition,
+                repetitions=request.repetitions,
+                threshold_count=len(request.evaluation_thresholds),
+            ).dataset
+        else:
+            dataset = get_dataset(source.dataset_id)
+        return await self._run_bounded(request, dataset)
+
+    def _validate_inline(
+        self,
+        definition: object,
+        *,
+        repetitions: int,
+        threshold_count: int,
+    ) -> ValidatedImportedDataset:
+        runtime = self._runtime_configuration
+        return validate_imported_dataset(
+            definition,
+            repetitions=repetitions,
+            threshold_count=threshold_count,
+            max_cases=runtime.evaluation_dataset_max_cases,
+            max_decoded_bytes=runtime.evaluation_dataset_max_decoded_bytes,
+            max_workload_queries=runtime.evaluation_max_workload_queries,
+        )
+
+    async def _run_bounded(
+        self,
+        request: EvaluationRunOptions,
+        dataset: BenchmarkDataset,
+    ) -> BenchmarkRunResponse:
         try:
             async with asyncio.timeout(
                 self._runtime_configuration.evaluation_timeout_seconds
             ):
                 async with self._run_lock:
-                    return await self._run_exclusive(request)
+                    return await self._run_exclusive(request, dataset)
         except TimeoutError as exc:
             raise EvaluationTimeoutError from exc
 
@@ -131,6 +190,8 @@ class BenchmarkService:
             category=case.category,
             prompt=case.prompt,
             expected_cache_hit=case.expected_cache_hit,
+            expected_match_case_id=case.expected_match_case_id,
+            note=case.note,
             actual_cache_hit=lookup.cache_hit,
             correct=case.expected_cache_hit == lookup.cache_hit,
             outcome=_classification(case.expected_cache_hit, lookup.cache_hit),
@@ -152,9 +213,9 @@ class BenchmarkService:
 
     async def _run_exclusive(
         self,
-        request: BenchmarkRunRequest,
+        request: EvaluationRunOptions,
+        dataset: BenchmarkDataset,
     ) -> BenchmarkRunResponse:
-        dataset = get_dataset(request.dataset_id)
         started_at = datetime.now(UTC)
         run_cache = self._create_run_cache(request.threshold)
 
@@ -179,6 +240,8 @@ class BenchmarkService:
         reproducibility = self._reproducibility_metadata(
             request,
             dataset_id=dataset.summary.dataset_id,
+            dataset_source=dataset.summary.dataset_source,
+            dataset_schema_version=dataset.summary.schema_version,
             dataset_version=dataset.summary.version,
             dataset_digest=dataset.summary.digest,
         )
@@ -211,9 +274,11 @@ class BenchmarkService:
 
     def _reproducibility_metadata(
         self,
-        request: BenchmarkRunRequest,
+        request: EvaluationRunOptions,
         *,
-        dataset_id: BenchmarkDatasetId,
+        dataset_id: str,
+        dataset_source: EvaluationDatasetSourceKind,
+        dataset_schema_version: int | None,
         dataset_version: str,
         dataset_digest: str,
     ) -> BenchmarkReproducibilityMetadata:
@@ -221,6 +286,8 @@ class BenchmarkService:
         safe_configuration = {
             "application_version": runtime.application_version,
             "dataset_id": dataset_id,
+            "dataset_source": dataset_source,
+            "dataset_schema_version": dataset_schema_version,
             "dataset_version": dataset_version,
             "dataset_digest": dataset_digest,
             "embedding_provider_category": runtime.embedding_provider_category,

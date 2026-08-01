@@ -18,6 +18,7 @@ import { createTestQueryClient } from '../queryClient';
 import {
   getBenchmarkDatasets,
   runBenchmark,
+  validateEvaluationDataset,
 } from '@/features/benchmark/api/benchmarkApi';
 import { BENCHMARK_DATASET_STALE_TIME_MS } from '@/features/benchmark/hooks/useBenchmark';
 import { benchmarkDatasetKeys } from '@/shared/query/queryKeys';
@@ -48,6 +49,45 @@ async function reviewAndConfirm(): Promise<void> {
 }
 
 let queryClient: QueryClient;
+const importedDefinition = {
+  schema_version: 1,
+  name: 'Imported <safety> set',
+  cases: [
+    {
+      case_id: 'formula',
+      prompt: '=SUM(A1:A2)',
+      expected_cache_hit: false,
+    },
+  ],
+};
+const importedPreview = {
+  schema_version: 1 as const,
+  dataset_id: 'custom:1234567890abcdef',
+  digest: '9'.repeat(64),
+  name: 'Imported <safety> set',
+  description: 'Synthetic imported evidence.',
+  case_count: 1,
+  expected_hits: 0,
+  expected_misses: 1,
+  categories: ['uncategorized'],
+  decoded_bytes: 160,
+  warnings: [
+    {
+      code: 'uncategorized_cases',
+      detail: 'Cases without a category are grouped as uncategorized.',
+      count: 1,
+    },
+  ],
+  query_executions: 1,
+  threshold_projection_evaluations: 7,
+  maximum_provider_calls: 1,
+  provider_calls_made: 0 as const,
+  limits: {
+    max_cases: 50,
+    max_decoded_bytes: 49_152,
+    max_workload_queries: 250,
+  },
+};
 
 function renderDashboard() {
   return render(<BenchmarkDashboard />, {
@@ -75,6 +115,10 @@ describe('BenchmarkDashboard', () => {
       },
     });
     vi.mocked(runBenchmark).mockResolvedValue({ ok: true, data: result });
+    vi.mocked(validateEvaluationDataset).mockResolvedValue({
+      ok: true,
+      data: importedPreview,
+    });
   });
 
   afterEach(() => {
@@ -112,7 +156,7 @@ describe('BenchmarkDashboard', () => {
       expect(runBenchmark).toHaveBeenCalledWith(
         expect.objectContaining({
           threshold: 0.9,
-          dataset_id: 'quick',
+          dataset_source: { kind: 'builtin', dataset_id: 'quick' },
           evaluation_thresholds: [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.98],
           allow_external_provider_calls: true,
         }),
@@ -345,5 +389,232 @@ describe('BenchmarkDashboard', () => {
 
     await waitFor(() => expect(runBenchmark).toHaveBeenCalledOnce());
     expect(await screen.findByText(/Evaluation run completed/)).toBeTruthy();
+  });
+
+  it('parses, validates, previews, and removes a session-local JSON file', async () => {
+    renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+    fireEvent.click(screen.getByLabelText('Custom JSON dataset'));
+    const input = screen.getByLabelText('JSON dataset file');
+    const file = new File(
+      [JSON.stringify(importedDefinition)],
+      'safety-set.json',
+      { type: 'application/json' },
+    );
+
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(await screen.findByText('Validated preview')).toBeTruthy();
+    expect(screen.getByText('Imported <safety> set')).toBeTruthy();
+    expect(screen.getByText(/Validation made 0 provider calls/)).toBeTruthy();
+    expect(validateEvaluationDataset).toHaveBeenCalledWith(
+      expect.objectContaining({ dataset: importedDefinition }),
+      expect.any(AbortSignal),
+    );
+    expect(runBenchmark).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove imported dataset' }),
+    );
+
+    expect(screen.queryByText('Validated preview')).toBeNull();
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('ignores a stale local file read after a newer selection', async () => {
+    const olderText = deferred<string>();
+    const olderFile = {
+      name: 'older.json',
+      size: 64,
+      text: () => olderText.promise,
+      type: 'application/json',
+    } as File;
+
+    renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+    fireEvent.click(screen.getByLabelText('Custom JSON dataset'));
+    const input = screen.getByLabelText('JSON dataset file');
+
+    fireEvent.change(input, { target: { files: [olderFile] } });
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(
+            [JSON.stringify(importedDefinition)],
+            'newer.json',
+            { type: 'application/json' },
+          ),
+        ],
+      },
+    });
+
+    expect(await screen.findByText('Validated preview')).toBeTruthy();
+    expect(screen.getByText('Selected: newer.json')).toBeTruthy();
+    expect(validateEvaluationDataset).toHaveBeenCalledTimes(1);
+    expect(validateEvaluationDataset).toHaveBeenCalledWith(
+      expect.objectContaining({ dataset: importedDefinition }),
+      expect.any(AbortSignal),
+    );
+
+    await act(async () => {
+      olderText.resolve(
+        JSON.stringify({
+          ...importedDefinition,
+          name: 'Stale imported dataset',
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(validateEvaluationDataset).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Selected: newer.json')).toBeTruthy();
+  });
+
+  it('keeps malformed JSON local and renders structured server references', async () => {
+    renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+    fireEvent.click(screen.getByLabelText('Custom JSON dataset'));
+    const input = screen.getByLabelText('JSON dataset file');
+
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(['{"schema_version":'], 'broken.json', {
+            type: 'application/json',
+          }),
+        ],
+      },
+    });
+
+    expect(await screen.findByText('The selected file is not valid JSON.')).toBeTruthy();
+    expect(validateEvaluationDataset).not.toHaveBeenCalled();
+
+    vi.mocked(validateEvaluationDataset).mockResolvedValueOnce({
+      ok: false,
+      error: {
+        code: 'evaluation_dataset_invalid',
+        detail: 'The imported evaluation dataset is invalid.',
+        issues: [
+          {
+            code: 'duplicate_case_id',
+            detail: 'Case IDs must be unique.',
+            pointer: '/cases/1/case_id',
+            case_id: 'duplicate',
+            case_index: 1,
+          },
+        ],
+        status: 422,
+      },
+    });
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File([JSON.stringify(importedDefinition)], 'invalid.json', {
+            type: 'application/json',
+          }),
+        ],
+      },
+    });
+
+    expect(await screen.findByText(/duplicate_case_id/)).toBeTruthy();
+    expect(screen.getByText(/\/cases\/1\/case_id/)).toBeTruthy();
+  });
+
+  it('revalidates imported content at review and submits inline execution', async () => {
+    renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+    fireEvent.click(screen.getByLabelText('Custom JSON dataset'));
+    fireEvent.change(screen.getByLabelText('JSON dataset file'), {
+      target: {
+        files: [
+          new File(
+            [JSON.stringify(importedDefinition)],
+            'inline.json',
+            { type: 'application/json' },
+          ),
+        ],
+      },
+    });
+    await screen.findByText('Validated preview');
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Review benchmark run' }),
+    );
+    expect(await screen.findByRole('alertdialog')).toBeTruthy();
+    expect(validateEvaluationDataset).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Run benchmark now' }));
+      await Promise.resolve();
+    });
+
+    expect(runBenchmark).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dataset_source: {
+          kind: 'inline',
+          definition: importedDefinition,
+        },
+      }),
+      expect.any(AbortSignal),
+    );
+  });
+
+  it('clears imported content when the authentication principal changes', async () => {
+    const rendered = renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+    fireEvent.click(screen.getByLabelText('Custom JSON dataset'));
+    fireEvent.change(screen.getByLabelText('JSON dataset file'), {
+      target: {
+        files: [
+          new File(
+            [JSON.stringify(importedDefinition)],
+            'principal-bound.json',
+            { type: 'application/json' },
+          ),
+        ],
+      },
+    });
+    await screen.findByText('Validated preview');
+
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error: null,
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
+      session: {
+        name: 'different-operator',
+        role: 'operator',
+        namespaces: ['default'],
+      },
+      status: 'authenticated',
+    });
+    rendered.rerender(<BenchmarkDashboard />);
+
+    await waitFor(() =>
+      expect(screen.queryByText('Validated preview')).toBeNull(),
+    );
+    expect(screen.queryByText('Selected: principal-bound.json')).toBeNull();
+  });
+
+  it('does not persist imported content through browser storage APIs', async () => {
+    const localStorageSet = vi.spyOn(Storage.prototype, 'setItem');
+    renderDashboard();
+    await screen.findByRole('button', { name: 'Review benchmark run' });
+    fireEvent.click(screen.getByLabelText('Custom JSON dataset'));
+    fireEvent.change(screen.getByLabelText('JSON dataset file'), {
+      target: {
+        files: [
+          new File(
+            [JSON.stringify(importedDefinition)],
+            'memory-only.json',
+            { type: 'application/json' },
+          ),
+        ],
+      },
+    });
+
+    await screen.findByText('Validated preview');
+    expect(localStorageSet).not.toHaveBeenCalled();
   });
 });

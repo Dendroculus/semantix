@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "../config/env";
 import { getAuthToken } from "./authToken";
-import type { ApiError, ApiResult } from "./types";
+import type { ApiError, ApiResult, ApiValidationIssue } from "./types";
 import { isRecord } from "./validators";
 
 export type Decoder<T> = (value: unknown) => T;
@@ -15,6 +15,40 @@ function retryAfterSeconds(headers: Headers): number | undefined {
   return Number.isSafeInteger(seconds) && seconds > 0 ? seconds : undefined;
 }
 
+function decodeValidationIssues(
+  value: unknown,
+): ApiValidationIssue[] | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (issue) =>
+        isRecord(issue) &&
+        typeof issue.code === "string" &&
+        typeof issue.detail === "string" &&
+        typeof issue.pointer === "string" &&
+        (issue.case_id === undefined || typeof issue.case_id === "string") &&
+        (issue.case_index === undefined ||
+          (typeof issue.case_index === "number" &&
+            Number.isInteger(issue.case_index) &&
+            issue.case_index >= 0)),
+    )
+  ) {
+    return null;
+  }
+  return value.map((issue) => ({
+    code: issue.code as string,
+    detail: issue.detail as string,
+    pointer: issue.pointer as string,
+    ...(typeof issue.case_id === "string" ? { case_id: issue.case_id } : {}),
+    ...(typeof issue.case_index === "number"
+      ? { case_index: issue.case_index }
+      : {}),
+  }));
+}
+
 function decodeApiError(
   value: unknown,
   status: number,
@@ -26,9 +60,18 @@ function decodeApiError(
     (value.detail === null || typeof value.detail === "string")
   ) {
     const retryAfter = retryAfterSeconds(headers);
+    const issues = decodeValidationIssues(value.issues);
+    if (issues === null) {
+      return {
+        code: "invalid_error_response",
+        detail: "The server returned an unexpected response.",
+        status,
+      };
+    }
     return {
       code: value.error,
       detail: value.detail,
+      ...(issues === undefined ? {} : { issues }),
       ...(retryAfter === undefined
         ? {}
         : { retryAfterSeconds: retryAfter }),

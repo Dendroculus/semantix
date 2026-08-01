@@ -12,15 +12,17 @@ BUILTIN_DATASET_VERSION = "1.0.0"
 
 
 def dataset_semantics_digest(cases: Sequence[BenchmarkCase]) -> str:
-    ordered_semantics = [
-        {
+    ordered_semantics: list[dict[str, object]] = []
+    for case in cases:
+        semantics: dict[str, object] = {
             "case_id": case.case_id,
             "category": case.category,
             "prompt": case.prompt,
             "expected_cache_hit": case.expected_cache_hit,
         }
-        for case in cases
-    ]
+        if case.expected_match_case_id is not None:
+            semantics["expected_match_case_id"] = case.expected_match_case_id
+        ordered_semantics.append(semantics)
     canonical = json.dumps(
         ordered_semantics,
         ensure_ascii=False,
@@ -41,6 +43,8 @@ def _dataset(
     return BenchmarkDataset(
         summary=BenchmarkDatasetSummary(
             dataset_id=dataset_id,
+            dataset_source="builtin",
+            schema_version=None,
             version=BUILTIN_DATASET_VERSION,
             digest=dataset_semantics_digest(cases),
             name=name,

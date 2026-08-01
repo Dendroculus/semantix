@@ -1,21 +1,20 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from app.api.schemas import StrictModel
-from app.core.limits import MAX_PROMPT_LENGTH
+from app.core.limits import (
+    MAX_EVALUATION_CASE_ID_LENGTH,
+    MAX_EVALUATION_CATEGORY_LENGTH,
+    MAX_EVALUATION_DATASET_DESCRIPTION_LENGTH,
+    MAX_EVALUATION_DATASET_NAME_LENGTH,
+    MAX_EVALUATION_NOTE_LENGTH,
+    MAX_PROMPT_LENGTH,
+)
 
 BenchmarkDatasetId = Literal["quick", "extended"]
-BenchmarkCategory = Literal[
-    "seed",
-    "exact_duplicate",
-    "paraphrase",
-    "unrelated",
-    "typo",
-    "negation",
-    "different_intent",
-]
+BenchmarkCategory = str
 BenchmarkOutcome = Literal[
     "true_positive",
     "true_negative",
@@ -33,6 +32,7 @@ ProviderCategory = Literal[
     "mock",
 ]
 NormalizationMode = Literal["identity", "typo_correction"]
+EvaluationDatasetSourceKind = Literal["builtin", "inline"]
 
 DEFAULT_EVALUATION_THRESHOLDS = [0.70, 0.80, 0.85, 0.90, 0.92, 0.95, 0.98]
 MAX_EVALUATION_THRESHOLDS = 15
@@ -41,11 +41,20 @@ SHA256_PATTERN = r"^[a-f0-9]{64}$"
 
 
 class BenchmarkDatasetSummary(StrictModel):
-    dataset_id: BenchmarkDatasetId
+    dataset_id: str = Field(
+        min_length=1,
+        max_length=MAX_EVALUATION_CASE_ID_LENGTH,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )
+    dataset_source: EvaluationDatasetSourceKind = "builtin"
+    schema_version: int | None = Field(default=None, ge=1)
     version: str = Field(min_length=1, max_length=50)
     digest: str = Field(pattern=SHA256_PATTERN)
-    name: str = Field(min_length=1, max_length=100)
-    description: str = Field(min_length=1, max_length=300)
+    name: str = Field(min_length=1, max_length=MAX_EVALUATION_DATASET_NAME_LENGTH)
+    description: str = Field(
+        min_length=1,
+        max_length=MAX_EVALUATION_DATASET_DESCRIPTION_LENGTH,
+    )
     query_count: int = Field(ge=1)
     expected_hits: int = Field(ge=0)
     expected_misses: int = Field(ge=0)
@@ -55,6 +64,17 @@ class BenchmarkDatasetSummary(StrictModel):
     def validate_counts(self) -> "BenchmarkDatasetSummary":
         if self.expected_hits + self.expected_misses != self.query_count:
             raise ValueError("Expected classifications must cover every query")
+        if any(
+            not category or len(category) > MAX_EVALUATION_CATEGORY_LENGTH
+            for category in self.categories
+        ):
+            raise ValueError("Dataset categories are invalid")
+        if len(self.categories) != len(set(self.categories)):
+            raise ValueError("Dataset categories must be unique")
+        if self.dataset_source == "builtin" and self.schema_version is not None:
+            raise ValueError("Built-in datasets do not use an import schema version")
+        if self.dataset_source == "inline" and self.schema_version != 1:
+            raise ValueError("Inline datasets must identify import schema version 1")
         return self
 
 
@@ -63,8 +83,7 @@ class BenchmarkDatasetListResponse(StrictModel):
     default_dataset_id: BenchmarkDatasetId
 
 
-class BenchmarkRunRequest(StrictModel):
-    dataset_id: BenchmarkDatasetId = "quick"
+class EvaluationRunOptions(StrictModel):
     threshold: float = Field(default=0.92, ge=0, le=1)
     evaluation_thresholds: list[float] = Field(
         default_factory=lambda: list(DEFAULT_EVALUATION_THRESHOLDS),
@@ -88,7 +107,7 @@ class BenchmarkRunRequest(StrictModel):
         return unique
 
     @model_validator(mode="after")
-    def include_measured_threshold(self) -> "BenchmarkRunRequest":
+    def include_measured_threshold(self) -> "EvaluationRunOptions":
         thresholds = sorted({*self.evaluation_thresholds, self.threshold})
         if len(thresholds) > MAX_EVALUATION_THRESHOLDS:
             raise ValueError(
@@ -97,6 +116,139 @@ class BenchmarkRunRequest(StrictModel):
             )
         self.evaluation_thresholds = thresholds
         return self
+
+
+class BenchmarkRunRequest(EvaluationRunOptions):
+    dataset_id: BenchmarkDatasetId = "quick"
+
+
+class BuiltinEvaluationDatasetSource(StrictModel):
+    kind: Literal["builtin"]
+    dataset_id: BenchmarkDatasetId = "quick"
+
+
+class InlineEvaluationDatasetSource(StrictModel):
+    kind: Literal["inline"]
+    definition: object
+
+
+EvaluationDatasetSource = Annotated[
+    BuiltinEvaluationDatasetSource | InlineEvaluationDatasetSource,
+    Field(discriminator="kind"),
+]
+
+
+class EvaluationRunRequest(EvaluationRunOptions):
+    dataset_source: EvaluationDatasetSource = Field(
+        default_factory=lambda: BuiltinEvaluationDatasetSource(kind="builtin")
+    )
+
+
+class EvaluationDatasetValidationRequest(StrictModel):
+    dataset: object
+    repetitions: int = Field(default=1, ge=1, le=MAX_BENCHMARK_REPETITIONS)
+    threshold_count: int = Field(default=2, ge=2, le=MAX_EVALUATION_THRESHOLDS)
+
+
+class EvaluationDatasetValidationIssue(StrictModel):
+    code: str = Field(min_length=1, max_length=100)
+    detail: str = Field(min_length=1, max_length=300)
+    pointer: str = Field(min_length=1, max_length=300)
+    case_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_EVALUATION_CASE_ID_LENGTH,
+    )
+    case_index: int | None = Field(default=None, ge=0)
+
+
+class ImportedEvaluationCase(StrictModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        strict=True,
+        str_strip_whitespace=True,
+    )
+
+    case_id: str = Field(
+        min_length=1,
+        max_length=MAX_EVALUATION_CASE_ID_LENGTH,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )
+    prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
+    expected_cache_hit: bool
+    expected_match_case_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_EVALUATION_CASE_ID_LENGTH,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )
+    category: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_EVALUATION_CATEGORY_LENGTH,
+    )
+    note: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_EVALUATION_NOTE_LENGTH,
+    )
+
+
+class ImportedEvaluationDatasetDefinition(StrictModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        strict=True,
+        str_strip_whitespace=True,
+    )
+
+    schema_version: Literal[1]
+    name: str = Field(
+        min_length=1,
+        max_length=MAX_EVALUATION_DATASET_NAME_LENGTH,
+    )
+    description: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_EVALUATION_DATASET_DESCRIPTION_LENGTH,
+    )
+    cases: list[ImportedEvaluationCase] = Field(min_length=1)
+
+
+class EvaluationDatasetWarning(StrictModel):
+    code: str = Field(min_length=1, max_length=100)
+    detail: str = Field(min_length=1, max_length=300)
+    count: int = Field(ge=1)
+
+
+class EvaluationDatasetPreviewLimits(StrictModel):
+    max_cases: int = Field(ge=1)
+    max_decoded_bytes: int = Field(ge=1)
+    max_workload_queries: int = Field(ge=1)
+
+
+class EvaluationDatasetPreview(StrictModel):
+    schema_version: Literal[1]
+    dataset_id: str = Field(
+        min_length=1,
+        max_length=MAX_EVALUATION_CASE_ID_LENGTH,
+    )
+    digest: str = Field(pattern=SHA256_PATTERN)
+    name: str = Field(min_length=1, max_length=MAX_EVALUATION_DATASET_NAME_LENGTH)
+    description: str | None = Field(
+        default=None,
+        max_length=MAX_EVALUATION_DATASET_DESCRIPTION_LENGTH,
+    )
+    case_count: int = Field(ge=1)
+    expected_hits: int = Field(ge=0)
+    expected_misses: int = Field(ge=0)
+    categories: list[str] = Field(min_length=1)
+    decoded_bytes: int = Field(ge=1)
+    warnings: list[EvaluationDatasetWarning]
+    query_executions: int = Field(ge=1)
+    threshold_projection_evaluations: int = Field(ge=2)
+    maximum_provider_calls: int = Field(ge=1)
+    provider_calls_made: Literal[0]
+    limits: EvaluationDatasetPreviewLimits
 
 
 class BenchmarkMetrics(StrictModel):
@@ -152,9 +304,22 @@ class BenchmarkQueryResult(StrictModel):
     sequence: int = Field(ge=1)
     repetition: int = Field(ge=1)
     case_id: str = Field(min_length=1, max_length=100)
-    category: BenchmarkCategory
+    category: BenchmarkCategory = Field(
+        min_length=1,
+        max_length=MAX_EVALUATION_CATEGORY_LENGTH,
+    )
     prompt: str = Field(min_length=1, max_length=MAX_PROMPT_LENGTH)
     expected_cache_hit: bool
+    expected_match_case_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_EVALUATION_CASE_ID_LENGTH,
+    )
+    note: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_EVALUATION_NOTE_LENGTH,
+    )
     actual_cache_hit: bool
     correct: bool
     outcome: BenchmarkOutcome
@@ -181,6 +346,8 @@ class BenchmarkQueryResult(StrictModel):
             raise ValueError("Query outcome does not match its cache decisions")
         if self.correct != (self.expected_cache_hit == self.actual_cache_hit):
             raise ValueError("Query correctness does not match its cache decisions")
+        if not self.expected_cache_hit and self.expected_match_case_id is not None:
+            raise ValueError("Expected misses cannot identify an expected match")
         if self.provider_called == self.actual_cache_hit:
             raise ValueError("Provider-call evidence does not match the cache decision")
         if self.actual_cache_hit and (
@@ -220,7 +387,12 @@ class ThresholdEvaluation(StrictModel):
 
 class BenchmarkReproducibilityMetadata(StrictModel):
     application_version: str = Field(min_length=1, max_length=50)
-    dataset_id: BenchmarkDatasetId
+    dataset_id: str = Field(
+        min_length=1,
+        max_length=MAX_EVALUATION_CASE_ID_LENGTH,
+    )
+    dataset_source: EvaluationDatasetSourceKind
+    dataset_schema_version: int | None = Field(default=None, ge=1)
     dataset_version: str = Field(min_length=1, max_length=50)
     dataset_digest: str = Field(pattern=SHA256_PATTERN)
     embedding_provider_category: ProviderCategory
@@ -329,6 +501,8 @@ class BenchmarkRunResponse(StrictModel):
         metadata = self.reproducibility
         if (
             metadata.dataset_id != self.dataset.dataset_id
+            or metadata.dataset_source != self.dataset.dataset_source
+            or metadata.dataset_schema_version != self.dataset.schema_version
             or metadata.dataset_version != self.dataset.version
             or metadata.dataset_digest != self.dataset.digest
             or metadata.measured_threshold != self.threshold

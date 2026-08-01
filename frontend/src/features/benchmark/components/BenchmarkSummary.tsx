@@ -190,7 +190,11 @@ export function BenchmarkSummary({
           <div>
             <dt className="text-(--text-faint)">Dataset identity</dt>
             <dd className="mt-1 break-all text-(--text-soft)">
-              {result.dataset.dataset_id} v{result.dataset.version} -{' '}
+              {result.dataset.dataset_id} · {result.dataset.dataset_source}
+              {result.dataset.schema_version === null
+                ? ''
+                : ` schema v${result.dataset.schema_version}`}{' '}
+              · dataset v{result.dataset.version} -{' '}
               {result.dataset.digest}
             </dd>
           </div>

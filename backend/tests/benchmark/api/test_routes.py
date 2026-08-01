@@ -56,6 +56,26 @@ def benchmark_service(
     )
 
 
+def inline_definition() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "name": "Inline route set",
+        "cases": [
+            {
+                "case_id": "seed",
+                "prompt": "Synthetic route seed",
+                "expected_cache_hit": False,
+            },
+            {
+                "case_id": "repeat",
+                "prompt": "Synthetic route repeat",
+                "expected_cache_hit": True,
+                "expected_match_case_id": "seed",
+            },
+        ],
+    }
+
+
 def test_lists_controlled_datasets(settings: Settings) -> None:
     app = create_app(settings)
 
@@ -82,6 +102,184 @@ def test_lists_controlled_datasets(settings: Settings) -> None:
         "negation",
         "different_intent",
     }.issubset(set(quick["categories"]))
+
+
+def test_canonical_catalog_preserves_the_builtin_dataset_contract(
+    settings: Settings,
+) -> None:
+    app = create_app(settings)
+
+    with TestClient(app) as client:
+        canonical = client.get("/api/v1/evaluations/datasets")
+        legacy = client.get("/api/v1/benchmarks/datasets")
+
+    assert canonical.status_code == legacy.status_code == 200
+    assert canonical.json() == legacy.json()
+    assert all(
+        dataset["dataset_source"] == "builtin" and dataset["schema_version"] is None
+        for dataset in canonical.json()["datasets"]
+    )
+
+
+def test_validates_inline_dataset_without_provider_calls(settings: Settings) -> None:
+    app = create_app(settings)
+    provider = Provider()
+
+    with TestClient(app) as client:
+        app.state.benchmark_service = benchmark_service(provider)
+        response = client.post(
+            "/api/v1/evaluations/datasets/validate",
+            json={
+                "dataset": inline_definition(),
+                "repetitions": 2,
+                "threshold_count": 3,
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["name"] == "Inline route set"
+    assert payload["case_count"] == 2
+    assert payload["query_executions"] == 4
+    assert payload["threshold_projection_evaluations"] == 12
+    assert payload["maximum_provider_calls"] == 4
+    assert payload["provider_calls_made"] == 0
+    assert provider.call_count == 0
+
+
+def test_inline_validation_returns_safe_structured_issues(
+    settings: Settings,
+) -> None:
+    definition = inline_definition()
+    cases = definition["cases"]
+    assert isinstance(cases, list)
+    second = cases[1]
+    assert isinstance(second, dict)
+    second["case_id"] = "seed"
+
+    with TestClient(create_app(settings)) as client:
+        response = client.post(
+            "/api/v1/evaluations/datasets/validate",
+            json={"dataset": definition},
+        )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "error": "evaluation_dataset_invalid",
+        "detail": "The imported evaluation dataset is invalid.",
+        "issues": [
+            {
+                "code": "duplicate_case_id",
+                "detail": "Case IDs must be unique within one dataset.",
+                "pointer": "/cases/1/case_id",
+                "case_id": "seed",
+                "case_index": 1,
+            },
+            {
+                "code": "self_expected_match",
+                "detail": "A case cannot reference itself as its expected match.",
+                "pointer": "/cases/1/expected_match_case_id",
+                "case_id": "seed",
+                "case_index": 1,
+            },
+        ],
+    }
+    assert "Synthetic route" not in response.text
+
+
+def test_runs_inline_dataset_through_canonical_contract(settings: Settings) -> None:
+    app = create_app(settings)
+    provider = Provider()
+
+    with TestClient(app) as client:
+        app.state.benchmark_service = benchmark_service(provider)
+        response = client.post(
+            "/api/v1/evaluations/runs",
+            json={
+                "dataset_source": {
+                    "kind": "inline",
+                    "definition": inline_definition(),
+                },
+                "threshold": 0.9,
+                "evaluation_thresholds": [0.8, 0.9, 0.95],
+                "repetitions": 1,
+                "reset_cache_before_run": True,
+                "estimated_cost_per_request_usd": 0,
+                "estimated_cost_per_1k_tokens_usd": 0,
+                "allow_external_provider_calls": True,
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["dataset"]["dataset_source"] == "inline"
+    assert payload["dataset"]["schema_version"] == 1
+    assert payload["dataset"]["dataset_id"].startswith("custom:")
+    assert payload["reproducibility"]["dataset_source"] == "inline"
+    assert payload["reproducibility"]["dataset_schema_version"] == 1
+    assert payload["metrics"]["total_queries"] == 2
+    assert payload["query_results"][1]["expected_match_case_id"] == "seed"
+    assert provider.call_count == payload["metrics"]["provider_calls"] == 1
+
+
+def test_inline_run_revalidates_instead_of_trusting_a_preview(
+    settings: Settings,
+) -> None:
+    definition = inline_definition()
+    app = create_app(settings)
+
+    with TestClient(app) as client:
+        preview = client.post(
+            "/api/v1/evaluations/datasets/validate",
+            json={"dataset": definition},
+        )
+        cases = definition["cases"]
+        assert isinstance(cases, list)
+        second = cases[1]
+        assert isinstance(second, dict)
+        second["expected_match_case_id"] = "missing"
+        run = client.post(
+            "/api/v1/evaluations/runs",
+            json={
+                "dataset_source": {
+                    "kind": "inline",
+                    "definition": definition,
+                },
+                "allow_external_provider_calls": True,
+            },
+        )
+
+    assert preview.status_code == 200
+    assert run.status_code == 422
+    assert run.json()["issues"][0]["code"] == "missing_expected_match"
+
+
+def test_evaluation_import_obeys_global_body_limit_and_json_error_path(
+    settings: Settings,
+) -> None:
+    limited = settings.model_copy(update={"max_request_body_bytes": 1_024})
+    oversized = inline_definition()
+    cases = oversized["cases"]
+    assert isinstance(cases, list)
+    first = cases[0]
+    assert isinstance(first, dict)
+    first["prompt"] = "x" * 1_100
+
+    with TestClient(create_app(limited)) as client:
+        too_large = client.post(
+            "/api/v1/evaluations/datasets/validate",
+            json={"dataset": oversized},
+        )
+        malformed = client.post(
+            "/api/v1/evaluations/datasets/validate",
+            content=b'{"dataset":',
+            headers={"Content-Type": "application/json"},
+        )
+
+    assert too_large.status_code == 413
+    assert too_large.json()["error"] == "request_too_large"
+    assert malformed.status_code == 422
+    assert malformed.json()["error"] == "validation_error"
 
 
 def test_runs_default_benchmark_end_to_end(settings: Settings) -> None:
