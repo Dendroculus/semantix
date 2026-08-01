@@ -2,7 +2,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.config import AuthRole, CacheBackendName
+from app.core.config import (
+    AuthRole,
+    CacheBackendName,
+    EvaluationDatasetStorageMode,
+)
 from app.providers.configuration import EmbeddingProviderName, GenerationProviderName
 
 
@@ -19,6 +23,7 @@ class HealthResponse(StrictModel):
 class ReadinessResponse(StrictModel):
     status: Literal["ready"]
     cache_backend: CacheBackendName
+    evaluation_dataset_storage: EvaluationDatasetStorageMode
 
 
 class AuthConfigResponse(StrictModel):
