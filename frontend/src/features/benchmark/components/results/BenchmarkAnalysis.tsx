@@ -7,7 +7,7 @@ import type {
   BenchmarkOutcome,
   BenchmarkQueryResult,
   BenchmarkRunResponse,
-} from '../types';
+} from '@/features/benchmark/types';
 import { BenchmarkCaseDetail } from './BenchmarkCaseDetail';
 import { BenchmarkResultsTable } from './BenchmarkResultsTable';
 

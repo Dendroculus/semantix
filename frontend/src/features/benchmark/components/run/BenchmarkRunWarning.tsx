@@ -1,6 +1,6 @@
 import { Button } from '@/shared/components/ui';
 import { formatCount, formatUsd } from '@/shared/lib/formatters';
-import type { BenchmarkController } from '../hooks/useBenchmark';
+import type { BenchmarkController } from '@/features/benchmark/hooks/useBenchmark';
 
 import type { JSX } from "react";
 

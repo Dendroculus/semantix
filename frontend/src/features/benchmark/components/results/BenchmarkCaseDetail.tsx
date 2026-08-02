@@ -9,7 +9,7 @@ import {
 import type {
   BenchmarkQueryResult,
   BenchmarkRunResponse,
-} from '../types';
+} from '@/features/benchmark/types';
 
 interface BenchmarkCaseDetailProps {
   onClose: () => void;

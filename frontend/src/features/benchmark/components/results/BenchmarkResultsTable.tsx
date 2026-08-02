@@ -1,8 +1,8 @@
 import { Button } from '@/shared/components/ui';
 import { cacheDecisionLabel } from '@/shared/domain/similarity';
 import { formatSimilarity } from '@/shared/lib/formatters';
-import type { BenchmarkQueryResult } from '../types';
-import { BENCHMARK_RESULT_COLUMNS } from '../lib/resultColumns';
+import type { BenchmarkQueryResult } from '@/features/benchmark/types';
+import { BENCHMARK_RESULT_COLUMNS } from '@/features/benchmark/lib/resultColumns';
 
 import type { JSX } from 'react';
 

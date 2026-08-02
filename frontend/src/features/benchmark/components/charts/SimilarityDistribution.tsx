@@ -2,7 +2,7 @@ import {
   formatCount,
   formatDecimal,
 } from '@/shared/lib/formatters';
-import type { BenchmarkQueryResult } from '../types';
+import type { BenchmarkQueryResult } from '@/features/benchmark/types';
 
 import type { JSX } from "react";
 
