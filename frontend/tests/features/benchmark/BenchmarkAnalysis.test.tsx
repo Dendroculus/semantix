@@ -7,7 +7,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { BenchmarkAnalysis } from '@/features/benchmark/components/BenchmarkAnalysis';
+import { BenchmarkAnalysis } from '@/features/benchmark/components/results/BenchmarkAnalysis';
 import {
   benchmarkAnalysisResult,
   benchmarkResult,
@@ -139,3 +139,4 @@ describe('BenchmarkAnalysis', () => {
     ).toHaveLength(2);
   });
 });
+
