@@ -5,7 +5,7 @@ import { formatCount } from "@/shared/lib/formatters";
 import {
   EVALUATION_IMPORT_FILE_MAX_BYTES,
   type BenchmarkController,
-} from "../hooks/useBenchmark";
+} from "@/features/benchmark/hooks/useBenchmark";
 
 interface BenchmarkDatasetImportProps {
   controller: BenchmarkController;

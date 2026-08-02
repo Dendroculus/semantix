@@ -1,8 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { LineChart } from "@/features/benchmark/components/LineChart";
-import { SimilarityDistribution } from "@/features/benchmark/components/SimilarityDistribution";
+import { LineChart } from "@/features/benchmark/components/charts/LineChart";
+import { SimilarityDistribution } from "@/features/benchmark/components/charts/SimilarityDistribution";
 import { benchmarkResult } from "./support";
 
 describe("benchmark chart accessibility", () => {
@@ -57,3 +57,4 @@ describe("benchmark chart accessibility", () => {
     expect(within(table).getByText("Unscored")).toBeTruthy();
   });
 });
+

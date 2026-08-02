@@ -28,11 +28,11 @@ import {
   deletePersistedEvaluationDataset,
   getPersistedEvaluationDataset,
   getPersistedEvaluationDatasets,
-} from '../api/benchmarkApi';
-import type { BenchmarkController } from '../hooks/useBenchmark';
+} from '@/features/benchmark/api/benchmarkApi';
+import type { BenchmarkController } from '@/features/benchmark/hooks/useBenchmark';
 import type {
   PersistedEvaluationDatasetMetadata,
-} from '../types';
+} from '@/features/benchmark/types';
 
 const PAGE_SIZE = 12;
 const CONTROL_CLASS =

@@ -8,7 +8,7 @@ import {
   formatUsd,
 } from '@/shared/lib/formatters';
 
-import type { BenchmarkRunResponse } from '../types';
+import type { BenchmarkRunResponse } from '@/features/benchmark/types';
 
 interface BenchmarkSummaryProps {
   result: BenchmarkRunResponse;

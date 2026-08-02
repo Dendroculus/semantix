@@ -7,7 +7,7 @@ import {
 import type {
   BenchmarkRunResponse,
   ThresholdEvaluation,
-} from '../types';
+} from '@/features/benchmark/types';
 import { LineChart } from './LineChart';
 import { SimilarityDistribution } from './SimilarityDistribution';
 

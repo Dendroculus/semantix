@@ -2,15 +2,15 @@ import { useState, type JSX } from 'react';
 
 import { Alert, Button, EmptyState, PageHeader } from '@/shared/components/ui';
 import { useBenchmark } from '../hooks/useBenchmark';
-import { BenchmarkAnalysis } from './BenchmarkAnalysis';
-import { BenchmarkCharts } from './BenchmarkCharts';
-import { BenchmarkControls } from './BenchmarkControls';
-import { BenchmarkDatasetSkeleton } from './BenchmarkDatasetSkeleton';
-import { BenchmarkExports } from './BenchmarkExports';
-import { BenchmarkResultsSkeleton } from './BenchmarkResultsSkeleton';
-import { BenchmarkRunWarning } from './BenchmarkRunWarning';
-import { BenchmarkSummary } from './BenchmarkSummary';
-import { EvaluationDatasetCatalog } from './EvaluationDatasetCatalog';
+import { BenchmarkAnalysis } from './results/BenchmarkAnalysis';
+import { BenchmarkCharts } from './charts/BenchmarkCharts';
+import { BenchmarkControls } from './run/BenchmarkControls';
+import { BenchmarkDatasetSkeleton } from './datasets/BenchmarkDatasetSkeleton';
+import { BenchmarkExports } from './exports/BenchmarkExports';
+import { BenchmarkResultsSkeleton } from './results/BenchmarkResultsSkeleton';
+import { BenchmarkRunWarning } from './run/BenchmarkRunWarning';
+import { BenchmarkSummary } from './results/BenchmarkSummary';
+import { EvaluationDatasetCatalog } from './datasets/EvaluationDatasetCatalog';
 
 export function BenchmarkDashboard(): JSX.Element {
   const controller = useBenchmark();
