@@ -14,9 +14,12 @@ from app.benchmark.api.schemas import (
     BenchmarkReproducibilityMetadata,
     BenchmarkRunRequest,
     BenchmarkRunResponse,
+    DeleteEvaluationRunHistoryResponse,
     EvaluationDatasetPreview,
     EvaluationDatasetSourceKind,
     EvaluationDatasetValidationRequest,
+    EvaluationRunHistoryDetail,
+    EvaluationRunHistoryListResponse,
     EvaluationRunOptions,
     EvaluationRunRequest,
     ImportedEvaluationCase,
@@ -29,6 +32,7 @@ from app.benchmark.api.schemas import (
     PersistEvaluationDatasetRequest,
 )
 from app.benchmark.application.history import EvaluationRunHistoryRecorder
+from app.benchmark.application.history_catalog import EvaluationRunHistoryCatalog
 from app.benchmark.domain.datasets import (
     DEFAULT_DATASET_ID,
     get_dataset,
@@ -140,6 +144,10 @@ class BenchmarkService:
         self._runtime_configuration = runtime_configuration
         self._dataset_repository = dataset_repository
         self._history_recorder = EvaluationRunHistoryRecorder(history_repository)
+        self._history_catalog = EvaluationRunHistoryCatalog(
+            history_repository,
+            storage_mode=runtime_configuration.evaluation_run_history_storage,
+        )
         self._run_lock = asyncio.Lock()
 
     @property
@@ -210,6 +218,41 @@ class BenchmarkService:
             source_dataset_expires_at=source_dataset_expires_at,
         )
         return await self._run_accepted(request, dataset, accepted_run)
+
+    async def list_run_history(
+        self,
+        *,
+        namespace: str | None,
+        offset: int,
+        limit: int,
+    ) -> EvaluationRunHistoryListResponse:
+        return await self._history_catalog.list_runs(
+            namespace=namespace,
+            offset=offset,
+            limit=limit,
+        )
+
+    async def run_history_detail(
+        self,
+        run_id: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> EvaluationRunHistoryDetail:
+        return await self._history_catalog.get_run(
+            run_id,
+            authorized_namespaces=authorized_namespaces,
+        )
+
+    async def delete_run_history(
+        self,
+        run_id: str,
+        *,
+        namespace: str,
+    ) -> DeleteEvaluationRunHistoryResponse:
+        return await self._history_catalog.delete_run(
+            run_id,
+            namespace=namespace,
+        )
 
     async def list_persisted_datasets(
         self,

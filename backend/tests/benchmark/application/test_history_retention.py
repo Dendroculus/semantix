@@ -14,8 +14,11 @@ from app.benchmark.application.service import BenchmarkService
 from app.benchmark.domain.models import (
     BenchmarkRuntimeConfiguration,
     EvaluationRunHistoryRecord,
+    RetainedEvaluationRun,
+    RetainedEvaluationRunPage,
 )
 from app.benchmark.domain.protocols import EvaluationDatasetRepository
+from app.cache.domain.namespaces import AuthorizedNamespaceScope
 from app.core.exceptions import (
     EvaluationRunHistoryStorageError,
     EvaluationTimeoutError,
@@ -70,6 +73,31 @@ class RecordingHistoryRepository:
             )
 
         self.records.append(record)
+
+    async def list_runs(
+        self,
+        *,
+        namespace: str | None,
+        offset: int,
+        limit: int,
+    ) -> RetainedEvaluationRunPage:
+        return RetainedEvaluationRunPage(items=(), total=0)
+
+    async def get_run(
+        self,
+        run_id: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> RetainedEvaluationRun | None:
+        return None
+
+    async def delete_run(
+        self,
+        run_id: str,
+        *,
+        namespace: str,
+    ) -> bool:
+        return False
 
     async def readiness(self) -> None:
         return None

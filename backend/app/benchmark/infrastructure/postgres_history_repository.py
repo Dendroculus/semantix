@@ -10,8 +10,22 @@ import asyncpg
 from asyncpg import Connection, Record
 from asyncpg.pool import Pool
 
-from app.benchmark.api.schemas import BenchmarkMetrics
-from app.benchmark.domain.models import EvaluationRunHistoryRecord
+from app.benchmark.api.schemas import (
+    BenchmarkDatasetSummary,
+    BenchmarkMetrics,
+    BenchmarkReproducibilityMetadata,
+    ThresholdEvaluation,
+    ThresholdEvaluationMode,
+)
+from app.benchmark.domain.models import (
+    AcceptedEvaluationRunContext,
+    EvaluationRunHistoryRecord,
+    EvaluationRunTerminalState,
+    RetainedEvaluationRun,
+    RetainedEvaluationRunPage,
+    RetainedEvaluationRunSummary,
+)
+from app.cache.domain.namespaces import AuthorizedNamespaceScope
 from app.core.exceptions import (
     AppError,
     EvaluationRunHistoryStorageError,
@@ -164,6 +178,183 @@ def _metrics_values(metrics: BenchmarkMetrics | None) -> tuple[object, ...]:
         metrics.recall,
         metrics.f1_score,
     )
+
+
+RUN_SELECT_COLUMNS = ", ".join(_RUN_COLUMNS)
+
+
+def _dataset_summary_from_record(row: Record) -> BenchmarkDatasetSummary:
+    return BenchmarkDatasetSummary.model_validate(
+        {
+            "dataset_id": row["dataset_id"],
+            "dataset_source": row["dataset_source"],
+            "schema_version": row["dataset_schema_version"],
+            "version": row["dataset_version"],
+            "digest": row["dataset_digest"],
+            "name": row["dataset_name"],
+            "description": row["dataset_description"],
+            "query_count": row["dataset_query_count"],
+            "expected_hits": row["dataset_expected_hits"],
+            "expected_misses": row["dataset_expected_misses"],
+            "categories": row["dataset_categories"],
+        }
+    )
+
+
+def _reproducibility_from_record(
+    row: Record,
+) -> BenchmarkReproducibilityMetadata:
+    return BenchmarkReproducibilityMetadata.model_validate(
+        {
+            "application_version": row["application_version"],
+            "dataset_id": row["dataset_id"],
+            "dataset_source": row["dataset_source"],
+            "dataset_schema_version": row["dataset_schema_version"],
+            "dataset_version": row["dataset_version"],
+            "dataset_digest": row["dataset_digest"],
+            "embedding_provider_category": row["embedding_provider_category"],
+            "generation_provider_category": row["generation_provider_category"],
+            "generation_configuration_fingerprint": row[
+                "generation_configuration_fingerprint"
+            ],
+            "comparison_contract_version": row["comparison_contract_version"],
+            "embedding_dimensions": row["embedding_dimensions"],
+            "embedding_space_fingerprint": row["embedding_space_fingerprint"],
+            "normalization_mode": row["normalization_mode"],
+            "normalization_fingerprint": row["normalization_fingerprint"],
+            "measured_threshold": row["measured_threshold"],
+            "evaluation_thresholds": row["evaluation_thresholds"],
+            "repetitions": row["repetitions"],
+            "reset_cache_before_run": row["reset_cache_before_run"],
+            "estimated_cost_per_request_usd": row["estimated_cost_per_request_usd"],
+            "estimated_cost_per_1k_tokens_usd": row["estimated_cost_per_1k_tokens_usd"],
+            "evaluation_timeout_seconds": row["evaluation_timeout_seconds"],
+            "configuration_fingerprint": row["configuration_fingerprint"],
+        }
+    )
+
+
+def _metrics_from_record(row: Record) -> BenchmarkMetrics | None:
+    if row["total_queries"] is None:
+        return None
+
+    return BenchmarkMetrics.model_validate(
+        {
+            "total_queries": row["total_queries"],
+            "cache_hits": row["cache_hits"],
+            "cache_misses": row["cache_misses"],
+            "provider_calls": row["provider_calls"],
+            "provider_calls_avoided": row["provider_calls_avoided"],
+            "hit_rate": row["hit_rate"],
+            "average_latency_ms": row["average_latency_ms"],
+            "median_latency_ms": row["median_latency_ms"],
+            "p95_latency_ms": row["p95_latency_ms"],
+            "average_cache_hit_latency_ms": row["average_cache_hit_latency_ms"],
+            "average_cache_miss_latency_ms": row["average_cache_miss_latency_ms"],
+            "estimated_latency_saved_ms": row["estimated_latency_saved_ms"],
+            "estimated_provider_cost_saved_usd": row[
+                "estimated_provider_cost_saved_usd"
+            ],
+            "estimated_tokens_saved": row["estimated_tokens_saved"],
+            "true_positive_hits": row["true_positive_hits"],
+            "true_negative_misses": row["true_negative_misses"],
+            "false_positive_hits": row["false_positive_hits"],
+            "false_negative_misses": row["false_negative_misses"],
+            "precision": row["precision"],
+            "recall": row["recall"],
+            "f1_score": row["f1_score"],
+        }
+    )
+
+
+def _summary_from_record(row: Record) -> RetainedEvaluationRunSummary:
+    try:
+        context = AcceptedEvaluationRunContext(
+            run_id=cast(UUID, row["run_id"]).hex,
+            accepted_at=cast(datetime, row["accepted_at"]),
+            dataset=_dataset_summary_from_record(row),
+            history_namespace=str(row["namespace"]),
+            source_dataset_expires_at=cast(
+                datetime | None,
+                row["source_dataset_expires_at"],
+            ),
+        )
+        return RetainedEvaluationRunSummary(
+            context=context,
+            terminal_state=cast(
+                EvaluationRunTerminalState,
+                str(row["terminal_state"]),
+            ),
+            started_at=cast(datetime, row["started_at"]),
+            completed_at=cast(datetime, row["completed_at"]),
+            expires_at=cast(datetime, row["expires_at"]),
+            reproducibility=_reproducibility_from_record(row),
+            metrics=_metrics_from_record(row),
+            failure_code=(
+                None if row["failure_code"] is None else str(row["failure_code"])
+            ),
+            safe_failure_detail=(
+                None
+                if row["safe_failure_detail"] is None
+                else str(row["safe_failure_detail"])
+            ),
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise EvaluationRunHistoryStorageError(
+            "Persistent evaluation run history row is inconsistent"
+        ) from error
+
+
+def _threshold_from_record(row: Record) -> ThresholdEvaluation:
+    return ThresholdEvaluation.model_validate(
+        {
+            "threshold": row["threshold"],
+            "result_kind": row["result_kind"],
+            "hit_rate": row["hit_rate"],
+            "precision": row["precision"],
+            "recall": row["recall"],
+            "f1_score": row["f1_score"],
+            "average_latency_ms": row["average_latency_ms"],
+            "provider_calls_avoided": row["provider_calls_avoided"],
+            "true_positive_hits": row["true_positive_hits"],
+            "true_negative_misses": row["true_negative_misses"],
+            "false_positive_hits": row["false_positive_hits"],
+            "false_negative_misses": row["false_negative_misses"],
+        }
+    )
+
+
+def _retained_run_from_records(
+    row: Record,
+    threshold_rows: list[Record],
+) -> RetainedEvaluationRun:
+    summary = _summary_from_record(row)
+    try:
+        record = EvaluationRunHistoryRecord(
+            context=summary.context,
+            terminal_state=summary.terminal_state,
+            started_at=summary.started_at,
+            completed_at=summary.completed_at,
+            reproducibility=summary.reproducibility,
+            metrics=summary.metrics,
+            threshold_evaluation_mode=cast(
+                ThresholdEvaluationMode,
+                str(row["threshold_evaluation_mode"]),
+            ),
+            threshold_evaluations=tuple(
+                _threshold_from_record(threshold) for threshold in threshold_rows
+            ),
+            failure_code=summary.failure_code,
+            safe_failure_detail=summary.safe_failure_detail,
+        )
+        return RetainedEvaluationRun(
+            record=record,
+            expires_at=summary.expires_at,
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise EvaluationRunHistoryStorageError(
+            "Persistent evaluation run history detail is inconsistent"
+        ) from error
 
 
 class PostgresEvaluationRunHistoryRepository:
@@ -413,6 +604,130 @@ class PostgresEvaluationRunHistoryRepository:
                         )
                     ],
                 )
+
+    async def list_runs(
+        self,
+        *,
+        namespace: str | None,
+        offset: int,
+        limit: int,
+    ) -> RetainedEvaluationRunPage:
+        async with self._connection() as connection, connection.transaction():
+            await self._purge_expired(connection, namespace)
+            total = int(
+                await connection.fetchval(
+                    """
+                    SELECT COUNT(*)
+                    FROM semantix.evaluation_runs
+                    WHERE expires_at > CURRENT_TIMESTAMP
+                      AND ($1::text IS NULL OR namespace = $1)
+                    """,
+                    namespace,
+                )
+            )
+            rows = await connection.fetch(
+                f"""
+                SELECT {RUN_SELECT_COLUMNS}
+                FROM semantix.evaluation_runs
+                WHERE expires_at > CURRENT_TIMESTAMP
+                  AND ($1::text IS NULL OR namespace = $1)
+                ORDER BY completed_at DESC, run_id ASC
+                LIMIT $2
+                OFFSET $3
+                """,
+                namespace,
+                limit,
+                offset,
+            )
+
+        return RetainedEvaluationRunPage(
+            items=tuple(_summary_from_record(row) for row in rows),
+            total=total,
+        )
+
+    async def get_run(
+        self,
+        run_id: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> RetainedEvaluationRun | None:
+        try:
+            resolved_id = UUID(run_id)
+        except ValueError:
+            return None
+
+        namespace_scope = (
+            None if authorized_namespaces is None else sorted(authorized_namespaces)
+        )
+        async with self._connection() as connection:
+            row = await connection.fetchrow(
+                f"""
+                SELECT {RUN_SELECT_COLUMNS}
+                FROM semantix.evaluation_runs
+                WHERE run_id = $1
+                  AND expires_at > CURRENT_TIMESTAMP
+                  AND (
+                      $2::text[] IS NULL
+                      OR namespace = ANY($2::text[])
+                  )
+                """,
+                resolved_id,
+                namespace_scope,
+            )
+            if row is None:
+                return None
+
+            threshold_rows = await connection.fetch(
+                """
+                SELECT
+                    sequence,
+                    threshold,
+                    result_kind,
+                    hit_rate,
+                    precision,
+                    recall,
+                    f1_score,
+                    average_latency_ms,
+                    provider_calls_avoided,
+                    true_positive_hits,
+                    true_negative_misses,
+                    false_positive_hits,
+                    false_negative_misses
+                FROM semantix.evaluation_run_thresholds
+                WHERE run_id = $1
+                ORDER BY sequence
+                """,
+                resolved_id,
+            )
+
+        return _retained_run_from_records(row, list(threshold_rows))
+
+    async def delete_run(
+        self,
+        run_id: str,
+        *,
+        namespace: str,
+    ) -> bool:
+        try:
+            resolved_id = UUID(run_id)
+        except ValueError:
+            return False
+
+        async with self._connection() as connection, connection.transaction():
+            await self._purge_expired(connection, namespace)
+            deleted = await connection.fetchval(
+                """
+                DELETE FROM semantix.evaluation_runs
+                WHERE run_id = $1
+                  AND namespace = $2
+                  AND expires_at > CURRENT_TIMESTAMP
+                RETURNING run_id
+                """,
+                resolved_id,
+                namespace,
+            )
+
+        return deleted is not None
 
     async def readiness(self) -> None:
         async with self._connection() as connection:

@@ -139,6 +139,75 @@ class EvaluationRunHistoryRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class RetainedEvaluationRunSummary:
+    context: AcceptedEvaluationRunContext
+    terminal_state: EvaluationRunTerminalState
+    started_at: datetime
+    completed_at: datetime
+    expires_at: datetime
+    reproducibility: BenchmarkReproducibilityMetadata
+    metrics: BenchmarkMetrics | None
+    failure_code: str | None = None
+    safe_failure_detail: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.context.history_namespace is None:
+            raise ValueError("Retained evaluation history requires a namespace")
+        if not (
+            self.context.accepted_at
+            <= self.started_at
+            <= self.completed_at
+            < self.expires_at
+        ):
+            raise ValueError("Retained evaluation history timestamps are inconsistent")
+        if self.failure_code is not None and len(self.failure_code) > 100:
+            raise ValueError("Evaluation history failure code is too long")
+        if self.safe_failure_detail is not None and len(self.safe_failure_detail) > 300:
+            raise ValueError("Evaluation history safe failure detail is too long")
+        if self.terminal_state == "completed":
+            if (
+                self.metrics is None
+                or self.failure_code is not None
+                or self.safe_failure_detail is not None
+            ):
+                raise ValueError("Completed evaluation history summary is inconsistent")
+            return
+        if self.metrics is not None or self.failure_code is None:
+            raise ValueError("Failed evaluation history summary is inconsistent")
+
+
+@dataclass(frozen=True, slots=True)
+class RetainedEvaluationRun:
+    record: EvaluationRunHistoryRecord
+    expires_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.expires_at <= self.record.completed_at:
+            raise ValueError("Retained evaluation history expiry is inconsistent")
+
+    @property
+    def summary(self) -> RetainedEvaluationRunSummary:
+        record = self.record
+        return RetainedEvaluationRunSummary(
+            context=record.context,
+            terminal_state=record.terminal_state,
+            started_at=record.started_at,
+            completed_at=record.completed_at,
+            expires_at=self.expires_at,
+            reproducibility=record.reproducibility,
+            metrics=record.metrics,
+            failure_code=record.failure_code,
+            safe_failure_detail=record.safe_failure_detail,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class RetainedEvaluationRunPage:
+    items: tuple[RetainedEvaluationRunSummary, ...]
+    total: int
+
+
+@dataclass(frozen=True, slots=True)
 class PersistedEvaluationDatasetMetadata:
     dataset_id: str
     namespace: str

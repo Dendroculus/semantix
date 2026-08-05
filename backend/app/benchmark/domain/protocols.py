@@ -4,6 +4,8 @@ from app.benchmark.domain.models import (
     EvaluationRunHistoryRecord,
     PersistedEvaluationDataset,
     PersistedEvaluationDatasetPage,
+    RetainedEvaluationRun,
+    RetainedEvaluationRunPage,
 )
 from app.benchmark.domain.validation import ValidatedImportedDataset
 from app.cache.domain.namespaces import AuthorizedNamespaceScope
@@ -44,6 +46,28 @@ class EvaluationDatasetRepository(Protocol):
 
 
 class EvaluationRunHistoryRepository(Protocol):
+    async def list_runs(
+        self,
+        *,
+        namespace: str | None,
+        offset: int,
+        limit: int,
+    ) -> RetainedEvaluationRunPage: ...
+
+    async def get_run(
+        self,
+        run_id: str,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> RetainedEvaluationRun | None: ...
+
+    async def delete_run(
+        self,
+        run_id: str,
+        *,
+        namespace: str,
+    ) -> bool: ...
+
     async def persist_terminal_run(
         self,
         record: EvaluationRunHistoryRecord,

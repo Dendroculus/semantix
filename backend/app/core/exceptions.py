@@ -103,6 +103,22 @@ class EvaluationRunHistoryStorageError(AppError):
     )
 
 
+class EvaluationRunHistoryDisabledError(AppError):
+    status_code, error_code, public_detail = (
+        409,
+        "evaluation_run_history_disabled",
+        "Durable evaluation run history is not enabled.",
+    )
+
+
+class EvaluationRunHistoryNotFoundError(AppError):
+    status_code, error_code, public_detail = (
+        404,
+        "evaluation_run_history_not_found",
+        "The requested evaluation run history does not exist or has expired.",
+    )
+
+
 class EvaluationDatasetPersistenceDisabledError(AppError):
     status_code, error_code, public_detail = (
         409,
