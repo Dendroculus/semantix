@@ -1,6 +1,7 @@
 from typing import Protocol
 
 from app.benchmark.domain.models import (
+    EvaluationRunHistoryRecord,
     PersistedEvaluationDataset,
     PersistedEvaluationDatasetPage,
 )
@@ -38,5 +39,14 @@ class EvaluationDatasetRepository(Protocol):
         *,
         namespace: str,
     ) -> bool: ...
+
+    async def readiness(self) -> None: ...
+
+
+class EvaluationRunHistoryRepository(Protocol):
+    async def persist_terminal_run(
+        self,
+        record: EvaluationRunHistoryRecord,
+    ) -> None: ...
 
     async def readiness(self) -> None: ...

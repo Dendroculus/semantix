@@ -35,6 +35,12 @@ ProviderCategory = Literal[
 ]
 NormalizationMode = Literal["identity", "typo_correction"]
 EvaluationDatasetSourceKind = Literal["builtin", "inline", "persisted"]
+EvaluationRunRetentionState = Literal[
+    "not_retained",
+    "retained",
+    "retention_failed",
+]
+EvaluationComparisonContractVersion = Literal[1]
 
 DEFAULT_EVALUATION_THRESHOLDS = [0.70, 0.80, 0.85, 0.90, 0.92, 0.95, 0.98]
 MAX_EVALUATION_THRESHOLDS = 15
@@ -149,9 +155,20 @@ EvaluationDatasetSource = Annotated[
 
 
 class EvaluationRunRequest(EvaluationRunOptions):
+    history_namespace: CacheNamespace | None = None
     dataset_source: EvaluationDatasetSource = Field(
         default_factory=lambda: BuiltinEvaluationDatasetSource(kind="builtin")
     )
+
+    @model_validator(mode="after")
+    def validate_history_namespace(self) -> "EvaluationRunRequest":
+        if self.history_namespace is not None and not isinstance(
+            self.dataset_source, BuiltinEvaluationDatasetSource
+        ):
+            raise ValueError(
+                "history_namespace is supported only for built-in evaluation datasets"
+            )
+        return self
 
 
 class EvaluationDatasetValidationRequest(StrictModel):
@@ -488,6 +505,8 @@ class BenchmarkReproducibilityMetadata(StrictModel):
     dataset_digest: str = Field(pattern=SHA256_PATTERN)
     embedding_provider_category: ProviderCategory
     generation_provider_category: ProviderCategory
+    generation_configuration_fingerprint: str = Field(pattern=SHA256_PATTERN)
+    comparison_contract_version: EvaluationComparisonContractVersion = 1
     embedding_dimensions: int = Field(gt=0)
     embedding_space_fingerprint: str = Field(pattern=SHA256_PATTERN)
     normalization_mode: NormalizationMode
@@ -514,6 +533,10 @@ class BenchmarkReproducibilityMetadata(StrictModel):
         return value
 
 
+class EvaluationRunRetentionStatus(StrictModel):
+    state: EvaluationRunRetentionState
+
+
 class BenchmarkRunResponse(StrictModel):
     run_id: str = Field(pattern=r"^[a-f0-9]{32}$")
     started_at: datetime
@@ -525,6 +548,9 @@ class BenchmarkRunResponse(StrictModel):
     estimated_cost_per_request_usd: float = Field(ge=0)
     estimated_cost_per_1k_tokens_usd: float = Field(ge=0)
     reproducibility: BenchmarkReproducibilityMetadata
+    history_retention: EvaluationRunRetentionStatus = Field(
+        default_factory=lambda: EvaluationRunRetentionStatus(state="not_retained")
+    )
     metrics: BenchmarkMetrics
     threshold_evaluation_mode: ThresholdEvaluationMode
     threshold_evaluations: list[ThresholdEvaluation] = Field(

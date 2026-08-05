@@ -10,6 +10,7 @@ from app.core.exceptions import (
     CacheStorageError,
     DatabaseStorageError,
     EvaluationDatasetStorageError,
+    EvaluationRunHistoryStorageError,
 )
 from app.infrastructure.database import create_pool
 
@@ -24,11 +25,14 @@ async def database_pool_lifespan(settings: Settings) -> AsyncIterator[Pool | Non
         type[DatabaseStorageError]
         | type[CacheStorageError]
         | type[EvaluationDatasetStorageError]
+        | type[EvaluationRunHistoryStorageError]
     )
     if settings.cache_backend == "pgvector":
         error_type = CacheStorageError
-    else:
+    elif settings.evaluation_dataset_storage == "postgres":
         error_type = EvaluationDatasetStorageError
+    else:
+        error_type = EvaluationRunHistoryStorageError
     pool = await create_pool(
         settings.database_dsn,
         min_size=settings.database_pool_min_size,
@@ -41,7 +45,10 @@ async def database_pool_lifespan(settings: Settings) -> AsyncIterator[Pool | Non
         if settings.database_migration_mode == "auto":
             if settings.cache_backend == "pgvector":
                 await cache_database.apply_migrations(pool)
-            if settings.evaluation_dataset_storage == "postgres":
+            if (
+                settings.evaluation_dataset_storage == "postgres"
+                or settings.evaluation_run_history_storage == "postgres"
+            ):
                 await evaluation_database.apply_migrations(pool)
         yield pool
     finally:

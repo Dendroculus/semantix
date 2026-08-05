@@ -22,6 +22,8 @@ import type {
   EvaluationDatasetPreview,
   EvaluationDatasetWarning,
   EvaluationDatasetSourceKind,
+  EvaluationRunRetentionState,
+  EvaluationRunRetentionStatus,
   DeletePersistedEvaluationDatasetResponse,
   ImportedEvaluationCase,
   PersistedEvaluationDatasetDetail,
@@ -54,6 +56,11 @@ const DATASET_SOURCE_KINDS: readonly EvaluationDatasetSourceKind[] = [
   'inline',
   'persisted',
 ];
+const RUN_RETENTION_STATES: readonly EvaluationRunRetentionState[] = [
+  'not_retained',
+  'retained',
+  'retention_failed',
+];
 
 const isDatasetId = createEnumGuard(DATASET_IDS);
 const isOutcome = createEnumGuard(OUTCOMES);
@@ -61,6 +68,7 @@ const isProviderCategory = createEnumGuard(PROVIDER_CATEGORIES);
 const isResultKind = createEnumGuard(RESULT_KINDS);
 const isNormalizationMode = createEnumGuard(NORMALIZATION_MODES);
 const isDatasetSourceKind = createEnumGuard(DATASET_SOURCE_KINDS);
+const isRunRetentionState = createEnumGuard(RUN_RETENTION_STATES);
 const RUN_ID_PATTERN = /^[a-f0-9]{32}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const DATASET_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
@@ -318,6 +326,9 @@ function reproducibility(
     !SHA256_PATTERN.test(value.dataset_digest) ||
     !isProviderCategory(value.embedding_provider_category) ||
     !isProviderCategory(value.generation_provider_category) ||
+    typeof value.generation_configuration_fingerprint !== 'string' ||
+    !SHA256_PATTERN.test(value.generation_configuration_fingerprint) ||
+    value.comparison_contract_version !== 1 ||
     !isNonNegativeInteger(value.embedding_dimensions) ||
     value.embedding_dimensions < 1 ||
     typeof value.embedding_space_fingerprint !== 'string' ||
@@ -615,6 +626,17 @@ export function decodeDeletePersistedEvaluationDataset(
   return value as unknown as DeletePersistedEvaluationDatasetResponse;
 }
 
+function runRetention(value: unknown): EvaluationRunRetentionStatus {
+  if (
+    !isRecord(value) ||
+    !isRunRetentionState(value.state)
+  ) {
+    throw new Error('Invalid evaluation run retention status');
+  }
+
+  return value as unknown as EvaluationRunRetentionStatus;
+}
+
 export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
   if (
     !isRecord(value) ||
@@ -641,6 +663,7 @@ export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
 
   const decodedDataset = dataset(value.dataset);
   const decodedReproducibility = reproducibility(value.reproducibility);
+  const decodedHistoryRetention = runRetention(value.history_retention);
   const decodedMetrics = metrics(value.metrics);
   const thresholdEvaluations =
     value.threshold_evaluations.map(thresholdEvaluation);
@@ -714,6 +737,7 @@ export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
     estimated_cost_per_request_usd: value.estimated_cost_per_request_usd,
     estimated_cost_per_1k_tokens_usd: value.estimated_cost_per_1k_tokens_usd,
     reproducibility: decodedReproducibility,
+    history_retention: decodedHistoryRetention,
     metrics: decodedMetrics,
     threshold_evaluation_mode: value.threshold_evaluation_mode,
     threshold_evaluations: thresholdEvaluations,

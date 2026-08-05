@@ -19,6 +19,7 @@ from app.core.version import API_VERSION
 from app.embedding.service import EmbeddingService
 from app.infrastructure.lifecycle import database_pool_lifespan
 from app.observability.metrics import RuntimeMetrics
+from app.providers.configuration import selected_generation_configuration
 from app.providers.factory import create_provider_bundle
 from app.query.application.service import QueryService
 from app.query.domain.normalization import create_prompt_normalizer
@@ -107,6 +108,9 @@ def create_lifespan(settings: Settings) -> Lifespan:
                         embedding_space_fingerprint=_fingerprint(
                             settings.embedding_space
                         ),
+                        generation_configuration_fingerprint=_fingerprint(
+                            selected_generation_configuration(settings)
+                        ),
                         normalization_mode=(
                             "typo_correction"
                             if settings.prompt_typo_correction_enabled
@@ -152,6 +156,18 @@ def create_lifespan(settings: Settings) -> Lifespan:
                         ),
                         evaluation_dataset_cleanup_batch_size=(
                             settings.evaluation_dataset_cleanup_batch_size
+                        ),
+                        evaluation_run_history_storage=(
+                            settings.evaluation_run_history_storage
+                        ),
+                        evaluation_run_history_retention_days=(
+                            settings.evaluation_run_history_retention_days
+                        ),
+                        evaluation_run_history_max_per_namespace=(
+                            settings.evaluation_run_history_max_per_namespace
+                        ),
+                        evaluation_run_history_cleanup_batch_size=(
+                            settings.evaluation_run_history_cleanup_batch_size
                         ),
                     ),
                     dataset_repository=dataset_repository,

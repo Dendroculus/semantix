@@ -95,6 +95,14 @@ class EvaluationDatasetStorageError(AppError):
     )
 
 
+class EvaluationRunHistoryStorageError(AppError):
+    status_code, error_code, public_detail = (
+        500,
+        "evaluation_run_history_storage_error",
+        "The evaluation run history could not process the request.",
+    )
+
+
 class EvaluationDatasetPersistenceDisabledError(AppError):
     status_code, error_code, public_detail = (
         409,

@@ -1,5 +1,9 @@
 export type BenchmarkDatasetId = "quick" | "extended";
 export type EvaluationDatasetSourceKind = "builtin" | "inline" | "persisted";
+export type EvaluationRunRetentionState =
+  | "not_retained"
+  | "retained"
+  | "retention_failed";
 
 export type BenchmarkOutcome =
   | "true_positive"
@@ -139,6 +143,7 @@ export interface DeletePersistedEvaluationDatasetResponse {
 
 export interface EvaluationRunRequest
   extends Omit<BenchmarkRunRequest, "dataset_id"> {
+  history_namespace?: string;
   dataset_source:
     | { kind: "builtin"; dataset_id: BenchmarkDatasetId }
     | { kind: "inline"; definition: unknown }
@@ -212,6 +217,8 @@ export interface BenchmarkReproducibilityMetadata {
   dataset_digest: string;
   embedding_provider_category: ProviderCategory;
   generation_provider_category: ProviderCategory;
+  generation_configuration_fingerprint: string;
+  comparison_contract_version: 1;
   embedding_dimensions: number;
   embedding_space_fingerprint: string;
   normalization_mode: "identity" | "typo_correction";
@@ -226,6 +233,10 @@ export interface BenchmarkReproducibilityMetadata {
   configuration_fingerprint: string;
 }
 
+export interface EvaluationRunRetentionStatus {
+  state: EvaluationRunRetentionState;
+}
+
 export interface BenchmarkRunResponse {
   run_id: string;
   started_at: string;
@@ -237,6 +248,7 @@ export interface BenchmarkRunResponse {
   estimated_cost_per_request_usd: number;
   estimated_cost_per_1k_tokens_usd: number;
   reproducibility: BenchmarkReproducibilityMetadata;
+  history_retention: EvaluationRunRetentionStatus;
   metrics: BenchmarkMetrics;
   threshold_evaluation_mode: "frozen_candidate_projection";
   threshold_evaluations: ThresholdEvaluation[];

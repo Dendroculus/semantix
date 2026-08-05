@@ -38,6 +38,7 @@ from app.benchmark.domain.metrics import (
     evaluate_frozen_candidate_thresholds,
 )
 from app.benchmark.domain.models import (
+    AcceptedEvaluationRunContext,
     BenchmarkCase,
     BenchmarkDataset,
     BenchmarkObservation,
@@ -135,6 +136,10 @@ class BenchmarkService:
         self._dataset_repository = dataset_repository
         self._run_lock = asyncio.Lock()
 
+    @property
+    def run_history_enabled(self) -> bool:
+        return self._runtime_configuration.evaluation_run_history_storage == "postgres"
+
     def datasets(self) -> BenchmarkDatasetListResponse:
         return BenchmarkDatasetListResponse(
             datasets=list_datasets(),
@@ -142,7 +147,9 @@ class BenchmarkService:
         )
 
     async def run(self, request: BenchmarkRunRequest) -> BenchmarkRunResponse:
-        return await self._run_bounded(request, get_dataset(request.dataset_id))
+        dataset = get_dataset(request.dataset_id)
+        accepted_run = self._accept_run(dataset)
+        return await self._run_bounded(request, dataset, accepted_run)
 
     def validate_dataset(
         self,
@@ -159,8 +166,11 @@ class BenchmarkService:
         request: EvaluationRunRequest,
         *,
         authorized_namespaces: AuthorizedNamespaceScope = frozenset(),
+        builtin_history_namespace: str | None = None,
     ) -> BenchmarkRunResponse:
         source = request.dataset_source
+        source_dataset_expires_at: datetime | None = None
+        resolved_history_namespace: str | None = None
         if isinstance(source, InlineEvaluationDatasetSource):
             dataset = self._validate_inline(
                 source.definition,
@@ -176,9 +186,24 @@ class BenchmarkService:
             if record is None:
                 raise EvaluationDatasetNotFoundError
             dataset = record.dataset
+            source_dataset_expires_at = record.metadata.expires_at
+            if self.run_history_enabled:
+                resolved_history_namespace = record.metadata.namespace
         else:
             dataset = get_dataset(source.dataset_id)
-        return await self._run_bounded(request, dataset)
+            if self.run_history_enabled:
+                if builtin_history_namespace is None:
+                    raise ValueError(
+                        "Built-in history namespace must be resolved before execution"
+                    )
+                resolved_history_namespace = builtin_history_namespace
+
+        accepted_run = self._accept_run(
+            dataset,
+            history_namespace=resolved_history_namespace,
+            source_dataset_expires_at=source_dataset_expires_at,
+        )
+        return await self._run_bounded(request, dataset, accepted_run)
 
     async def list_persisted_datasets(
         self,
@@ -315,17 +340,33 @@ class BenchmarkService:
             max_workload_queries=runtime.evaluation_max_workload_queries,
         )
 
+    def _accept_run(
+        self,
+        dataset: BenchmarkDataset,
+        *,
+        history_namespace: str | None = None,
+        source_dataset_expires_at: datetime | None = None,
+    ) -> AcceptedEvaluationRunContext:
+        return AcceptedEvaluationRunContext(
+            run_id=uuid4().hex,
+            accepted_at=datetime.now(UTC),
+            dataset=dataset.summary,
+            history_namespace=history_namespace,
+            source_dataset_expires_at=source_dataset_expires_at,
+        )
+
     async def _run_bounded(
         self,
         request: EvaluationRunOptions,
         dataset: BenchmarkDataset,
+        accepted_run: AcceptedEvaluationRunContext,
     ) -> BenchmarkRunResponse:
         try:
             async with asyncio.timeout(
                 self._runtime_configuration.evaluation_timeout_seconds
             ):
                 async with self._run_lock:
-                    return await self._run_exclusive(request, dataset)
+                    return await self._run_exclusive(request, dataset, accepted_run)
         except TimeoutError as exc:
             raise EvaluationTimeoutError from exc
 
@@ -398,6 +439,7 @@ class BenchmarkService:
         self,
         request: EvaluationRunOptions,
         dataset: BenchmarkDataset,
+        accepted_run: AcceptedEvaluationRunContext,
     ) -> BenchmarkRunResponse:
         started_at = datetime.now(UTC)
         run_cache = self._create_run_cache(request.threshold)
@@ -429,7 +471,7 @@ class BenchmarkService:
             dataset_digest=dataset.summary.digest,
         )
         return BenchmarkRunResponse(
-            run_id=uuid4().hex,
+            run_id=accepted_run.run_id,
             started_at=started_at,
             completed_at=datetime.now(UTC),
             dataset=dataset.summary,
@@ -475,6 +517,10 @@ class BenchmarkService:
             "dataset_digest": dataset_digest,
             "embedding_provider_category": runtime.embedding_provider_category,
             "generation_provider_category": runtime.generation_provider_category,
+            "generation_configuration_fingerprint": (
+                runtime.generation_configuration_fingerprint
+            ),
+            "comparison_contract_version": 1,
             "embedding_dimensions": runtime.embedding_dimensions,
             "embedding_space_fingerprint": runtime.embedding_space_fingerprint,
             "normalization_mode": runtime.normalization_mode,

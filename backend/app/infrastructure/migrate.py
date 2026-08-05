@@ -6,7 +6,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.benchmark.infrastructure import database as evaluation_database
 from app.cache.infrastructure import database as cache_database
-from app.core.config import CacheBackendName, EvaluationDatasetStorageMode
+from app.core.config import (
+    CacheBackendName,
+    EvaluationDatasetStorageMode,
+    EvaluationRunHistoryStorageMode,
+)
 from app.core.exceptions import DatabaseStorageError
 from app.infrastructure.database import create_pool
 
@@ -28,6 +32,7 @@ class MigrationSettings(BaseSettings):
     database_command_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
     cache_backend: CacheBackendName = "pgvector"
     evaluation_dataset_storage: EvaluationDatasetStorageMode = "session"
+    evaluation_run_history_storage: EvaluationRunHistoryStorageMode = "disabled"
     database_migration_mode: Literal["external"] = "external"
 
     @model_validator(mode="after")
@@ -35,10 +40,11 @@ class MigrationSettings(BaseSettings):
         if (
             self.cache_backend != "pgvector"
             and self.evaluation_dataset_storage != "postgres"
+            and self.evaluation_run_history_storage != "postgres"
         ):
             raise ValueError(
                 "The migration job requires pgvector cache or persistent "
-                "evaluation dataset storage"
+                "evaluation storage"
             )
         return self
 
@@ -60,8 +66,12 @@ async def run() -> None:
                 pool,
                 settings.database_runtime_role,
             )
-        if settings.evaluation_dataset_storage == "postgres":
+        if (
+            settings.evaluation_dataset_storage == "postgres"
+            or settings.evaluation_run_history_storage == "postgres"
+        ):
             await evaluation_database.apply_migrations(pool)
+        if settings.evaluation_dataset_storage == "postgres":
             await evaluation_database.grant_runtime_privileges(
                 pool,
                 settings.database_runtime_role,

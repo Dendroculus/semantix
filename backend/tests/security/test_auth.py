@@ -203,6 +203,46 @@ def test_evaluation_import_roles_match_viewer_operator_capabilities() -> None:
     assert operator_run.status_code == 200
 
 
+def test_builtin_history_namespace_follows_existing_scope_rules() -> None:
+    app = create_app(settings())
+    with TestClient(app) as client:
+        app.state.benchmark_service = benchmark_service(
+            Provider(),
+            history_enabled=True,
+        )
+        operator_inferred = client.post(
+            "/api/v1/evaluations/runs",
+            headers=authorization(OPERATOR_TOKEN),
+            json={"allow_external_provider_calls": True},
+        )
+        wildcard_missing = client.post(
+            "/api/v1/evaluations/runs",
+            headers=authorization(ADMIN_TOKEN),
+            json={"allow_external_provider_calls": True},
+        )
+        wildcard_scoped = client.post(
+            "/api/v1/evaluations/runs",
+            headers=authorization(ADMIN_TOKEN),
+            json={
+                "history_namespace": "tenant-a",
+                "allow_external_provider_calls": True,
+            },
+        )
+        operator_foreign = client.post(
+            "/api/v1/evaluations/runs",
+            headers=authorization(OPERATOR_TOKEN),
+            json={
+                "history_namespace": "tenant-a",
+                "allow_external_provider_calls": True,
+            },
+        )
+
+    assert operator_inferred.status_code == 200
+    assert wildcard_missing.status_code == 403
+    assert wildcard_scoped.status_code == 200
+    assert operator_foreign.status_code == 403
+
+
 def test_persisted_dataset_roles_and_explicit_wildcard_namespace() -> None:
     definition = {
         "schema_version": 1,

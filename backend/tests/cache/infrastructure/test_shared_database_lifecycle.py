@@ -22,9 +22,12 @@ def settings(
     *,
     cache_backend: str,
     evaluation_dataset_storage: str,
+    evaluation_run_history_storage: str = "disabled",
 ) -> Settings:
     database_required = (
-        cache_backend == "pgvector" or evaluation_dataset_storage == "postgres"
+        cache_backend == "pgvector"
+        or evaluation_dataset_storage == "postgres"
+        or evaluation_run_history_storage == "postgres"
     )
     return Settings.model_validate(
         {
@@ -32,6 +35,10 @@ def settings(
             "generation_provider": "mock",
             "cache_backend": cache_backend,
             "evaluation_dataset_storage": evaluation_dataset_storage,
+            "evaluation_run_history_storage": evaluation_run_history_storage,
+            "evaluation_run_history_retention_days": 30,
+            "evaluation_run_history_max_per_namespace": 100,
+            "evaluation_run_history_cleanup_batch_size": 10,
             "database_url": (
                 "postgresql://user:secret@database:5432/semantix"
                 if database_required
@@ -62,17 +69,20 @@ async def test_memory_and_session_mode_open_no_database(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("cache_backend", "evaluation_storage", "expected_migrations"),
+    ("cache_backend", "evaluation_storage", "history_storage", "expected_migrations"),
     [
-        ("memory", "postgres", ["evaluation"]),
-        ("pgvector", "session", ["cache"]),
-        ("pgvector", "postgres", ["cache", "evaluation"]),
+        ("memory", "postgres", "disabled", ["evaluation"]),
+        ("memory", "session", "postgres", ["evaluation"]),
+        ("pgvector", "session", "disabled", ["cache"]),
+        ("pgvector", "postgres", "disabled", ["cache", "evaluation"]),
+        ("pgvector", "session", "postgres", ["cache", "evaluation"]),
     ],
 )
 async def test_database_features_reuse_one_pool_and_apply_owned_migrations(
     monkeypatch: pytest.MonkeyPatch,
     cache_backend: str,
     evaluation_storage: str,
+    history_storage: str,
     expected_migrations: list[str],
 ) -> None:
     fake_pool = FakePool()
@@ -108,6 +118,7 @@ async def test_database_features_reuse_one_pool_and_apply_owned_migrations(
         settings(
             cache_backend=cache_backend,
             evaluation_dataset_storage=evaluation_storage,
+            evaluation_run_history_storage=history_storage,
         )
     ) as pool:
         assert pool is cast(Pool, fake_pool)

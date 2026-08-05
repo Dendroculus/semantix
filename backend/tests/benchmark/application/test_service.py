@@ -1,5 +1,7 @@
 import asyncio
 from collections.abc import Sequence
+from dataclasses import replace
+from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
@@ -11,11 +13,17 @@ from app.benchmark.api.schemas import (
     BenchmarkRunResponse,
     EvaluationRunRequest,
     InlineEvaluationDatasetSource,
+    PersistedEvaluationDatasetSource,
 )
 from app.benchmark.application.service import BenchmarkService
 from app.benchmark.domain.models import BenchmarkRuntimeConfiguration
-from app.core.exceptions import EvaluationTimeoutError, InvalidProviderResponseError
+from app.core.exceptions import (
+    EvaluationDatasetNotFoundError,
+    EvaluationTimeoutError,
+    InvalidProviderResponseError,
+)
 from app.core.limits import MAX_RESPONSE_LENGTH
+from tests.benchmark.support import InMemoryEvaluationDatasetRepository
 
 
 class Embeddings:
@@ -60,6 +68,7 @@ def runtime_configuration(
         generation_provider_category="mock",
         embedding_dimensions=4,
         embedding_space_fingerprint="1" * 64,
+        generation_configuration_fingerprint="3" * 64,
         normalization_mode="identity",
         normalization_fingerprint="2" * 64,
         evaluation_timeout_seconds=evaluation_timeout_seconds,
@@ -70,16 +79,28 @@ def benchmark_service(
     provider: Provider | OversizedProvider | TimeoutThenProvider,
     *,
     evaluation_timeout_seconds: float = 30,
+    dataset_repository: InMemoryEvaluationDatasetRepository | None = None,
+    history_enabled: bool = False,
 ) -> BenchmarkService:
+    runtime = runtime_configuration(
+        evaluation_timeout_seconds=evaluation_timeout_seconds
+    )
+    if history_enabled:
+        runtime = replace(
+            runtime,
+            evaluation_run_history_storage="postgres",
+            evaluation_run_history_retention_days=30,
+            evaluation_run_history_max_per_namespace=100,
+            evaluation_run_history_cleanup_batch_size=10,
+        )
     return BenchmarkService(
         Embeddings(),
         provider,
         max_cache_size=10,
         cache_ttl_seconds=60,
         prompt_normalizer=lambda prompt: prompt,
-        runtime_configuration=runtime_configuration(
-            evaluation_timeout_seconds=evaluation_timeout_seconds
-        ),
+        runtime_configuration=runtime,
+        dataset_repository=dataset_repository,
     )
 
 
@@ -239,6 +260,8 @@ async def test_safe_reproducibility_metadata_uses_an_explicit_allowlist() -> Non
         "dataset_digest",
         "embedding_provider_category",
         "generation_provider_category",
+        "generation_configuration_fingerprint",
+        "comparison_contract_version",
         "embedding_dimensions",
         "embedding_space_fingerprint",
         "normalization_mode",
@@ -266,6 +289,29 @@ async def test_safe_reproducibility_metadata_uses_an_explicit_allowlist() -> Non
     )
     assert payload["measured_threshold"] == result.threshold == 0.91
     assert payload["evaluation_thresholds"] == [0.80, 0.91, 0.95]
+    assert payload["generation_configuration_fingerprint"] == "3" * 64
+    assert payload["comparison_contract_version"] == 1
+    assert result.history_retention.state == "not_retained"
+
+
+@pytest.mark.asyncio
+async def test_success_contract_can_report_retention_failure_without_losing_result() -> (
+    None
+):
+    result = await benchmark_service(Provider()).run(
+        BenchmarkRunRequest(
+            evaluation_thresholds=[0.80, 0.92],
+            allow_external_provider_calls=True,
+        )
+    )
+
+    payload = result.model_dump()
+    payload["history_retention"] = {"state": "retention_failed"}
+    decoded = BenchmarkRunResponse.model_validate(payload)
+
+    assert decoded.history_retention.state == "retention_failed"
+    assert decoded.metrics == result.metrics
+    assert decoded.query_results == result.query_results
 
 
 @pytest.mark.asyncio
@@ -381,6 +427,67 @@ async def test_timeout_leaves_the_next_run_with_a_fresh_cache() -> None:
     assert result.query_results[0].actual_cache_hit is False
     assert result.metrics.provider_calls == 1
     assert provider.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_run_identity_is_created_only_after_pre_execution_gates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.benchmark.application.service as service_module
+
+    created_ids = 0
+
+    def deterministic_uuid() -> UUID:
+        nonlocal created_ids
+        created_ids += 1
+        return UUID(int=created_ids)
+
+    monkeypatch.setattr(service_module, "uuid4", deterministic_uuid)
+    repository = InMemoryEvaluationDatasetRepository()
+    service = benchmark_service(
+        Provider(),
+        dataset_repository=repository,
+        history_enabled=True,
+    )
+
+    with pytest.raises(ValidationError):
+        EvaluationRunRequest(
+            dataset_source=InlineEvaluationDatasetSource(
+                kind="inline",
+                definition={"schema_version": 1},
+            ),
+            history_namespace="tenant-a",
+            allow_external_provider_calls=True,
+        )
+    assert created_ids == 0
+
+    with pytest.raises(EvaluationDatasetNotFoundError):
+        await service.run_evaluation(
+            EvaluationRunRequest(
+                dataset_source=PersistedEvaluationDatasetSource(
+                    kind="persisted",
+                    dataset_id=UUID("00000000-0000-4000-8000-000000000000"),
+                    namespace="tenant-a",
+                ),
+                allow_external_provider_calls=True,
+            ),
+            authorized_namespaces=frozenset({"tenant-a"}),
+        )
+    assert created_ids == 0
+
+    with pytest.raises(ValueError, match="history namespace"):
+        await service.run_evaluation(
+            EvaluationRunRequest(allow_external_provider_calls=True)
+        )
+    assert created_ids == 0
+
+    result = await service.run_evaluation(
+        EvaluationRunRequest(allow_external_provider_calls=True),
+        builtin_history_namespace="tenant-a",
+    )
+
+    assert created_ids == 1
+    assert result.run_id == UUID(int=1).hex
 
 
 @pytest.mark.asyncio

@@ -8,6 +8,7 @@ from app.benchmark.api.schemas import (
     BenchmarkDatasetListResponse,
     BenchmarkRunRequest,
     BenchmarkRunResponse,
+    BuiltinEvaluationDatasetSource,
     DeletePersistedEvaluationDatasetResponse,
     EvaluationDatasetPreview,
     EvaluationDatasetValidationRequest,
@@ -186,6 +187,7 @@ async def run_evaluation(
     principal: OperatorPrincipal,
 ) -> BenchmarkRunResponse:
     authorized_namespaces: AuthorizedNamespaceScope = frozenset()
+    builtin_history_namespace: str | None = None
     if isinstance(payload.dataset_source, PersistedEvaluationDatasetSource):
         namespace = resolve_namespace(
             principal,
@@ -195,7 +197,19 @@ async def run_evaluation(
         if namespace is None:
             raise RuntimeError("Persistent dataset namespace was not resolved")
         authorized_namespaces = frozenset({namespace})
+    elif isinstance(payload.dataset_source, BuiltinEvaluationDatasetSource) and (
+        payload.history_namespace is not None or benchmark.run_history_enabled
+    ):
+        builtin_history_namespace = resolve_namespace(
+            principal,
+            payload.history_namespace,
+            allow_global=False,
+        )
+        if builtin_history_namespace is None:
+            raise RuntimeError("Evaluation history namespace was not resolved")
+
     return await benchmark.run_evaluation(
         payload,
         authorized_namespaces=authorized_namespaces,
+        builtin_history_namespace=builtin_history_namespace,
     )

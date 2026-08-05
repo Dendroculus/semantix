@@ -125,6 +125,24 @@ const INVALID_RUN_CASES: InvalidRunCase[] = [
     },
   },
   {
+    name: 'an invalid generation configuration fingerprint',
+    mutate: (value) => {
+      value.reproducibility.generation_configuration_fingerprint = 'unsafe';
+    },
+  },
+  {
+    name: 'an invalid comparison contract version',
+    mutate: (value) => {
+      value.reproducibility.comparison_contract_version = 2 as never;
+    },
+  },
+  {
+    name: 'an invalid history retention state',
+    mutate: (value) => {
+      value.history_retention.state = 'unknown' as never;
+    },
+  },
+  {
     name: 'completion before the start time',
     mutate: (value) => {
       value.completed_at = '2026-07-17T09:59:59Z';
