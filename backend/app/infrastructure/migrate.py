@@ -76,6 +76,13 @@ async def run() -> None:
                 pool,
                 settings.database_runtime_role,
             )
+
+        if settings.evaluation_run_history_storage == "postgres":
+            await evaluation_database.grant_run_history_runtime_privileges(
+                pool,
+                settings.database_runtime_role,
+            )
+
     finally:
         await pool.close()
 
