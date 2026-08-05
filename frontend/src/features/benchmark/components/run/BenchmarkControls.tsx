@@ -1,5 +1,7 @@
-import { useState, type JSX } from 'react';
+import { useMemo, useState, type JSX } from 'react';
 
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { isCacheNamespace } from '@/features/cache/namespace';
 import { Button } from '@/shared/components/ui';
 import { formatDecimal } from '@/shared/lib/formatters';
 
@@ -30,6 +32,12 @@ export function BenchmarkControls({
   controller,
 }: Readonly<BenchmarkControlsProps>): JSX.Element {
   const [isSweepOpen, setIsSweepOpen] = useState(false);
+  const auth = useAuth();
+  const authorizedNamespaces = useMemo(
+    () => auth.session?.namespaces.filter((item) => item !== '*') ?? [],
+    [auth.session],
+  );
+  const hasGlobalNamespace = auth.session?.namespaces.includes('*') ?? false;
   const {
     canRun,
     datasets,
@@ -41,6 +49,62 @@ export function BenchmarkControls({
 
   const controlClass =
     'font-data mt-2 min-h-11 w-full border border-(--hairline) bg-(--surface) px-3 py-2 text-xs text-(--text) outline-none transition-colors hover:border-(--text-faint) focus-visible:border-(--gold) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--gold) disabled:cursor-not-allowed disabled:opacity-50';
+
+  const historyNamespaceValid =
+    form.historyNamespace === '' || isCacheNamespace(form.historyNamespace);
+
+
+  let historyNamespaceControl: JSX.Element;
+
+  if (auth.status === 'authenticated' &&
+          !hasGlobalNamespace &&
+          authorizedNamespaces.length === 1) {
+    historyNamespaceControl = (
+            <span
+              className={`${controlClass} flex items-center`}
+              aria-label="Benchmark history namespace"
+            >
+              {authorizedNamespaces[0]}
+            </span>
+          );
+  } else if (auth.status === 'authenticated' &&
+            !hasGlobalNamespace &&
+            authorizedNamespaces.length > 1) {
+    historyNamespaceControl = (
+            <select
+              aria-describedby="benchmark-history-namespace-guidance"
+              aria-label="Benchmark history namespace"
+              className={controlClass}
+              disabled={isRunning}
+              value={form.historyNamespace}
+              onChange={(event) =>
+                update(controller, { historyNamespace: event.target.value })
+              }
+            >
+              <option value="">Choose a namespace</option>
+              {authorizedNamespaces.map((namespace) => (
+                <option key={namespace} value={namespace}>
+                  {namespace}
+                </option>
+              ))}
+            </select>
+          );
+  } else {
+    historyNamespaceControl = (
+            <input
+              aria-describedby="benchmark-history-namespace-guidance"
+              aria-invalid={!historyNamespaceValid}
+              aria-label="Benchmark history namespace"
+              className={controlClass}
+              disabled={isRunning}
+              placeholder="Required for wildcard history retention"
+              value={form.historyNamespace}
+              onChange={(event) =>
+                update(controller, { historyNamespace: event.target.value })
+              }
+            />
+          );
+  }
 
   return (
     <div
@@ -117,6 +181,25 @@ export function BenchmarkControls({
           ))}
         </select>
       </label>
+
+      {form.datasetSource === 'builtin' && (
+        <label className="block">
+          <span className="ui-label text-(--text-muted)">
+            History namespace
+          </span>
+          {historyNamespaceControl}
+          <span
+            className={`font-data mt-2 block text-[10px]/5 ${
+              historyNamespaceValid ? 'text-(--text-faint)' : 'text-(--coral)'
+            }`}
+            id="benchmark-history-namespace-guidance"
+          >
+            {historyNamespaceValid
+              ? 'Built-in runs inherit a sole authorized namespace automatically. Wildcard or multi-namespace access can choose one explicitly when durable history is enabled.'
+              : 'Enter a valid namespace before reviewing this run.'}
+          </span>
+        </label>
+      )}
 
       {form.datasetSource === 'custom' && (
         <div className="sm:col-span-2 lg:col-span-3">
@@ -245,7 +328,8 @@ export function BenchmarkControls({
             datasets.length === 0 ||
             !canRun ||
             controller.selectedDataset === null ||
-            sweep.error !== null
+            sweep.error !== null ||
+            !historyNamespaceValid
           }
           size="large"
           variant="primary"

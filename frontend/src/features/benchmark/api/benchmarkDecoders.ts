@@ -744,3 +744,27 @@ export function decodeBenchmarkRun(value: unknown): BenchmarkRunResponse {
     query_results: queryResults,
   };
 }
+
+export function decodeBenchmarkDatasetSummaryValue(
+  value: unknown,
+): BenchmarkDatasetSummary {
+  return dataset(value);
+}
+
+export function decodeBenchmarkMetricsValue(
+  value: unknown,
+): BenchmarkMetrics {
+  return metrics(value);
+}
+
+export function decodeBenchmarkReproducibilityValue(
+  value: unknown,
+): BenchmarkReproducibilityMetadata {
+  return reproducibility(value);
+}
+
+export function decodeThresholdEvaluationValue(
+  value: unknown,
+): ThresholdEvaluation {
+  return thresholdEvaluation(value);
+}

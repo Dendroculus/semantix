@@ -45,6 +45,7 @@ export interface BenchmarkForm {
   datasetSource: "builtin" | "custom" | "persisted";
   persistedDatasetId: string;
   persistedNamespace: string;
+  historyNamespace: string;
   threshold: number;
   repetitions: number;
   resetCacheBeforeRun: boolean;
@@ -97,6 +98,7 @@ const DEFAULT_FORM: BenchmarkForm = {
   datasetSource: "builtin",
   persistedDatasetId: "",
   persistedNamespace: "",
+  historyNamespace: "",
   threshold: 0.92,
   repetitions: 1,
   resetCacheBeforeRun: true,
@@ -172,6 +174,9 @@ function requestFromForm(
   }
 
   return {
+    ...(form.datasetSource === "builtin" && form.historyNamespace.trim() !== ""
+      ? { history_namespace: form.historyNamespace.trim() }
+      : {}),
     dataset_source: datasetSource,
     threshold: form.threshold,
     evaluation_thresholds: evaluationThresholds,
@@ -279,6 +284,7 @@ export function useBenchmark(): BenchmarkController {
         datasetSource: "builtin",
         persistedDatasetId: "",
         persistedNamespace: "",
+        historyNamespace: "",
       }));
     }
   }, [authIdentity]);

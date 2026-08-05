@@ -254,3 +254,42 @@ export interface BenchmarkRunResponse {
   threshold_evaluations: ThresholdEvaluation[];
   query_results: BenchmarkQueryResult[];
 }
+
+export type EvaluationRunTerminalState = "completed" | "failed" | "timed_out";
+
+export interface EvaluationRunHistoryItem {
+  run_id: string;
+  namespace: string;
+  terminal_state: EvaluationRunTerminalState;
+  accepted_at: string;
+  started_at: string;
+  completed_at: string;
+  expires_at: string;
+  source_dataset_expires_at: string | null;
+  dataset: BenchmarkDatasetSummary;
+  reproducibility: BenchmarkReproducibilityMetadata;
+  metrics: BenchmarkMetrics | null;
+  failure_code: string | null;
+  safe_failure_detail: string | null;
+}
+
+export interface EvaluationRunHistoryDetail extends EvaluationRunHistoryItem {
+  threshold_evaluation_mode: "frozen_candidate_projection";
+  threshold_evaluations: ThresholdEvaluation[];
+}
+
+export interface EvaluationRunHistoryListResponse {
+  storage_mode: "disabled" | "postgres";
+  retention_enabled: boolean;
+  items: EvaluationRunHistoryItem[];
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface DeleteEvaluationRunHistoryResponse {
+  deleted: true;
+  run_id: string;
+  namespace: string;
+}

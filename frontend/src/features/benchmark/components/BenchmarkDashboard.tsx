@@ -11,10 +11,11 @@ import { BenchmarkResultsSkeleton } from './results/BenchmarkResultsSkeleton';
 import { BenchmarkRunWarning } from './run/BenchmarkRunWarning';
 import { BenchmarkSummary } from './results/BenchmarkSummary';
 import { EvaluationDatasetCatalog } from './datasets/EvaluationDatasetCatalog';
+import { EvaluationRunHistory } from './history/EvaluationRunHistory';
 
 export function BenchmarkDashboard(): JSX.Element {
   const controller = useBenchmark();
-  const [view, setView] = useState<'runs' | 'datasets'>('runs');
+  const [view, setView] = useState<'runs' | 'datasets' | 'history'>('runs');
   const {
     datasetsLoading,
     datasetsRefreshing,
@@ -25,49 +26,22 @@ export function BenchmarkDashboard(): JSX.Element {
     showWarning,
   } = controller;
 
-  return (
-    <section aria-labelledby="evaluation-heading" className="pb-4">
-      <PageHeader
-        actions={
-          view === 'runs' && result !== null ? (
-            <BenchmarkExports result={result} />
-          ) : undefined
-        }
-        className="mb-7"
-        description="Measure cache quality, latency, provider savings, and threshold trade-offs against prompts with explicit expected decisions."
-        eyebrow="Controlled evaluation"
-        headingId="evaluation-heading"
-        title="Evaluation laboratory"
-      />
 
-      <nav
-        aria-label="Evaluation laboratory views"
-        className="mb-6 flex flex-wrap gap-3 border-b border-(--hairline) pb-4"
-      >
-        <Button
-          aria-pressed={view === 'runs'}
-          size="compact"
-          variant={view === 'runs' ? 'primary' : 'secondary'}
-          onClick={() => setView('runs')}
-        >
-          Runs
-        </Button>
-        <Button
-          aria-pressed={view === 'datasets'}
-          size="compact"
-          variant={view === 'datasets' ? 'primary' : 'secondary'}
-          onClick={() => setView('datasets')}
-        >
-          Datasets
-        </Button>
-      </nav>
+  let viewContent: JSX.Element;
 
-      {view === 'datasets' ? (
+  if (view === 'datasets') {
+    viewContent = (
         <EvaluationDatasetCatalog
           controller={controller}
           onUseDataset={() => setView('runs')}
         />
-      ) : (
+      );
+  } else if (view === 'history') {
+    viewContent = (
+        <EvaluationRunHistory />
+      );
+  } else {
+    viewContent = (
         <>
           {datasetsLoading ? (
             <BenchmarkDatasetSkeleton />
@@ -138,7 +112,55 @@ export function BenchmarkDashboard(): JSX.Element {
             </>
           )}
         </>
-      )}
+      );
+  }
+
+  return (
+    <section aria-labelledby="evaluation-heading" className="pb-4">
+      <PageHeader
+        actions={
+          view === 'runs' && result !== null ? (
+            <BenchmarkExports result={result} />
+          ) : undefined
+        }
+        className="mb-7"
+        description="Measure cache quality, latency, provider savings, and threshold trade-offs against prompts with explicit expected decisions."
+        eyebrow="Controlled evaluation"
+        headingId="evaluation-heading"
+        title="Evaluation laboratory"
+      />
+
+      <nav
+        aria-label="Evaluation laboratory views"
+        className="mb-6 flex flex-wrap gap-3 border-b border-(--hairline) pb-4"
+      >
+        <Button
+          aria-pressed={view === 'runs'}
+          size="compact"
+          variant={view === 'runs' ? 'primary' : 'secondary'}
+          onClick={() => setView('runs')}
+        >
+          Runs
+        </Button>
+        <Button
+          aria-pressed={view === 'datasets'}
+          size="compact"
+          variant={view === 'datasets' ? 'primary' : 'secondary'}
+          onClick={() => setView('datasets')}
+        >
+          Datasets
+        </Button>
+        <Button
+          aria-pressed={view === 'history'}
+          size="compact"
+          variant={view === 'history' ? 'primary' : 'secondary'}
+          onClick={() => setView('history')}
+        >
+          History
+        </Button>
+      </nav>
+
+      {viewContent}
     </section>
   );
 }

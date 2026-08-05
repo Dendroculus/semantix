@@ -47,3 +47,10 @@ export function canDeleteEvaluationDatasets(
 
   return status === "authenticated" && session?.role === "admin";
 }
+
+export function canDeleteEvaluationRunHistory(
+  status: AuthContextValue["status"],
+  session: AuthSession | null,
+): boolean {
+  return canDeleteEvaluationDatasets(status, session);
+}
