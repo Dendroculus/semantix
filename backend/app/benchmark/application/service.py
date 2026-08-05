@@ -367,21 +367,68 @@ class BenchmarkService:
         dataset: BenchmarkDataset,
         accepted_run: AcceptedEvaluationRunContext,
     ) -> BenchmarkRunResponse:
-        response = await self._run_bounded(request, dataset, accepted_run)
-        return await self._history_recorder.retain_completed(accepted_run, response)
+        attempt_started_at = datetime.now(UTC)
+        reproducibility = self._reproducibility_metadata(
+            request,
+            dataset_id=dataset.summary.dataset_id,
+            dataset_source=dataset.summary.dataset_source,
+            dataset_schema_version=dataset.summary.schema_version,
+            dataset_version=dataset.summary.version,
+            dataset_digest=dataset.summary.digest,
+        )
+
+        try:
+            response = await self._run_bounded(
+                request,
+                dataset,
+                accepted_run,
+                reproducibility=reproducibility,
+            )
+        except EvaluationTimeoutError as error:
+            await self._history_recorder.retain_failure(
+                accepted_run,
+                terminal_state="timed_out",
+                started_at=attempt_started_at,
+                completed_at=datetime.now(UTC),
+                reproducibility=reproducibility,
+                error=error,
+            )
+            raise
+        except Exception as error:
+            await self._history_recorder.retain_failure(
+                accepted_run,
+                terminal_state="failed",
+                started_at=attempt_started_at,
+                completed_at=datetime.now(UTC),
+                reproducibility=reproducibility,
+                error=error,
+            )
+            raise
+
+        return await self._history_recorder.retain_completed(
+            accepted_run,
+            response,
+        )
 
     async def _run_bounded(
         self,
         request: EvaluationRunOptions,
         dataset: BenchmarkDataset,
         accepted_run: AcceptedEvaluationRunContext,
+        *,
+        reproducibility: BenchmarkReproducibilityMetadata,
     ) -> BenchmarkRunResponse:
         try:
             async with asyncio.timeout(
                 self._runtime_configuration.evaluation_timeout_seconds
             ):
                 async with self._run_lock:
-                    return await self._run_exclusive(request, dataset, accepted_run)
+                    return await self._run_exclusive(
+                        request,
+                        dataset,
+                        accepted_run,
+                        reproducibility=reproducibility,
+                    )
         except TimeoutError as exc:
             raise EvaluationTimeoutError from exc
 
@@ -455,6 +502,8 @@ class BenchmarkService:
         request: EvaluationRunOptions,
         dataset: BenchmarkDataset,
         accepted_run: AcceptedEvaluationRunContext,
+        *,
+        reproducibility: BenchmarkReproducibilityMetadata,
     ) -> BenchmarkRunResponse:
         started_at = datetime.now(UTC)
         run_cache = self._create_run_cache(request.threshold)
@@ -477,14 +526,6 @@ class BenchmarkService:
                 observations.append(observation)
 
         thresholds = request.evaluation_thresholds
-        reproducibility = self._reproducibility_metadata(
-            request,
-            dataset_id=dataset.summary.dataset_id,
-            dataset_source=dataset.summary.dataset_source,
-            dataset_schema_version=dataset.summary.schema_version,
-            dataset_version=dataset.summary.version,
-            dataset_digest=dataset.summary.digest,
-        )
         return BenchmarkRunResponse(
             run_id=accepted_run.run_id,
             started_at=started_at,

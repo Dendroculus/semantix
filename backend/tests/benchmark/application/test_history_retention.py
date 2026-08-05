@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Sequence
 
 import pytest
@@ -15,7 +16,12 @@ from app.benchmark.domain.models import (
     EvaluationRunHistoryRecord,
 )
 from app.benchmark.domain.protocols import EvaluationDatasetRepository
-from app.core.exceptions import EvaluationRunHistoryStorageError
+from app.core.exceptions import (
+    EvaluationRunHistoryStorageError,
+    EvaluationTimeoutError,
+    InvalidProviderResponseError,
+)
+from app.providers.protocols import GenerationProvider
 from tests.benchmark.support import InMemoryEvaluationDatasetRepository
 
 
@@ -26,6 +32,26 @@ class Embeddings:
 
 class Provider:
     async def generate(self, prompt: str) -> str:
+        return f"response:{prompt}"
+
+
+class InvalidResponseProvider:
+    async def generate(self, prompt: str) -> str:
+        raise InvalidProviderResponseError("raw upstream detail must not be retained")
+
+
+class SecretFailureProvider:
+    async def generate(self, prompt: str) -> str:
+        raise RuntimeError("synthetic-secret-provider-detail")
+
+
+class BlockingProvider:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+
+    async def generate(self, prompt: str) -> str:
+        self.started.set()
+        await asyncio.Event().wait()
         return f"response:{prompt}"
 
 
@@ -53,6 +79,8 @@ def service(
     repository: RecordingHistoryRepository,
     *,
     dataset_repository: EvaluationDatasetRepository | None = None,
+    provider: GenerationProvider | None = None,
+    evaluation_timeout_seconds: float = 30,
 ) -> BenchmarkService:
     runtime = BenchmarkRuntimeConfiguration(
         application_version="1.0.0",
@@ -63,7 +91,7 @@ def service(
         generation_configuration_fingerprint="3" * 64,
         normalization_mode="identity",
         normalization_fingerprint="2" * 64,
-        evaluation_timeout_seconds=30,
+        evaluation_timeout_seconds=evaluation_timeout_seconds,
         evaluation_run_history_storage="postgres",
         evaluation_run_history_retention_days=30,
         evaluation_run_history_max_per_namespace=100,
@@ -72,7 +100,7 @@ def service(
 
     return BenchmarkService(
         Embeddings(),
-        Provider(),
+        provider or Provider(),
         max_cache_size=10,
         cache_ttl_seconds=60,
         prompt_normalizer=lambda prompt: prompt,
@@ -242,4 +270,135 @@ async def test_legacy_benchmark_run_remains_non_durable() -> None:
     )
 
     assert response.history_retention.state == "not_retained"
+    assert repository.records == []
+
+
+@pytest.mark.asyncio
+async def test_failed_evaluation_is_retained_with_safe_public_error() -> None:
+    repository = RecordingHistoryRepository()
+    benchmark = service(
+        repository,
+        provider=InvalidResponseProvider(),
+    )
+
+    with pytest.raises(InvalidProviderResponseError):
+        await benchmark.run_evaluation(
+            EvaluationRunRequest(
+                evaluation_thresholds=[0.80, 0.92],
+                allow_external_provider_calls=True,
+            ),
+            builtin_history_namespace="tenant-failed",
+        )
+
+    assert len(repository.records) == 1
+    record = repository.records[0]
+
+    assert record.terminal_state == "failed"
+    assert record.metrics is None
+    assert record.threshold_evaluations == ()
+    assert record.failure_code == InvalidProviderResponseError.error_code
+    assert record.safe_failure_detail == InvalidProviderResponseError.public_detail
+    assert "raw upstream detail" not in (record.safe_failure_detail or "")
+    assert record.context.accepted_at <= record.started_at <= record.completed_at
+
+
+@pytest.mark.asyncio
+async def test_unhandled_failure_does_not_retain_exception_message() -> None:
+    repository = RecordingHistoryRepository()
+    benchmark = service(
+        repository,
+        provider=SecretFailureProvider(),
+    )
+
+    with pytest.raises(RuntimeError, match="synthetic-secret-provider-detail"):
+        await benchmark.run_evaluation(
+            EvaluationRunRequest(
+                evaluation_thresholds=[0.80, 0.92],
+                allow_external_provider_calls=True,
+            ),
+            builtin_history_namespace="tenant-internal-failure",
+        )
+
+    assert len(repository.records) == 1
+    record = repository.records[0]
+
+    assert record.terminal_state == "failed"
+    assert record.failure_code == "internal_error"
+    assert record.safe_failure_detail is None
+
+
+@pytest.mark.asyncio
+async def test_timeout_while_waiting_for_run_lock_is_retained() -> None:
+    repository = RecordingHistoryRepository()
+    benchmark = service(
+        repository,
+        evaluation_timeout_seconds=0.05,
+    )
+    run_lock = benchmark._run_lock
+    await run_lock.acquire()
+
+    try:
+        with pytest.raises(EvaluationTimeoutError):
+            await benchmark.run_evaluation(
+                EvaluationRunRequest(
+                    evaluation_thresholds=[0.80, 0.92],
+                    allow_external_provider_calls=True,
+                ),
+                builtin_history_namespace="tenant-timeout",
+            )
+    finally:
+        run_lock.release()
+
+    assert len(repository.records) == 1
+    record = repository.records[0]
+
+    assert record.terminal_state == "timed_out"
+    assert record.metrics is None
+    assert record.threshold_evaluations == ()
+    assert record.failure_code == EvaluationTimeoutError.error_code
+    assert record.safe_failure_detail == EvaluationTimeoutError.public_detail
+    assert record.context.accepted_at <= record.started_at <= record.completed_at
+
+
+@pytest.mark.asyncio
+async def test_failure_history_write_does_not_replace_original_error() -> None:
+    repository = RecordingHistoryRepository(fail_writes=True)
+    benchmark = service(
+        repository,
+        provider=InvalidResponseProvider(),
+    )
+
+    with pytest.raises(InvalidProviderResponseError):
+        await benchmark.run_evaluation(
+            EvaluationRunRequest(
+                evaluation_thresholds=[0.80, 0.92],
+                allow_external_provider_calls=True,
+            ),
+            builtin_history_namespace="tenant-write-failure",
+        )
+
+    assert repository.records == []
+
+
+@pytest.mark.asyncio
+async def test_cancelled_evaluation_is_not_retained() -> None:
+    repository = RecordingHistoryRepository()
+    provider = BlockingProvider()
+    benchmark = service(repository, provider=provider)
+
+    task = asyncio.create_task(
+        benchmark.run_evaluation(
+            EvaluationRunRequest(
+                evaluation_thresholds=[0.80, 0.92],
+                allow_external_provider_calls=True,
+            ),
+            builtin_history_namespace="tenant-cancelled",
+        )
+    )
+    await provider.started.wait()
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
     assert repository.records == []
