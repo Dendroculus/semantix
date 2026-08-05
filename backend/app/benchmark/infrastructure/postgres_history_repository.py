@@ -29,6 +29,18 @@ WHERE run_id IN (
 )
 """
 
+PRUNE_OLDEST_ACTIVE_HISTORY = """
+DELETE FROM semantix.evaluation_runs
+WHERE run_id IN (
+    SELECT run_id
+    FROM semantix.evaluation_runs
+    WHERE namespace = $1
+      AND expires_at > CURRENT_TIMESTAMP
+    ORDER BY completed_at ASC, run_id ASC
+    LIMIT $2
+)
+"""
+
 _RUN_COLUMNS = (
     "run_id",
     "namespace",
@@ -196,6 +208,20 @@ class PostgresEvaluationRunHistoryRepository:
             self._cleanup_batch_size,
         )
 
+    async def _prune_oldest_active(
+        self,
+        connection: Connection[Record],
+        namespace: str,
+        count: int,
+    ) -> None:
+        if count <= 0:
+            return
+        await connection.execute(
+            PRUNE_OLDEST_ACTIVE_HISTORY,
+            namespace,
+            count,
+        )
+
     def _source_dataset_id(
         self,
         record: EvaluationRunHistoryRecord,
@@ -341,10 +367,15 @@ class PostgresEvaluationRunHistoryRepository:
                     namespace,
                 )
             )
-            if active_count >= self._max_per_namespace:
-                raise EvaluationRunHistoryStorageError(
-                    "Evaluation run history namespace capacity exceeded"
-                )
+            prune_count = max(
+                0,
+                active_count - self._max_per_namespace + 1,
+            )
+            await self._prune_oldest_active(
+                connection,
+                namespace,
+                prune_count,
+            )
 
             await connection.execute(
                 INSERT_RUN,

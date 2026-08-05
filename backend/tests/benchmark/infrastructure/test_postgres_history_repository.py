@@ -453,7 +453,76 @@ async def test_persisted_source_caps_retention_and_dataset_delete_cascades(
 
 
 @pytest.mark.asyncio
-async def test_repository_enforces_capacity_and_bounded_expiry_cleanup(
+async def test_repository_prunes_oldest_active_history_deterministically(
+    history_pool: Pool,
+) -> None:
+    await apply_migrations(history_pool)
+
+    namespace = "tenant-rolling"
+    base_completed = datetime.now(UTC)
+    seed_repository = PostgresEvaluationRunHistoryRepository(
+        history_pool,
+        retention_days=30,
+        max_per_namespace=10,
+        cleanup_batch_size=10,
+    )
+    records = [
+        _history_record(
+            run_id=f"{value:032x}",
+            namespace=namespace,
+            completed_at=(
+                base_completed
+                if value in {1, 2}
+                else base_completed + timedelta(seconds=value - 1)
+            ),
+        )
+        for value in range(1, 5)
+    ]
+
+    for record in records:
+        await seed_repository.persist_terminal_run(record)
+
+    rolling_repository = PostgresEvaluationRunHistoryRepository(
+        history_pool,
+        retention_days=30,
+        max_per_namespace=2,
+        cleanup_batch_size=10,
+    )
+    newest = _history_record(
+        run_id=f"{5:032x}",
+        namespace=namespace,
+        completed_at=base_completed + timedelta(seconds=4),
+    )
+    await rolling_repository.persist_terminal_run(newest)
+
+    async with history_pool.acquire() as connection:
+        retained = await connection.fetch(
+            """
+            SELECT run_id
+            FROM semantix.evaluation_runs
+            WHERE namespace = $1
+            ORDER BY completed_at ASC, run_id ASC
+            """,
+            namespace,
+        )
+        pruned_thresholds = await connection.fetchval(
+            """
+            SELECT COUNT(*)
+            FROM semantix.evaluation_run_thresholds
+            WHERE run_id = ANY($1::uuid[])
+            """,
+            [UUID(record.context.run_id) for record in records[:3]],
+        )
+
+    assert [row["run_id"] for row in retained] == [
+        UUID(records[3].context.run_id),
+        UUID(newest.context.run_id),
+    ]
+    assert pruned_thresholds == 0
+
+
+@pytest.mark.asyncio
+async def test_repository_keeps_expiry_cleanup_bounded_and_namespace_scoped(
     history_pool: Pool,
 ) -> None:
     await apply_migrations(history_pool)
@@ -461,22 +530,25 @@ async def test_repository_enforces_capacity_and_bounded_expiry_cleanup(
     seed_repository = PostgresEvaluationRunHistoryRepository(
         history_pool,
         retention_days=30,
-        max_per_namespace=2,
+        max_per_namespace=10,
         cleanup_batch_size=10,
     )
-    first = _history_record(namespace="tenant-capacity")
-    second = _history_record(namespace="tenant-capacity")
+    first = _history_record(
+        run_id=f"{1:032x}",
+        namespace="tenant-cleanup",
+    )
+    second = _history_record(
+        run_id=f"{2:032x}",
+        namespace="tenant-cleanup",
+    )
+    foreign = _history_record(
+        run_id=f"{3:032x}",
+        namespace="tenant-other",
+    )
 
     await seed_repository.persist_terminal_run(first)
     await seed_repository.persist_terminal_run(second)
-
-    with pytest.raises(
-        EvaluationRunHistoryStorageError,
-        match="namespace capacity exceeded",
-    ):
-        await seed_repository.persist_terminal_run(
-            _history_record(namespace="tenant-capacity")
-        )
+    await seed_repository.persist_terminal_run(foreign)
 
     expired_completed = datetime.now(UTC) - timedelta(days=3)
     expired_started = expired_completed - timedelta(seconds=1)
@@ -491,38 +563,44 @@ async def test_repository_enforces_capacity_and_bounded_expiry_cleanup(
                 started_at = $2,
                 completed_at = $3,
                 expires_at = $4
-            WHERE namespace = 'tenant-capacity'
+            WHERE run_id = ANY($5::uuid[])
             """,
             expired_accepted,
             expired_started,
             expired_completed,
             expired_at,
+            [
+                UUID(first.context.run_id),
+                UUID(second.context.run_id),
+                UUID(foreign.context.run_id),
+            ],
         )
 
     cleanup_repository = PostgresEvaluationRunHistoryRepository(
         history_pool,
         retention_days=30,
-        max_per_namespace=1,
+        max_per_namespace=10,
         cleanup_batch_size=1,
     )
-    fresh = _history_record(namespace="tenant-capacity")
+    fresh = _history_record(namespace="tenant-cleanup")
     await cleanup_repository.persist_terminal_run(fresh)
 
     async with history_pool.acquire() as connection:
-        expired_count = await connection.fetchval(
+        target_expired = await connection.fetch(
             """
-            SELECT COUNT(*)
+            SELECT run_id
             FROM semantix.evaluation_runs
-            WHERE namespace = 'tenant-capacity'
+            WHERE namespace = 'tenant-cleanup'
               AND expires_at <= CURRENT_TIMESTAMP
+            ORDER BY expires_at ASC, run_id ASC
             """
         )
-        active_count = await connection.fetchval(
+        foreign_expired_count = await connection.fetchval(
             """
             SELECT COUNT(*)
             FROM semantix.evaluation_runs
-            WHERE namespace = 'tenant-capacity'
-              AND expires_at > CURRENT_TIMESTAMP
+            WHERE namespace = 'tenant-other'
+              AND expires_at <= CURRENT_TIMESTAMP
             """
         )
         fresh_exists = await connection.fetchval(
@@ -534,8 +612,8 @@ async def test_repository_enforces_capacity_and_bounded_expiry_cleanup(
             UUID(fresh.context.run_id),
         )
 
-    assert expired_count == 1
-    assert active_count == 1
+    assert [row["run_id"] for row in target_expired] == [UUID(second.context.run_id)]
+    assert foreign_expired_count == 1
     assert fresh_exists == 1
 
 
