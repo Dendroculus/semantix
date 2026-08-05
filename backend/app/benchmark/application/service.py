@@ -28,6 +28,7 @@ from app.benchmark.api.schemas import (
     PersistedEvaluationDatasetSource,
     PersistEvaluationDatasetRequest,
 )
+from app.benchmark.application.history import EvaluationRunHistoryRecorder
 from app.benchmark.domain.datasets import (
     DEFAULT_DATASET_ID,
     get_dataset,
@@ -45,7 +46,10 @@ from app.benchmark.domain.models import (
     BenchmarkRuntimeConfiguration,
     PersistedEvaluationDataset,
 )
-from app.benchmark.domain.protocols import EvaluationDatasetRepository
+from app.benchmark.domain.protocols import (
+    EvaluationDatasetRepository,
+    EvaluationRunHistoryRepository,
+)
 from app.benchmark.domain.validation import (
     ValidatedImportedDataset,
     validate_imported_dataset,
@@ -124,6 +128,7 @@ class BenchmarkService:
         prompt_normalizer: Callable[[str], str],
         runtime_configuration: BenchmarkRuntimeConfiguration,
         dataset_repository: EvaluationDatasetRepository | None = None,
+        history_repository: EvaluationRunHistoryRepository | None = None,
     ) -> None:
         if runtime_configuration.evaluation_timeout_seconds <= 0:
             raise ValueError("evaluation_timeout_seconds must be positive")
@@ -134,6 +139,7 @@ class BenchmarkService:
         self._prompt_normalizer = prompt_normalizer
         self._runtime_configuration = runtime_configuration
         self._dataset_repository = dataset_repository
+        self._history_recorder = EvaluationRunHistoryRecorder(history_repository)
         self._run_lock = asyncio.Lock()
 
     @property
@@ -149,7 +155,7 @@ class BenchmarkService:
     async def run(self, request: BenchmarkRunRequest) -> BenchmarkRunResponse:
         dataset = get_dataset(request.dataset_id)
         accepted_run = self._accept_run(dataset)
-        return await self._run_bounded(request, dataset, accepted_run)
+        return await self._run_accepted(request, dataset, accepted_run)
 
     def validate_dataset(
         self,
@@ -203,7 +209,7 @@ class BenchmarkService:
             history_namespace=resolved_history_namespace,
             source_dataset_expires_at=source_dataset_expires_at,
         )
-        return await self._run_bounded(request, dataset, accepted_run)
+        return await self._run_accepted(request, dataset, accepted_run)
 
     async def list_persisted_datasets(
         self,
@@ -354,6 +360,15 @@ class BenchmarkService:
             history_namespace=history_namespace,
             source_dataset_expires_at=source_dataset_expires_at,
         )
+
+    async def _run_accepted(
+        self,
+        request: EvaluationRunOptions,
+        dataset: BenchmarkDataset,
+        accepted_run: AcceptedEvaluationRunContext,
+    ) -> BenchmarkRunResponse:
+        response = await self._run_bounded(request, dataset, accepted_run)
+        return await self._history_recorder.retain_completed(accepted_run, response)
 
     async def _run_bounded(
         self,
