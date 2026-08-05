@@ -12,6 +12,10 @@ os.environ["EVALUATION_RUN_HISTORY_STORAGE"] = "disabled"
 
 from app.core.config import Settings, get_settings
 
+# Keep automated tests deterministic by ignoring developer-local .env values.
+# Tests use explicit settings and controlled environment variables instead.
+Settings.model_config["env_file"] = None
+
 
 @pytest.fixture
 def settings() -> Settings:
