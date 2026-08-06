@@ -6,6 +6,7 @@ import {
   getEvaluationRunHistory,
   getEvaluationRunHistoryDetail,
 } from '@/features/benchmark/api/benchmarkApi';
+import { useEvaluationRunComparison } from '@/features/benchmark/hooks/useEvaluationRunComparison';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { canDeleteEvaluationRunHistory } from '@/features/auth/permissions';
 import { isCacheNamespace } from '@/features/cache/namespace';
@@ -17,6 +18,7 @@ import {
 import { benchmarkHistoryKeys } from '@/shared/query/queryKeys';
 
 import type { EvaluationRunHistoryItem } from '@/features/benchmark/types';
+import { EvaluationRunComparisonWorkspace } from './EvaluationRunComparisonWorkspace';
 import { EvaluationRunHistoryDetailPanel } from './EvaluationRunHistoryDetail';
 import { EvaluationRunHistoryFilter } from './EvaluationRunHistoryFilter';
 import { EvaluationRunHistoryList } from './EvaluationRunHistoryList';
@@ -37,6 +39,7 @@ function defaultNamespace(
 export function EvaluationRunHistory(): JSX.Element {
   const auth = useAuth();
   const queryClient = useQueryClient();
+  const comparison = useEvaluationRunComparison();
   const namespaces = useMemo(
     () => auth.session?.namespaces.filter((item) => item !== '*') ?? [],
     [auth.session],
@@ -58,6 +61,8 @@ export function EvaluationRunHistory(): JSX.Element {
   const [actionError, setActionError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
 
+  const resetComparison = comparison.clear;
+
   useEffect(() => {
     const nextNamespace = defaultNamespace(
       auth.status,
@@ -70,11 +75,13 @@ export function EvaluationRunHistory(): JSX.Element {
     setSelectedRunId(null);
     setPendingDelete(null);
     setNamespaceError(null);
+    resetComparison();
   }, [
     auth.session?.name,
     auth.status,
     hasGlobalNamespace,
     namespaces,
+    resetComparison,
   ]);
 
   const catalogQuery = useQuery({
@@ -127,6 +134,7 @@ export function EvaluationRunHistory(): JSX.Element {
     setOffset(0);
     setSelectedRunId(null);
     setPendingDelete(null);
+    comparison.clear();
   }
 
   async function deleteRun(item: EvaluationRunHistoryItem): Promise<void> {
@@ -148,6 +156,7 @@ export function EvaluationRunHistory(): JSX.Element {
       if (selectedRunId === item.run_id) {
         setSelectedRunId(null);
       }
+      comparison.removeRun(item.run_id);
       await queryClient.invalidateQueries({
         queryKey: benchmarkHistoryKeys.all,
       });
@@ -180,8 +189,10 @@ export function EvaluationRunHistory(): JSX.Element {
           Run history
         </h2>
         <p className="mt-2 max-w-3xl text-sm/6 text-(--text-muted)">
-          Browse terminal aggregate results retained by namespace. History never
-          stores per-query prompts, generated responses, or matched cache keys.
+          Browse terminal aggregate results retained by namespace. Select
+          exactly two retained runs for a server-checked comparison. History
+          never stores per-query prompts, generated responses, or matched cache
+          keys.
         </p>
       </header>
 
@@ -199,6 +210,7 @@ export function EvaluationRunHistory(): JSX.Element {
           setNamespace(value);
           setOffset(0);
           setSelectedRunId(null);
+          comparison.clear();
         }}
       />
 
@@ -233,7 +245,7 @@ export function EvaluationRunHistory(): JSX.Element {
           <p className="font-data mt-1 text-[10px]/5 text-(--text-soft)">
             This deployment does not retain evaluation runs in PostgreSQL.
             Measured runs can still complete normally, but no durable history is
-            available to browse.
+            available to browse or compare.
           </p>
         </Alert>
       )}
@@ -264,6 +276,7 @@ export function EvaluationRunHistory(): JSX.Element {
         <EvaluationRunHistoryList
           canDelete={canDelete}
           catalog={catalog}
+          comparisonRunIds={comparison.selectedRuns.map((item) => item.run_id)}
           deletingRunId={deletingRunId}
           offset={offset}
           pendingDelete={pendingDelete}
@@ -281,8 +294,11 @@ export function EvaluationRunHistory(): JSX.Element {
             setActionError(null);
             setSelectedRunId(runId);
           }}
+          onToggleComparison={comparison.toggleRun}
         />
       )}
+
+      <EvaluationRunComparisonWorkspace controller={comparison} />
 
       {detailQuery.isPending && selectedRunId !== null && (
         <output

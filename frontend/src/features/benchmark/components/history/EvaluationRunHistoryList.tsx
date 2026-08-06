@@ -22,6 +22,7 @@ const PAGE_SIZE = 12;
 interface EvaluationRunHistoryListProps {
   canDelete: boolean;
   catalog: EvaluationRunHistoryListResponse;
+  comparisonRunIds: readonly string[];
   deletingRunId: string | null;
   offset: number;
   pendingDelete: string | null;
@@ -30,6 +31,7 @@ interface EvaluationRunHistoryListProps {
   onDeleteRequest: (runId: string) => void;
   onOffsetChange: (offset: number) => void;
   onSelect: (runId: string) => void;
+  onToggleComparison: (item: EvaluationRunHistoryItem) => void;
 }
 
 function stateClass(
@@ -82,9 +84,20 @@ function RunSummary({
   );
 }
 
+function comparisonLabel(index: number): string {
+  if (index === 0) {
+    return 'Baseline selected';
+  }
+  if (index === 1) {
+    return 'Candidate selected';
+  }
+  return 'Select to compare';
+}
+
 export function EvaluationRunHistoryList({
   canDelete,
   catalog,
+  comparisonRunIds,
   deletingRunId,
   offset,
   pendingDelete,
@@ -93,6 +106,7 @@ export function EvaluationRunHistoryList({
   onDeleteRequest,
   onOffsetChange,
   onSelect,
+  onToggleComparison,
 }: Readonly<EvaluationRunHistoryListProps>): JSX.Element {
   if (catalog.items.length === 0) {
     return (
@@ -107,93 +121,115 @@ export function EvaluationRunHistoryList({
   return (
     <>
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        {catalog.items.map((item) => (
-          <article
-            className="min-w-0 border border-(--hairline) p-4"
-            key={item.run_id}
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className={`ui-label ${stateClass(item.terminal_state)}`}>
-                  {item.terminal_state.replace('_', ' ')}
-                </p>
-                <h3 className="mt-2 wrap-break-word text-base text-(--text)">
-                  {item.dataset.name}
-                </h3>
-                <code
-                  className="font-data mt-1 block text-[10px] text-(--text-faint)"
-                  title={item.run_id}
-                >
-                  {item.run_id.slice(0, 12)}...
-                </code>
-              </div>
-              <span className="font-data wrap-break-word text-[10px] text-(--text-faint)">
-                {item.namespace}
-              </span>
-            </div>
+        {catalog.items.map((item) => {
+          const comparisonIndex = comparisonRunIds.indexOf(item.run_id);
+          const selectedForComparison = comparisonIndex >= 0;
+          const comparisonFull =
+            comparisonRunIds.length >= 2 && !selectedForComparison;
 
-            <RunSummary item={item} />
-
-            <dl className="font-data mt-4 grid grid-cols-2 gap-3 border-t border-(--hairline) pt-3 text-[10px]/5">
-              <div>
-                <dt className="text-(--text-faint)">Completed</dt>
-                <dd
-                  className="mt-1 text-(--text-soft)"
-                  title={item.completed_at}
-                >
-                  {formatTimestamp(item.completed_at)}
-                </dd>
+          return (
+            <article
+              className="min-w-0 border border-(--hairline) p-4"
+              key={item.run_id}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className={`ui-label ${stateClass(item.terminal_state)}`}>
+                    {item.terminal_state.replace('_', ' ')}
+                  </p>
+                  <h3 className="mt-2 wrap-break-word text-base text-(--text)">
+                    {item.dataset.name}
+                  </h3>
+                  <code
+                    className="font-data mt-1 block text-[10px] text-(--text-faint)"
+                    title={item.run_id}
+                  >
+                    {item.run_id.slice(0, 12)}...
+                  </code>
+                </div>
+                <span className="font-data wrap-break-word text-[10px] text-(--text-faint)">
+                  {item.namespace}
+                </span>
               </div>
-              <div>
-                <dt className="text-(--text-faint)">Expires</dt>
-                <dd
-                  className="mt-1 text-(--gold)"
-                  title={item.expires_at}
-                >
-                  {formatTimestamp(item.expires_at)}
-                </dd>
-              </div>
-            </dl>
 
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Button
-                size="compact"
-                variant="secondary"
-                onClick={() => onSelect(item.run_id)}
-              >
-                View details
-              </Button>
-              {canDelete && pendingDelete !== item.run_id && (
+              <RunSummary item={item} />
+
+              <dl className="font-data mt-4 grid grid-cols-2 gap-3 border-t border-(--hairline) pt-3 text-[10px]/5">
+                <div>
+                  <dt className="text-(--text-faint)">Completed</dt>
+                  <dd
+                    className="mt-1 text-(--text-soft)"
+                    title={item.completed_at}
+                  >
+                    {formatTimestamp(item.completed_at)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-(--text-faint)">Expires</dt>
+                  <dd
+                    className="mt-1 text-(--gold)"
+                    title={item.expires_at}
+                  >
+                    {formatTimestamp(item.expires_at)}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="mt-4 flex flex-wrap gap-3">
                 <Button
                   size="compact"
-                  variant="link"
-                  onClick={() => onDeleteRequest(item.run_id)}
+                  variant="secondary"
+                  onClick={() => onSelect(item.run_id)}
                 >
-                  Delete
+                  View details
                 </Button>
-              )}
-            </div>
+                <Button
+                  aria-pressed={selectedForComparison}
+                  disabled={comparisonFull}
+                  size="compact"
+                  variant={selectedForComparison ? 'secondary' : 'link'}
+                  onClick={() => onToggleComparison(item)}
+                >
+                  {comparisonLabel(comparisonIndex)}
+                </Button>
+                {canDelete && pendingDelete !== item.run_id && (
+                  <Button
+                    size="compact"
+                    variant="link"
+                    onClick={() => onDeleteRequest(item.run_id)}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </div>
 
-            {pendingDelete === item.run_id && (
-              <InlineConfirmation
-                ariaLabel={`Delete retained run ${item.run_id}`}
-                className="mt-4"
-                confirmLabel="Delete retained run"
-                isPending={deletingRunId === item.run_id}
-                message={
-                  <>
-                    Delete this retained aggregate from{' '}
-                    <strong>{item.namespace}</strong>? This does not delete
-                    the source dataset.
-                  </>
-                }
-                onCancel={onDeleteCancel}
-                onConfirm={() => onDelete(item)}
-                pendingLabel="Deleting..."
-              />
-            )}
-          </article>
-        ))}
+              {comparisonFull && (
+                <p className="font-data mt-2 text-[10px]/5 text-(--text-faint)">
+                  Two runs are already selected. Remove one to choose this run.
+                </p>
+              )}
+
+              {pendingDelete === item.run_id && (
+                <InlineConfirmation
+                  ariaLabel={`Delete retained run ${item.run_id}`}
+                  className="mt-4"
+                  confirmLabel="Delete retained run"
+                  isPending={deletingRunId === item.run_id}
+                  message={
+                    <>
+                      Delete this retained aggregate from{' '}
+                      <strong>{item.namespace}</strong>? This does not delete
+                      the source dataset.
+                    </>
+                  }
+                  onCancel={onDeleteCancel}
+                  onConfirm={() => onDelete(item)}
+                  pendingLabel="Deleting..."
+                />
+              )}
+            </article>
+          );
+        })}
       </div>
 
       <nav
