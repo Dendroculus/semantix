@@ -12,18 +12,17 @@ import {
 
 interface BenchmarkRunOptionsProps {
   controller: BenchmarkController;
-  historyNamespaceValid: boolean;
 }
 
 export function BenchmarkRunOptions({
   controller,
-  historyNamespaceValid,
 }: Readonly<BenchmarkRunOptionsProps>): JSX.Element {
   const {
     canRun,
     datasets,
     datasetsLoading,
     form,
+    historyNamespaceValid,
     isRunning,
     sweep,
   } = controller;

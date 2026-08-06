@@ -103,7 +103,7 @@ function MetricCard({
               {metric.delta === null ? 'n/a' : metric.formatDelta(metric.delta)}
             </span>
             <span className="mt-1 block text-(--text-muted)">
-              {outcome(metric.delta, metric.objective)} ?{' '}
+              {outcome(metric.delta, metric.objective)} ·{' '}
               {objectiveDescription(metric.objective)}
             </span>
           </dd>

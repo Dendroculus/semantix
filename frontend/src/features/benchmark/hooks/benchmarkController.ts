@@ -1,5 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 
+import type { AuthStatus } from "@/features/auth/context/AuthContext";
+import { isCacheNamespace } from "@/features/cache/namespace";
 import type { ApiValidationIssue } from "@/shared/api/types";
 
 import type { ThresholdSweep } from "../lib/thresholdSweep";
@@ -40,6 +42,8 @@ export interface BenchmarkController {
   canSaveImport: boolean;
   error: string | null;
   form: BenchmarkForm;
+  historyNamespaceRequired: boolean;
+  historyNamespaceValid: boolean;
   importError: string | null;
   importFileName: string | null;
   importIssues: ApiValidationIssue[];
@@ -67,6 +71,50 @@ export interface BenchmarkController {
   ) => void;
   selectImportFile: (file: File) => Promise<void>;
   setForm: Dispatch<SetStateAction<BenchmarkForm>>;
+}
+
+interface HistoryNamespacePolicy {
+  required: boolean;
+  valid: boolean;
+}
+
+export function historyNamespacePolicy(
+  authStatus: AuthStatus,
+  namespaces: readonly string[],
+  datasetSource: BenchmarkForm["datasetSource"],
+  requestedNamespace: string,
+): HistoryNamespacePolicy {
+  if (datasetSource !== "builtin") {
+    return { required: false, valid: true };
+  }
+
+  const concreteNamespaces = namespaces.filter(
+    (namespace) => namespace !== "*",
+  );
+  const hasGlobalNamespace = namespaces.includes("*");
+  const required =
+    authStatus === "disabled" ||
+    (authStatus === "authenticated" &&
+      (hasGlobalNamespace || concreteNamespaces.length !== 1));
+  const requested = requestedNamespace.trim();
+
+  if (requested === "") {
+    return { required, valid: !required };
+  }
+
+  if (!isCacheNamespace(requested)) {
+    return { required, valid: false };
+  }
+
+  if (
+    authStatus === "authenticated" &&
+    !hasGlobalNamespace &&
+    !concreteNamespaces.includes(requested)
+  ) {
+    return { required, valid: false };
+  }
+
+  return { required, valid: true };
 }
 
 export const DEFAULT_BENCHMARK_FORM: BenchmarkForm = {

@@ -30,6 +30,7 @@ import {
   BENCHMARK_DATASET_STALE_TIME_MS,
   DEFAULT_BENCHMARK_FORM,
   customSummary,
+  historyNamespacePolicy,
   persistedSummary,
   type BenchmarkController,
   type BenchmarkForm,
@@ -117,6 +118,17 @@ export function useBenchmark(): BenchmarkController {
     auth.status,
     auth.session,
   );
+
+  const {
+    required: historyNamespaceRequired,
+    valid: historyNamespaceValid,
+  } = historyNamespacePolicy(
+    auth.status,
+    auth.session?.namespaces ?? [],
+    form.datasetSource,
+    form.historyNamespace,
+  );
+
   const sweep = compileThresholdSweep(
     form.sweepStart,
     form.sweepEnd,
@@ -169,6 +181,7 @@ export function useBenchmark(): BenchmarkController {
     canRun,
     form,
     hasRunnableDataset,
+    historyNamespaceValid,
     importedDefinition: datasetWorkflow.importedDefinition,
     setError,
     setResult,
@@ -187,6 +200,8 @@ export function useBenchmark(): BenchmarkController {
     canSaveImport,
     error: error ?? datasetError,
     form,
+    historyNamespaceRequired,
+    historyNamespaceValid,
     importError: datasetWorkflow.importError,
     importFileName: datasetWorkflow.importFileName,
     importIssues: datasetWorkflow.importIssues,

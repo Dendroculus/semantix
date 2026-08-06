@@ -17,6 +17,7 @@ interface EvaluationRunWorkflowOptions {
   canRun: boolean;
   form: BenchmarkForm;
   hasRunnableDataset: boolean;
+  historyNamespaceValid: boolean;
   importedDefinition: unknown;
   setError: Dispatch<SetStateAction<string | null>>;
   setResult: Dispatch<SetStateAction<BenchmarkRunResponse | null>>;
@@ -40,6 +41,7 @@ export function useEvaluationRunWorkflow({
   canRun,
   form,
   hasRunnableDataset,
+  historyNamespaceValid,
   importedDefinition,
   setError,
   setResult,
@@ -87,7 +89,12 @@ export function useEvaluationRunWorkflow({
   );
 
   async function reviewRun(): Promise<void> {
-    if (!canRun || sweep.error !== null || !hasRunnableDataset) {
+    if (
+      !canRun ||
+      sweep.error !== null ||
+      !hasRunnableDataset ||
+      !historyNamespaceValid
+    ) {
       return;
     }
     if (form.datasetSource === "custom") {
@@ -106,6 +113,7 @@ export function useEvaluationRunWorkflow({
     if (
       !canRun ||
       !hasRunnableDataset ||
+      !historyNamespaceValid ||
       sweep.error !== null ||
       (form.datasetSource === "custom" && importedDefinition === null)
     ) {

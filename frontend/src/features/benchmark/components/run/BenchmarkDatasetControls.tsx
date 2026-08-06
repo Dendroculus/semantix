@@ -14,12 +14,10 @@ import {
 
 interface BenchmarkDatasetControlsProps {
   controller: BenchmarkController;
-  historyNamespaceValid: boolean;
 }
 
 export function BenchmarkDatasetControls({
   controller,
-  historyNamespaceValid,
 }: Readonly<BenchmarkDatasetControlsProps>): JSX.Element {
   const auth = useAuth();
   const authorizedNamespaces = useMemo(
@@ -27,7 +25,14 @@ export function BenchmarkDatasetControls({
     [auth.session],
   );
   const hasGlobalNamespace = auth.session?.namespaces.includes('*') ?? false;
-  const { datasets, datasetsLoading, form, isRunning } = controller;
+  const {
+    datasets,
+    datasetsLoading,
+    form,
+    historyNamespaceRequired,
+    historyNamespaceValid,
+    isRunning,
+  } = controller;
 
   let historyNamespaceControl: JSX.Element;
 
@@ -52,7 +57,9 @@ export function BenchmarkDatasetControls({
     historyNamespaceControl = (
       <select
         aria-describedby="benchmark-history-namespace-guidance"
+        aria-invalid={!historyNamespaceValid}
         aria-label="Benchmark history namespace"
+        aria-required={historyNamespaceRequired}
         className={BENCHMARK_CONTROL_CLASS}
         disabled={isRunning}
         value={form.historyNamespace}
@@ -76,6 +83,7 @@ export function BenchmarkDatasetControls({
         aria-describedby="benchmark-history-namespace-guidance"
         aria-invalid={!historyNamespaceValid}
         aria-label="Benchmark history namespace"
+        aria-required={historyNamespaceRequired}
         className={BENCHMARK_CONTROL_CLASS}
         disabled={isRunning}
         placeholder="Required for wildcard history retention"
@@ -87,6 +95,21 @@ export function BenchmarkDatasetControls({
         }
       />
     );
+  }
+
+  let historyNamespaceGuidance: string;
+  if (!historyNamespaceValid) {
+    historyNamespaceGuidance =
+      'Choose a concrete authorized namespace before reviewing this built-in run.';
+  } else if (auth.status === 'disabled' || hasGlobalNamespace) {
+    historyNamespaceGuidance =
+      'Choose a concrete namespace for retained built-in history. The * marker grants authorization scope and is never stored as run ownership.';
+  } else if (authorizedNamespaces.length === 1) {
+    historyNamespaceGuidance =
+      'Built-in runs inherit your sole authorized namespace automatically.';
+  } else {
+    historyNamespaceGuidance =
+      'Choose one authorized namespace for retained built-in history.';
   }
 
   return (
@@ -180,9 +203,7 @@ export function BenchmarkDatasetControls({
             }`}
             id="benchmark-history-namespace-guidance"
           >
-            {historyNamespaceValid
-              ? 'Built-in runs inherit a sole authorized namespace automatically. Wildcard or multi-namespace access can choose one explicitly when durable history is enabled.'
-              : 'Enter a valid namespace before reviewing this run.'}
+            {historyNamespaceGuidance}
           </span>
         </label>
       )}

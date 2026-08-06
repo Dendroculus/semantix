@@ -107,6 +107,19 @@ function renderDashboard() {
 describe('BenchmarkDashboard', () => {
   beforeEach(() => {
     queryClient = createTestQueryClient();
+    vi.mocked(useAuth).mockReturnValue({
+      authenticate: vi.fn(async () => false),
+      error: null,
+      lockedUntil: null,
+      logout: vi.fn(),
+      retryAccessPolicy: vi.fn(),
+      session: {
+        name: 'default-operator',
+        role: 'operator',
+        namespaces: ['default'],
+      },
+      status: 'authenticated',
+    });
     vi.mocked(getBenchmarkDatasets).mockResolvedValue({
       ok: true,
       data: {

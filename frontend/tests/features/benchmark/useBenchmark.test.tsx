@@ -73,6 +73,7 @@ describe("useBenchmark", () => {
 
   beforeEach(() => {
     queryClient = createTestQueryClient();
+    vi.mocked(useAuth).mockReturnValue(principalA);
     vi.mocked(getBenchmarkDatasets).mockResolvedValue({
       ok: true,
       data: {
