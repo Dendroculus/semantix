@@ -11,7 +11,7 @@ import {
   formatUsd,
 } from '@/shared/lib/formatters';
 
-type Objective = 'higher' | 'lower' | 'changed';
+type Objective = 'higher' | 'lower' | 'changed' | 'efficiency';
 type MetricKind = 'measured' | 'estimated';
 
 interface MetricDefinition {
@@ -50,7 +50,7 @@ function outcome(delta: number | null, objective: Objective): string {
   if (delta === null || delta === 0) {
     return 'Unchanged';
   }
-  if (objective === 'changed') {
+  if (objective === 'changed' || objective === 'efficiency') {
     return 'Changed';
   }
   const improved =
@@ -65,6 +65,9 @@ function objectiveDescription(objective: Objective): string {
   }
   if (objective === 'lower') {
     return 'lower is better';
+  }
+  if (objective === 'efficiency') {
+    return 'efficiency signal; assess with correctness metrics';
   }
   return 'no quality direction implied';
 }
@@ -167,7 +170,7 @@ export function EvaluationRunComparisonMetrics({
     {
       label: 'Hit rate',
       kind: 'measured',
-      objective: 'higher',
+      objective: 'changed',
       baseline: baseline.hit_rate,
       candidate: candidate.hit_rate,
       delta: deltas.hit_rate,
@@ -217,7 +220,7 @@ export function EvaluationRunComparisonMetrics({
     {
       label: 'Provider calls',
       kind: 'measured',
-      objective: 'lower',
+      objective: 'efficiency',
       baseline: baseline.provider_calls,
       candidate: candidate.provider_calls,
       delta: deltas.provider_calls,
@@ -227,7 +230,7 @@ export function EvaluationRunComparisonMetrics({
     {
       label: 'Provider calls avoided',
       kind: 'measured',
-      objective: 'higher',
+      objective: 'efficiency',
       baseline: baseline.provider_calls_avoided,
       candidate: candidate.provider_calls_avoided,
       delta: deltas.provider_calls_avoided,
@@ -267,7 +270,7 @@ export function EvaluationRunComparisonMetrics({
     {
       label: 'Estimated latency saved',
       kind: 'estimated',
-      objective: 'higher',
+      objective: 'efficiency',
       baseline: baseline.estimated_latency_saved_ms,
       candidate: candidate.estimated_latency_saved_ms,
       delta: deltas.estimated_latency_saved_ms,
@@ -277,7 +280,7 @@ export function EvaluationRunComparisonMetrics({
     {
       label: 'Estimated tokens saved',
       kind: 'estimated',
-      objective: 'higher',
+      objective: 'efficiency',
       baseline: baseline.estimated_tokens_saved,
       candidate: candidate.estimated_tokens_saved,
       delta: deltas.estimated_tokens_saved,
@@ -287,7 +290,7 @@ export function EvaluationRunComparisonMetrics({
     {
       label: 'Estimated provider cost saved',
       kind: 'estimated',
-      objective: 'higher',
+      objective: 'efficiency',
       baseline: baseline.estimated_provider_cost_saved_usd,
       candidate: candidate.estimated_provider_cost_saved_usd,
       delta: deltas.estimated_provider_cost_saved_usd,
