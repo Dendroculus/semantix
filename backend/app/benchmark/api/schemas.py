@@ -1,8 +1,8 @@
 """Compatibility facade for benchmark API schemas.
 
-Concrete schema groups live in focused modules so dataset, run, and durable-history
-contracts can evolve independently. Existing imports from ``app.benchmark.api.schemas``
-remain supported to avoid repository-wide import churn.
+Concrete schema groups live in focused modules so dataset, run, durable-history, and
+comparison contracts can evolve independently. Existing imports from
+``app.benchmark.api.schemas`` remain supported to avoid repository-wide import churn.
 """
 
 from app.benchmark.api.common_schemas import (
@@ -25,6 +25,18 @@ from app.benchmark.api.common_schemas import (
     ThresholdEvaluation,
     ThresholdEvaluationMode,
     ThresholdResultKind,
+)
+from app.benchmark.api.comparison_schemas import (
+    EvaluationComparisonBlocker,
+    EvaluationComparisonBlockerCode,
+    EvaluationComparisonCompatibility,
+    EvaluationComparisonMetricDeltas,
+    EvaluationComparisonStatus,
+    EvaluationComparisonWarning,
+    EvaluationComparisonWarningCode,
+    EvaluationRunComparisonRequest,
+    EvaluationRunComparisonResponse,
+    EvaluationThresholdComparisonDelta,
 )
 from app.benchmark.api.dataset_schemas import (
     BuiltinEvaluationDatasetSource,
@@ -75,7 +87,14 @@ __all__ = [
     "DEFAULT_EVALUATION_THRESHOLDS",
     "DeleteEvaluationRunHistoryResponse",
     "DeletePersistedEvaluationDatasetResponse",
+    "EvaluationComparisonBlocker",
+    "EvaluationComparisonBlockerCode",
+    "EvaluationComparisonCompatibility",
     "EvaluationComparisonContractVersion",
+    "EvaluationComparisonMetricDeltas",
+    "EvaluationComparisonStatus",
+    "EvaluationComparisonWarning",
+    "EvaluationComparisonWarningCode",
     "EvaluationDatasetPreview",
     "EvaluationDatasetPreviewLimits",
     "EvaluationDatasetSource",
@@ -83,6 +102,8 @@ __all__ = [
     "EvaluationDatasetValidationIssue",
     "EvaluationDatasetValidationRequest",
     "EvaluationDatasetWarning",
+    "EvaluationRunComparisonRequest",
+    "EvaluationRunComparisonResponse",
     "EvaluationRunHistoryDetail",
     "EvaluationRunHistoryItem",
     "EvaluationRunHistoryListResponse",
@@ -90,6 +111,7 @@ __all__ = [
     "EvaluationRunRequest",
     "EvaluationRunRetentionState",
     "EvaluationRunRetentionStatus",
+    "EvaluationThresholdComparisonDelta",
     "ImportedEvaluationCase",
     "ImportedEvaluationDatasetDefinition",
     "InlineEvaluationDatasetSource",

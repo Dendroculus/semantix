@@ -13,6 +13,8 @@ from app.benchmark.api.schemas import (
     DeletePersistedEvaluationDatasetResponse,
     EvaluationDatasetPreview,
     EvaluationDatasetValidationRequest,
+    EvaluationRunComparisonRequest,
+    EvaluationRunComparisonResponse,
     EvaluationRunHistoryDetail,
     EvaluationRunHistoryListResponse,
     EvaluationRunRequest,
@@ -240,6 +242,25 @@ async def run_evaluation(
         payload,
         authorized_namespaces=authorized_namespaces,
         builtin_history_namespace=builtin_history_namespace,
+    )
+
+
+@evaluations_router.post(
+    "/runs/compare",
+    response_model=EvaluationRunComparisonResponse,
+)
+@limiter.limit(app_rate_limit)
+async def compare_evaluation_run_history(
+    request: Request,
+    payload: EvaluationRunComparisonRequest,
+    benchmark: BenchmarkDependency,
+    principal: ViewerPrincipal,
+) -> EvaluationRunComparisonResponse:
+    return await benchmark.compare_run_history(
+        payload,
+        authorized_namespaces=(
+            None if principal.has_global_namespace_access else principal.namespaces
+        ),
     )
 
 

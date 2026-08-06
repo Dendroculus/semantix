@@ -4,6 +4,10 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from app.benchmark.api.common_schemas import BenchmarkDatasetListResponse
+from app.benchmark.api.comparison_schemas import (
+    EvaluationRunComparisonRequest,
+    EvaluationRunComparisonResponse,
+)
 from app.benchmark.api.dataset_schemas import (
     EvaluationDatasetPreview,
     EvaluationDatasetValidationRequest,
@@ -43,7 +47,7 @@ from app.providers.protocols import EmbeddingGenerator, GenerationProvider
 
 
 class BenchmarkService:
-    """Thin application facade for evaluation datasets, execution, and history."""
+    """Thin application facade for datasets, execution, history, and comparison."""
 
     def __init__(
         self,
@@ -166,6 +170,17 @@ class BenchmarkService:
     ) -> EvaluationRunHistoryDetail:
         return await self._history_catalog.get_run(
             run_id,
+            authorized_namespaces=authorized_namespaces,
+        )
+
+    async def compare_run_history(
+        self,
+        request: EvaluationRunComparisonRequest,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> EvaluationRunComparisonResponse:
+        return await self._history_catalog.compare_runs(
+            request,
             authorized_namespaces=authorized_namespaces,
         )
 

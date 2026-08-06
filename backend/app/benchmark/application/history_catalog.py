@@ -1,9 +1,14 @@
+from app.benchmark.api.comparison_schemas import (
+    EvaluationRunComparisonRequest,
+    EvaluationRunComparisonResponse,
+)
 from app.benchmark.api.schemas import (
     DeleteEvaluationRunHistoryResponse,
     EvaluationRunHistoryDetail,
     EvaluationRunHistoryItem,
     EvaluationRunHistoryListResponse,
 )
+from app.benchmark.application.comparison import compare_evaluation_runs
 from app.benchmark.domain.models import (
     RetainedEvaluationRun,
     RetainedEvaluationRunSummary,
@@ -120,6 +125,22 @@ class EvaluationRunHistoryCatalog:
         if record is None:
             raise EvaluationRunHistoryNotFoundError
         return _history_detail(record)
+
+    async def compare_runs(
+        self,
+        request: EvaluationRunComparisonRequest,
+        *,
+        authorized_namespaces: AuthorizedNamespaceScope,
+    ) -> EvaluationRunComparisonResponse:
+        baseline = await self.get_run(
+            request.baseline_run_id,
+            authorized_namespaces=authorized_namespaces,
+        )
+        candidate = await self.get_run(
+            request.candidate_run_id,
+            authorized_namespaces=authorized_namespaces,
+        )
+        return compare_evaluation_runs(baseline, candidate)
 
     async def delete_run(
         self,
