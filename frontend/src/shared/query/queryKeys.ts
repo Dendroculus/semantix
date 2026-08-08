@@ -4,6 +4,7 @@ import type { CacheEntryListParams } from "@/features/cache/types";
 
 const PROTECTED_QUERY_ROOTS = new Set([
   "benchmark-datasets",
+  "benchmark-history",
   "cache-entries",
   "runtime-metrics",
 ]);
@@ -44,6 +45,20 @@ export const benchmarkDatasetKeys = {
     ] as const,
   persistedDetail: (datasetId: string) =>
     [...benchmarkDatasetKeys.persisted(), "detail", datasetId] as const,
+};
+
+
+export const benchmarkHistoryKeys = {
+  all: ["benchmark-history"] as const,
+  lists: () => [...benchmarkHistoryKeys.all, "list"] as const,
+  list: (namespace: string, offset: number, limit: number) =>
+    [
+      ...benchmarkHistoryKeys.lists(),
+      { namespace: namespace.trim(), offset, limit },
+    ] as const,
+  details: () => [...benchmarkHistoryKeys.all, "detail"] as const,
+  detail: (runId: string) =>
+    [...benchmarkHistoryKeys.details(), runId] as const,
 };
 
 export function isProtectedQueryKey(queryKey: QueryKey): boolean {

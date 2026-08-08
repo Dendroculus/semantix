@@ -24,6 +24,95 @@ const VIEWPORTS = [
   },
 ] as const;
 
+const HISTORY_NAMESPACE =
+  'tenant-responsive-history-with-a-long-name-for-layout';
+
+function retainedHistoryRun(runId: string) {
+  return {
+    run_id: runId,
+    namespace: HISTORY_NAMESPACE,
+    terminal_state: 'completed' as const,
+    accepted_at: '2026-07-17T09:59:58Z',
+    started_at: benchmarkAnalysisResult.started_at,
+    completed_at: benchmarkAnalysisResult.completed_at,
+    expires_at: '2026-08-16T10:00:02Z',
+    source_dataset_expires_at: null,
+    dataset: {
+      ...benchmarkAnalysisResult.dataset,
+      name: `${benchmarkAnalysisResult.dataset.name} with an intentionally long retained-history label`,
+    },
+    reproducibility: benchmarkAnalysisResult.reproducibility,
+    metrics: benchmarkAnalysisResult.metrics,
+    failure_code: null,
+    safe_failure_detail: null,
+    threshold_evaluation_mode:
+      benchmarkAnalysisResult.threshold_evaluation_mode,
+    threshold_evaluations: benchmarkAnalysisResult.threshold_evaluations,
+  };
+}
+
+const retainedBaseline = retainedHistoryRun('a'.repeat(32));
+const retainedCandidate = retainedHistoryRun('b'.repeat(32));
+
+const comparisonMetricDeltas = {
+  measured_threshold: 0,
+  total_queries: 0,
+  cache_hits: 0,
+  cache_misses: 0,
+  provider_calls: 0,
+  provider_calls_avoided: 0,
+  hit_rate: 0,
+  average_latency_ms: 0,
+  median_latency_ms: 0,
+  p95_latency_ms: 0,
+  average_cache_hit_latency_ms: 0,
+  average_cache_miss_latency_ms: 0,
+  estimated_latency_saved_ms: 0,
+  estimated_provider_cost_saved_usd: 0,
+  estimated_tokens_saved: 0,
+  true_positive_hits: 0,
+  true_negative_misses: 0,
+  false_positive_hits: 0,
+  false_negative_misses: 0,
+  precision: 0,
+  recall: 0,
+  f1_score: 0,
+};
+
+const comparisonThresholdDeltas =
+  benchmarkAnalysisResult.threshold_evaluations.map((evaluation) => ({
+    threshold: evaluation.threshold,
+    baseline_result_kind: evaluation.result_kind,
+    candidate_result_kind: evaluation.result_kind,
+    hit_rate: 0,
+    precision: 0,
+    recall: 0,
+    f1_score: 0,
+    average_latency_ms: 0,
+    provider_calls_avoided: 0,
+    true_positive_hits: 0,
+    true_negative_misses: 0,
+    false_positive_hits: 0,
+    false_negative_misses: 0,
+  }));
+
+function compatibleComparison() {
+  return {
+    baseline: retainedBaseline,
+    candidate: retainedCandidate,
+    compatibility: {
+      status: 'compatible' as const,
+      can_compare: true,
+      incompatibilities: [],
+      warnings: [],
+      case_evidence: 'not_retained' as const,
+      opaque_configuration_fingerprint_matches: true,
+    },
+    metric_deltas: comparisonMetricDeltas,
+    threshold_deltas: comparisonThresholdDeltas,
+  };
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/v1/auth/config', async (route) => {
     await route.fulfill({
@@ -51,6 +140,29 @@ test.beforeEach(async ({ page }) => {
       json: benchmarkAnalysisResult,
     });
   });
+  await page.route('**/api/v1/evaluations/runs?*', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      json: {
+        storage_mode: 'postgres',
+        retention_enabled: true,
+        items: [retainedBaseline, retainedCandidate],
+        total: 2,
+        offset: 0,
+        limit: 12,
+        has_more: false,
+      },
+    });
+  });
+  await page.route(
+    '**/api/v1/evaluations/runs/compare',
+    async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: compatibleComparison(),
+      });
+    },
+  );
   await page.route(
     `**/api/v1/evaluations/datasets/persisted/${persistedDataset.dataset_id}`,
     async (route) => {
@@ -238,6 +350,150 @@ test('session-local import remains readable and bounded at required widths', asy
   await expect(page.getByText('Validated preview')).toHaveCount(0);
 });
 
+test('retained history comparison remains usable and accessible at required widths', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+
+  await page.setViewportSize({ width: 820, height: 1_180 });
+  await page.goto('/evaluations');
+
+  const historyView = page.getByRole('button', { name: 'History' });
+  await historyView.focus();
+  await page.keyboard.press('Enter');
+  await expect(historyView).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page.getByRole('heading', { name: 'Run history' }),
+  ).toBeVisible();
+
+  const firstSelection = page
+    .getByRole('button', { name: 'Select to compare' })
+    .first();
+  await firstSelection.focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('button', { name: 'Baseline selected' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+
+  const secondSelection = page.getByRole('button', {
+    name: 'Select to compare',
+  });
+  await secondSelection.focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('button', { name: 'Candidate selected' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+
+  const compare = page.getByRole('button', {
+    name: 'Compare selected runs',
+  });
+  await compare.focus();
+  await page.keyboard.press('Enter');
+
+  await expect(
+    page.getByRole('heading', { name: 'Comparison result' }),
+  ).toBeVisible();
+  await expect(page.getByText('Compatible comparison')).toBeVisible();
+  await expect(page.getByText('Aggregate metric deltas')).toBeVisible();
+  await expect(page.getByText('Shared threshold projections')).toBeVisible();
+  await expect(
+    page.getByText(HISTORY_NAMESPACE, { exact: true }).first(),
+  ).toBeVisible();
+
+  for (const width of [320, 744, 768, 820, 834, 1_024, 1_280]) {
+    await test.step(`history-comparison-${width}`, async () => {
+      await page.setViewportSize({ width, height: 1_180 });
+      await expect(
+        page.getByRole('heading', { name: 'Comparison result' }),
+      ).toBeVisible();
+      await expect(page.getByText('Aggregate metric deltas')).toBeVisible();
+      await expect(page.getByText('Shared threshold projections')).toBeVisible();
+
+      const overflow = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(1);
+    });
+  }
+
+  await test.step('history-comparison-increased-text-size', async () => {
+    await page.setViewportSize({ width: 1_280, height: 900 });
+    await page.locator('html').evaluate((element) => {
+      element.style.fontSize = '200%';
+    });
+    await expect(page.getByText('Aggregate metric deltas')).toBeVisible();
+
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
+
+  let accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await page.locator('html').evaluate((element) => {
+    element.style.fontSize = '';
+  });
+  await page.setViewportSize({ width: 820, height: 1_180 });
+
+  await page.unroute('**/api/v1/evaluations/runs/compare');
+  await page.route(
+    '**/api/v1/evaluations/runs/compare',
+    async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        json: {
+          baseline: retainedBaseline,
+          candidate: {
+            ...retainedCandidate,
+            namespace: 'tenant-responsive-history-other',
+          },
+          compatibility: {
+            status: 'incompatible',
+            can_compare: false,
+            incompatibilities: [
+              {
+                code: 'namespace_mismatch',
+                detail:
+                  'Run namespaces differ; cross-namespace comparison is blocked.',
+              },
+            ],
+            warnings: [],
+            case_evidence: 'not_retained',
+            opaque_configuration_fingerprint_matches: true,
+          },
+          metric_deltas: null,
+          threshold_deltas: [],
+        },
+      });
+    },
+  );
+
+  await page.getByRole('button', { name: 'Clear selection' }).click();
+
+  const incompatibleBaseline = page
+    .getByRole('button', { name: 'Select to compare' })
+    .first();
+  await incompatibleBaseline.click();
+  await page.getByRole('button', { name: 'Select to compare' }).click();
+  await page.getByRole('button', {
+    name: 'Compare selected runs',
+  }).click();
+
+  await expect(page.getByText('Comparison blocked')).toBeVisible();
+  await expect(page.getByText(/namespace_mismatch/)).toBeVisible();
+  await expect(page.getByText('Aggregate metric deltas')).toHaveCount(0);
+  await expect(page.getByText('Shared threshold projections')).toHaveCount(0);
+
+  accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations).toEqual([]);
+});
+
 test('evaluation controls and projections remain usable at required viewports', async ({
   page,
 }) => {
@@ -303,6 +559,13 @@ test('evaluation controls and projections remain usable at required viewports', 
 
   await page.setViewportSize({ width: 820, height: 1_180 });
   await page.goto('/evaluations');
+
+  await page
+    .getByLabel('Benchmark history namespace')
+    .fill('responsive-e2e');
+  await expect(
+    page.getByRole('button', { name: 'Review benchmark run' }),
+  ).toBeEnabled();
   await page.getByRole('button', { name: 'Review benchmark run' }).click();
   await expect(page.getByRole('alertdialog')).toContainText(
     'may make at most',

@@ -86,6 +86,9 @@ def resolve_namespace(
     *,
     allow_global: bool,
 ) -> str | None:
+    if requested == "*":
+        raise AuthorizationError
+
     if principal.has_global_namespace_access:
         if requested is None and not allow_global:
             raise AuthorizationError

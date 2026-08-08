@@ -8,7 +8,13 @@ from fastapi import FastAPI
 
 from app.benchmark.application.service import BenchmarkService
 from app.benchmark.domain.models import BenchmarkRuntimeConfiguration
-from app.benchmark.domain.protocols import EvaluationDatasetRepository
+from app.benchmark.domain.protocols import (
+    EvaluationDatasetRepository,
+    EvaluationRunHistoryRepository,
+)
+from app.benchmark.infrastructure.postgres_history_repository import (
+    PostgresEvaluationRunHistoryRepository,
+)
 from app.benchmark.infrastructure.postgres_repository import (
     PostgresEvaluationDatasetRepository,
 )
@@ -19,6 +25,7 @@ from app.core.version import API_VERSION
 from app.embedding.service import EmbeddingService
 from app.infrastructure.lifecycle import database_pool_lifespan
 from app.observability.metrics import RuntimeMetrics
+from app.providers.configuration import selected_generation_configuration
 from app.providers.factory import create_provider_bundle
 from app.query.application.service import QueryService
 from app.query.domain.normalization import create_prompt_normalizer
@@ -77,6 +84,35 @@ def create_lifespan(settings: Settings) -> Lifespan:
                             settings.evaluation_dataset_cleanup_batch_size
                         ),
                     )
+
+                history_repository: EvaluationRunHistoryRepository | None = None
+                if settings.evaluation_run_history_storage == "postgres":
+                    if database_pool is None:
+                        raise RuntimeError(
+                            "Evaluation run history requires a database pool"
+                        )
+                    retention_days = settings.evaluation_run_history_retention_days
+                    max_per_namespace = (
+                        settings.evaluation_run_history_max_per_namespace
+                    )
+                    cleanup_batch_size = (
+                        settings.evaluation_run_history_cleanup_batch_size
+                    )
+                    if (
+                        retention_days is None
+                        or max_per_namespace is None
+                        or cleanup_batch_size is None
+                    ):
+                        raise RuntimeError(
+                            "Evaluation run history settings were not validated"
+                        )
+                    history_repository = PostgresEvaluationRunHistoryRepository(
+                        database_pool,
+                        retention_days=retention_days,
+                        max_per_namespace=max_per_namespace,
+                        cleanup_batch_size=cleanup_batch_size,
+                    )
+
                 semantic_cache = SemanticCache(
                     embedding_service,
                     backend,
@@ -106,6 +142,9 @@ def create_lifespan(settings: Settings) -> Lifespan:
                         embedding_dimensions=providers.embedding_dimensions,
                         embedding_space_fingerprint=_fingerprint(
                             settings.embedding_space
+                        ),
+                        generation_configuration_fingerprint=_fingerprint(
+                            selected_generation_configuration(settings)
                         ),
                         normalization_mode=(
                             "typo_correction"
@@ -153,8 +192,21 @@ def create_lifespan(settings: Settings) -> Lifespan:
                         evaluation_dataset_cleanup_batch_size=(
                             settings.evaluation_dataset_cleanup_batch_size
                         ),
+                        evaluation_run_history_storage=(
+                            settings.evaluation_run_history_storage
+                        ),
+                        evaluation_run_history_retention_days=(
+                            settings.evaluation_run_history_retention_days
+                        ),
+                        evaluation_run_history_max_per_namespace=(
+                            settings.evaluation_run_history_max_per_namespace
+                        ),
+                        evaluation_run_history_cleanup_batch_size=(
+                            settings.evaluation_run_history_cleanup_batch_size
+                        ),
                     ),
                     dataset_repository=dataset_repository,
+                    history_repository=history_repository,
                 )
 
                 yield

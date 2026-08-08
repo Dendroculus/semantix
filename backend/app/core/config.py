@@ -40,6 +40,7 @@ AuthMode = Literal["disabled", "token"]
 AuthRole = Literal["viewer", "operator", "admin"]
 DatabaseMigrationMode = Literal["auto", "external"]
 EvaluationDatasetStorageMode = Literal["session", "postgres"]
+EvaluationRunHistoryStorageMode = Literal["disabled", "postgres"]
 DEFAULT_PROVIDER_MAX_RESPONSE_BYTES = 4_194_304
 _AUTH_NAMESPACE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 
@@ -150,6 +151,10 @@ class Settings(BaseSettings):
         ge=1,
         le=1_000,
     )
+    evaluation_run_history_storage: EvaluationRunHistoryStorageMode = "disabled"
+    evaluation_run_history_retention_days: int | None = Field(default=None, ge=1)
+    evaluation_run_history_max_per_namespace: int | None = Field(default=None, ge=1)
+    evaluation_run_history_cleanup_batch_size: int | None = Field(default=None, ge=1)
     provider_max_response_bytes: int = Field(
         default=DEFAULT_PROVIDER_MAX_RESPONSE_BYTES,
         ge=1,
@@ -269,6 +274,29 @@ class Settings(BaseSettings):
                 "EVALUATION_DATASET_MAX_RETENTION_DAYS"
             )
 
+        if self.evaluation_run_history_storage == "postgres":
+            required_history_settings = {
+                "EVALUATION_RUN_HISTORY_RETENTION_DAYS": (
+                    self.evaluation_run_history_retention_days
+                ),
+                "EVALUATION_RUN_HISTORY_MAX_PER_NAMESPACE": (
+                    self.evaluation_run_history_max_per_namespace
+                ),
+                "EVALUATION_RUN_HISTORY_CLEANUP_BATCH_SIZE": (
+                    self.evaluation_run_history_cleanup_batch_size
+                ),
+            }
+            missing = [
+                name
+                for name, value in required_history_settings.items()
+                if value is None
+            ]
+            if missing:
+                raise ValueError(
+                    f"{', '.join(missing)} must be configured when "
+                    "EVALUATION_RUN_HISTORY_STORAGE=postgres"
+                )
+
         if self.auth_mode == "token":
             if not self.auth_principals:
                 raise ValueError("AUTH_PRINCIPALS is required when AUTH_MODE=token")
@@ -305,6 +333,7 @@ class Settings(BaseSettings):
         return (
             self.cache_backend == "pgvector"
             or self.evaluation_dataset_storage == "postgres"
+            or self.evaluation_run_history_storage == "postgres"
         )
 
     def configured_secrets(self) -> tuple[str, ...]:

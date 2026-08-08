@@ -39,6 +39,7 @@ def benchmark_service(
     *,
     evaluation_timeout_seconds: float = 30,
     dataset_repository: EvaluationDatasetRepository | None = None,
+    history_enabled: bool = False,
 ) -> BenchmarkService:
     return BenchmarkService(
         SameEmbeddings(),
@@ -52,12 +53,19 @@ def benchmark_service(
             generation_provider_category="mock",
             embedding_dimensions=TEST_EMBEDDING_DIMENSIONS,
             embedding_space_fingerprint="1" * 64,
+            generation_configuration_fingerprint="3" * 64,
             normalization_mode="identity",
             normalization_fingerprint="2" * 64,
             evaluation_timeout_seconds=evaluation_timeout_seconds,
             evaluation_dataset_storage=(
                 "session" if dataset_repository is None else "postgres"
             ),
+            evaluation_run_history_storage=(
+                "postgres" if history_enabled else "disabled"
+            ),
+            evaluation_run_history_retention_days=30 if history_enabled else None,
+            evaluation_run_history_max_per_namespace=100 if history_enabled else None,
+            evaluation_run_history_cleanup_batch_size=10 if history_enabled else None,
         ),
         dataset_repository=dataset_repository,
     )
@@ -163,6 +171,7 @@ def test_persisted_catalog_crud_and_run_contracts(settings: Settings) -> None:
         app.state.benchmark_service = benchmark_service(
             provider,
             dataset_repository=repository,
+            history_enabled=True,
         )
         created = client.post(
             "/api/v1/evaluations/datasets/persisted",
@@ -209,6 +218,7 @@ def test_persisted_catalog_crud_and_run_contracts(settings: Settings) -> None:
     ]
     assert run.status_code == 200
     assert run.json()["dataset"]["dataset_source"] == "persisted"
+    assert run.json()["history_retention"] == {"state": "not_retained"}
     assert provider.call_count == run.json()["metrics"]["provider_calls"] == 1
     assert deleted.status_code == 200
     assert deleted.json() == {
@@ -309,6 +319,72 @@ def test_runs_inline_dataset_through_canonical_contract(settings: Settings) -> N
     assert payload["metrics"]["total_queries"] == 2
     assert payload["query_results"][1]["expected_match_case_id"] == "seed"
     assert provider.call_count == payload["metrics"]["provider_calls"] == 1
+
+
+def test_history_enabled_builtin_requires_an_explicit_namespace_for_wildcard_principal(
+    settings: Settings,
+) -> None:
+    app = create_app(settings)
+
+    with TestClient(app) as client:
+        app.state.benchmark_service = benchmark_service(
+            Provider(),
+            history_enabled=True,
+        )
+        missing_scope = client.post(
+            "/api/v1/evaluations/runs",
+            json={"allow_external_provider_calls": True},
+        )
+        scoped = client.post(
+            "/api/v1/evaluations/runs",
+            json={
+                "history_namespace": "default",
+                "allow_external_provider_calls": True,
+            },
+        )
+
+    assert missing_scope.status_code == 403
+    assert scoped.status_code == 200
+    assert scoped.json()["history_retention"] == {"state": "not_retained"}
+
+
+def test_inline_history_namespace_is_rejected_before_execution(
+    settings: Settings,
+) -> None:
+    app = create_app(settings)
+    provider = Provider()
+
+    with TestClient(app) as client:
+        app.state.benchmark_service = benchmark_service(
+            provider,
+            history_enabled=True,
+        )
+        response = client.post(
+            "/api/v1/evaluations/runs",
+            json={
+                "history_namespace": "default",
+                "dataset_source": {
+                    "kind": "inline",
+                    "definition": inline_definition(),
+                },
+                "allow_external_provider_calls": True,
+            },
+        )
+        allowed = client.post(
+            "/api/v1/evaluations/runs",
+            json={
+                "dataset_source": {
+                    "kind": "inline",
+                    "definition": inline_definition(),
+                },
+                "allow_external_provider_calls": True,
+            },
+        )
+
+    assert response.status_code == 422
+    assert allowed.status_code == 200
+    assert allowed.json()["history_retention"] == {"state": "not_retained"}
+    assert provider.call_count == allowed.json()["metrics"]["provider_calls"]
 
 
 def test_inline_run_revalidates_instead_of_trusting_a_preview(

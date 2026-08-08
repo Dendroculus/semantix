@@ -70,6 +70,7 @@ def service(
             generation_provider_category="mock",
             embedding_dimensions=4,
             embedding_space_fingerprint="1" * 64,
+            generation_configuration_fingerprint="3" * 64,
             normalization_mode="identity",
             normalization_fingerprint="2" * 64,
             evaluation_timeout_seconds=30,

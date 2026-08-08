@@ -37,6 +37,8 @@ export const benchmarkResult: BenchmarkRunResponse = {
     dataset_digest: 'd'.repeat(64),
     embedding_provider_category: 'mock',
     generation_provider_category: 'mock',
+    generation_configuration_fingerprint: 'b'.repeat(64),
+    comparison_contract_version: 1,
     embedding_dimensions: 384,
     embedding_space_fingerprint: 'e'.repeat(64),
     normalization_mode: 'identity',
@@ -49,6 +51,9 @@ export const benchmarkResult: BenchmarkRunResponse = {
     estimated_cost_per_1k_tokens_usd: 0.002,
     evaluation_timeout_seconds: 300,
     configuration_fingerprint: 'c'.repeat(64),
+  },
+  history_retention: {
+    state: 'not_retained',
   },
   threshold_evaluation_mode: 'frozen_candidate_projection',
   metrics: {

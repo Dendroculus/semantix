@@ -8,9 +8,15 @@ from app.benchmark.api.schemas import (
     BenchmarkDatasetListResponse,
     BenchmarkRunRequest,
     BenchmarkRunResponse,
+    BuiltinEvaluationDatasetSource,
+    DeleteEvaluationRunHistoryResponse,
     DeletePersistedEvaluationDatasetResponse,
     EvaluationDatasetPreview,
     EvaluationDatasetValidationRequest,
+    EvaluationRunComparisonRequest,
+    EvaluationRunComparisonResponse,
+    EvaluationRunHistoryDetail,
+    EvaluationRunHistoryListResponse,
     EvaluationRunRequest,
     PersistedEvaluationDatasetDetail,
     PersistedEvaluationDatasetListResponse,
@@ -177,6 +183,31 @@ async def delete_persisted_evaluation_dataset(
     )
 
 
+@evaluations_router.get(
+    "/runs",
+    response_model=EvaluationRunHistoryListResponse,
+)
+@limiter.limit(app_rate_limit)
+async def list_evaluation_run_history(
+    request: Request,
+    benchmark: BenchmarkDependency,
+    principal: ViewerPrincipal,
+    namespace: EvaluationNamespaceQuery = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> EvaluationRunHistoryListResponse:
+    authorized_namespace = resolve_namespace(
+        principal,
+        namespace,
+        allow_global=True,
+    )
+    return await benchmark.list_run_history(
+        namespace=authorized_namespace,
+        offset=offset,
+        limit=limit,
+    )
+
+
 @evaluations_router.post("/runs", response_model=BenchmarkRunResponse)
 @limiter.limit(app_rate_limit)
 async def run_evaluation(
@@ -186,6 +217,7 @@ async def run_evaluation(
     principal: OperatorPrincipal,
 ) -> BenchmarkRunResponse:
     authorized_namespaces: AuthorizedNamespaceScope = frozenset()
+    builtin_history_namespace: str | None = None
     if isinstance(payload.dataset_source, PersistedEvaluationDatasetSource):
         namespace = resolve_namespace(
             principal,
@@ -195,7 +227,82 @@ async def run_evaluation(
         if namespace is None:
             raise RuntimeError("Persistent dataset namespace was not resolved")
         authorized_namespaces = frozenset({namespace})
+    elif isinstance(payload.dataset_source, BuiltinEvaluationDatasetSource) and (
+        payload.history_namespace is not None or benchmark.run_history_enabled
+    ):
+        builtin_history_namespace = resolve_namespace(
+            principal,
+            payload.history_namespace,
+            allow_global=False,
+        )
+        if builtin_history_namespace is None:
+            raise RuntimeError("Evaluation history namespace was not resolved")
+
     return await benchmark.run_evaluation(
         payload,
         authorized_namespaces=authorized_namespaces,
+        builtin_history_namespace=builtin_history_namespace,
+    )
+
+
+@evaluations_router.post(
+    "/runs/compare",
+    response_model=EvaluationRunComparisonResponse,
+)
+@limiter.limit(app_rate_limit)
+async def compare_evaluation_run_history(
+    request: Request,
+    payload: EvaluationRunComparisonRequest,
+    benchmark: BenchmarkDependency,
+    principal: ViewerPrincipal,
+) -> EvaluationRunComparisonResponse:
+    return await benchmark.compare_run_history(
+        payload,
+        authorized_namespaces=(
+            None if principal.has_global_namespace_access else principal.namespaces
+        ),
+    )
+
+
+@evaluations_router.get(
+    "/runs/{run_id}",
+    response_model=EvaluationRunHistoryDetail,
+)
+@limiter.limit(app_rate_limit)
+async def get_evaluation_run_history(
+    request: Request,
+    run_id: UUID,
+    benchmark: BenchmarkDependency,
+    principal: ViewerPrincipal,
+) -> EvaluationRunHistoryDetail:
+    return await benchmark.run_history_detail(
+        run_id.hex,
+        authorized_namespaces=(
+            None if principal.has_global_namespace_access else principal.namespaces
+        ),
+    )
+
+
+@evaluations_router.delete(
+    "/runs/{run_id}",
+    response_model=DeleteEvaluationRunHistoryResponse,
+)
+@limiter.limit(app_rate_limit)
+async def delete_evaluation_run_history(
+    request: Request,
+    run_id: UUID,
+    benchmark: BenchmarkDependency,
+    principal: AdminPrincipal,
+    namespace: EvaluationNamespaceQuery = None,
+) -> DeleteEvaluationRunHistoryResponse:
+    authorized_namespace = resolve_namespace(
+        principal,
+        namespace,
+        allow_global=False,
+    )
+    if authorized_namespace is None:
+        raise RuntimeError("Evaluation history namespace was not resolved")
+    return await benchmark.delete_run_history(
+        run_id.hex,
+        namespace=authorized_namespace,
     )

@@ -23,6 +23,7 @@ GenerationProviderName = Literal[
     "mock",
 ]
 MOCK_EMBEDDING_MODEL_ID = "stable-token-hash-v1"
+MOCK_GENERATION_MODEL_ID = "mock-prefix-v1"
 
 
 def validate_provider_configuration(settings: Settings) -> None:
@@ -64,6 +65,32 @@ def selected_embedding_space(settings: Settings) -> str:
     if model is None:
         raise RuntimeError("Selected embedding model was not validated")
     return f"{settings.embedding_provider}:{model}"
+
+
+def selected_generation_configuration(settings: Settings) -> dict[str, object]:
+    match settings.generation_provider:
+        case "huggingface":
+            model = settings.hf_generation_model
+        case "openai":
+            model = settings.openai_generation_model
+        case "anthropic":
+            model = settings.anthropic_generation_model
+        case "gemini":
+            model = settings.gemini_generation_model
+        case "ollama":
+            model = settings.ollama_generation_model
+        case "mock":
+            model = MOCK_GENERATION_MODEL_ID
+
+    if model is None:
+        raise RuntimeError("Selected generation model was not validated")
+
+    return {
+        "provider": settings.generation_provider,
+        "model": model,
+        "max_new_tokens": settings.generation_max_new_tokens,
+        "max_response_bytes": settings.provider_max_response_bytes,
+    }
 
 
 def _validate_embedding_provider(settings: Settings) -> None:

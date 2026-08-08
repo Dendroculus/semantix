@@ -14,6 +14,7 @@ from app.benchmark.domain.validation import (
 )
 from app.benchmark.infrastructure.database import (
     apply_migrations,
+    grant_run_history_runtime_privileges,
     grant_runtime_privileges,
     load_migrations,
 )
@@ -40,9 +41,16 @@ async def evaluation_pool() -> AsyncIterator[Pool]:
     database_url = os.getenv("PGVECTOR_TEST_DATABASE_URL")
     if not database_url:
         pytest.skip("PGVECTOR_TEST_DATABASE_URL is not configured")
-    pool = await asyncpg.create_pool(database_url, min_size=1, max_size=4)
+
+    pool = await asyncpg.create_pool(
+        database_url,
+        min_size=1,
+        max_size=4,
+    )
+
     async with pool.acquire() as connection:
         await connection.execute("DROP SCHEMA IF EXISTS semantix CASCADE")
+
     try:
         yield pool
     finally:
@@ -111,14 +119,22 @@ async def test_evaluation_migration_is_fresh_idempotent_and_concurrent(
             """
         )
 
-    migration = load_migrations()[0]
-    assert migration.version == "0002"
-    assert [(row["version"], row["checksum"]) for row in rows] == [
-        ("0002", migration.checksum)
+    migrations = load_migrations()
+
+    assert [migration.version for migration in migrations] == [
+        "0002",
+        "0003",
     ]
+
+    assert [(row["version"], row["checksum"]) for row in rows] == [
+        (migration.version, migration.checksum) for migration in migrations
+    ]
+
     assert [row["tablename"] for row in tables] == [
         "evaluation_dataset_cases",
         "evaluation_datasets",
+        "evaluation_run_thresholds",
+        "evaluation_runs",
         "schema_migrations",
     ]
 
@@ -132,7 +148,11 @@ async def test_evaluation_migration_upgrades_cache_schema_additively(
 
     async with evaluation_pool.acquire() as connection:
         versions = await connection.fetch(
-            "SELECT version FROM semantix.schema_migrations ORDER BY version"
+            """
+            SELECT version
+            FROM semantix.schema_migrations
+            ORDER BY version
+            """
         )
         cache_table = await connection.fetchval(
             "SELECT to_regclass('semantix.cache_entries') IS NOT NULL"
@@ -140,19 +160,33 @@ async def test_evaluation_migration_upgrades_cache_schema_additively(
         dataset_table = await connection.fetchval(
             "SELECT to_regclass('semantix.evaluation_datasets') IS NOT NULL"
         )
+        history_table = await connection.fetchval(
+            "SELECT to_regclass('semantix.evaluation_runs') IS NOT NULL"
+        )
+        history_threshold_table = await connection.fetchval(
+            "SELECT to_regclass('semantix.evaluation_run_thresholds') IS NOT NULL"
+        )
 
-    assert [row["version"] for row in versions] == ["0001", "0002"]
-    assert cache_table is dataset_table is True
+    assert [row["version"] for row in versions] == [
+        "0001",
+        "0002",
+        "0003",
+    ]
+    assert cache_table is True
+    assert dataset_table is True
+    assert history_table is True
+    assert history_threshold_table is True
 
 
 @pytest.mark.asyncio
 async def test_cache_migration_can_follow_evaluation_only_install(
     evaluation_pool: Pool,
 ) -> None:
-    evaluation_migration = load_migrations()[0]
+    evaluation_migrations = load_migrations()
     cache_migration = load_cache_migrations()[0]
 
     await apply_migrations(evaluation_pool)
+
     async with evaluation_pool.acquire() as connection:
         evaluation_only_versions = await connection.fetch(
             """
@@ -164,14 +198,19 @@ async def test_cache_migration_can_follow_evaluation_only_install(
         evaluation_table = await connection.fetchval(
             "SELECT to_regclass('semantix.evaluation_datasets') IS NOT NULL"
         )
+        history_table = await connection.fetchval(
+            "SELECT to_regclass('semantix.evaluation_runs') IS NOT NULL"
+        )
         cache_table = await connection.fetchval(
             "SELECT to_regclass('semantix.cache_entries') IS NOT NULL"
         )
 
     assert [(row["version"], row["checksum"]) for row in evaluation_only_versions] == [
-        ("0002", evaluation_migration.checksum)
+        (migration.version, migration.checksum) for migration in evaluation_migrations
     ]
+
     assert evaluation_table is True
+    assert history_table is True
     assert cache_table is False
 
     await apply_cache_migrations(evaluation_pool)
@@ -197,14 +236,20 @@ async def test_cache_migration_can_follow_evaluation_only_install(
                 "semantix.cache_namespace_counters",
                 "semantix.evaluation_dataset_cases",
                 "semantix.evaluation_datasets",
+                "semantix.evaluation_run_thresholds",
+                "semantix.evaluation_runs",
                 "semantix.schema_migrations",
             ],
         )
 
     assert [(row["version"], row["checksum"]) for row in combined_versions] == [
         ("0001", cache_migration.checksum),
-        ("0002", evaluation_migration.checksum),
+        *[
+            (migration.version, migration.checksum)
+            for migration in evaluation_migrations
+        ],
     ]
+
     assert all(row["exists"] for row in relations)
 
     async with evaluation_pool.acquire() as connection:
@@ -217,7 +262,10 @@ async def test_cache_migration_can_follow_evaluation_only_install(
             "0" * 64,
         )
 
-    with pytest.raises(CacheStorageError, match="0001 checksum mismatch"):
+    with pytest.raises(
+        CacheStorageError,
+        match="0001 checksum mismatch",
+    ):
         await apply_cache_migrations(evaluation_pool)
 
 
@@ -226,6 +274,7 @@ async def test_evaluation_migration_checksum_mismatch_is_rejected(
     evaluation_pool: Pool,
 ) -> None:
     await apply_migrations(evaluation_pool)
+
     async with evaluation_pool.acquire() as connection:
         await connection.execute(
             """
@@ -236,7 +285,33 @@ async def test_evaluation_migration_checksum_mismatch_is_rejected(
             "0" * 64,
         )
 
-    with pytest.raises(EvaluationDatasetStorageError, match="0002 checksum mismatch"):
+    with pytest.raises(
+        EvaluationDatasetStorageError,
+        match="0002 checksum mismatch",
+    ):
+        await apply_migrations(evaluation_pool)
+
+
+@pytest.mark.asyncio
+async def test_evaluation_history_migration_checksum_mismatch_is_rejected(
+    evaluation_pool: Pool,
+) -> None:
+    await apply_migrations(evaluation_pool)
+
+    async with evaluation_pool.acquire() as connection:
+        await connection.execute(
+            """
+            UPDATE semantix.schema_migrations
+            SET checksum = $1
+            WHERE version = '0003'
+            """,
+            "0" * 64,
+        )
+
+    with pytest.raises(
+        EvaluationDatasetStorageError,
+        match="0003 checksum mismatch",
+    ):
         await apply_migrations(evaluation_pool)
 
 
@@ -245,6 +320,7 @@ async def test_runtime_role_receives_only_required_evaluation_privileges(
     evaluation_pool: Pool,
 ) -> None:
     await apply_migrations(evaluation_pool)
+
     role_name = f"semantix_eval_{uuid4().hex[:12]}"
     password = uuid4().hex
     database_url = os.environ["PGVECTOR_TEST_DATABASE_URL"]
@@ -254,13 +330,19 @@ async def test_runtime_role_receives_only_required_evaluation_privileges(
         await connection.execute(
             f"CREATE ROLE \"{role_name}\" LOGIN PASSWORD '{password}'"
         )
+
     try:
-        await grant_runtime_privileges(evaluation_pool, role_name)
+        await grant_runtime_privileges(
+            evaluation_pool,
+            role_name,
+        )
+
         runtime = await asyncpg.connect(
             database_url,
             user=role_name,
             password=password,
         )
+
         try:
             await runtime.execute(
                 """
@@ -292,6 +374,7 @@ async def test_runtime_role_receives_only_required_evaluation_privileges(
                 dataset_id,
                 "f" * 64,
             )
+
             await runtime.execute(
                 """
                 INSERT INTO semantix.evaluation_dataset_cases (
@@ -302,10 +385,18 @@ async def test_runtime_role_receives_only_required_evaluation_privileges(
                     expected_cache_hit,
                     category
                 )
-                VALUES ($1, 1, 'case', 'Synthetic role prompt', FALSE, 'role')
+                VALUES (
+                    $1,
+                    1,
+                    'case',
+                    'Synthetic role prompt',
+                    FALSE,
+                    'role'
+                )
                 """,
                 dataset_id,
             )
+
             assert (
                 await runtime.fetchval(
                     """
@@ -317,6 +408,33 @@ async def test_runtime_role_receives_only_required_evaluation_privileges(
                 )
                 == 1
             )
+
+            assert (
+                await runtime.fetchval(
+                    """
+                    SELECT has_table_privilege(
+                        current_user,
+                        'semantix.evaluation_runs',
+                        'SELECT'
+                    )
+                    """
+                )
+                is False
+            )
+
+            assert (
+                await runtime.fetchval(
+                    """
+                    SELECT has_table_privilege(
+                        current_user,
+                        'semantix.evaluation_run_thresholds',
+                        'SELECT'
+                    )
+                    """
+                )
+                is False
+            )
+
             await runtime.execute(
                 """
                 DELETE FROM semantix.evaluation_datasets
@@ -326,6 +444,93 @@ async def test_runtime_role_receives_only_required_evaluation_privileges(
             )
         finally:
             await runtime.close()
+
+    finally:
+        async with evaluation_pool.acquire() as connection:
+            await connection.execute(f'DROP OWNED BY "{role_name}"')
+            await connection.execute(f'DROP ROLE IF EXISTS "{role_name}"')
+
+
+@pytest.mark.asyncio
+async def test_runtime_role_receives_only_history_privileges(
+    evaluation_pool: Pool,
+) -> None:
+    await apply_migrations(evaluation_pool)
+
+    role_name = f"semantix_history_{uuid4().hex[:12]}"
+    password = uuid4().hex
+    database_url = os.environ["PGVECTOR_TEST_DATABASE_URL"]
+
+    async with evaluation_pool.acquire() as connection:
+        await connection.execute(
+            f"CREATE ROLE \"{role_name}\" LOGIN PASSWORD '{password}'"
+        )
+
+    try:
+        await grant_run_history_runtime_privileges(
+            evaluation_pool,
+            role_name,
+        )
+
+        runtime = await asyncpg.connect(
+            database_url,
+            user=role_name,
+            password=password,
+        )
+
+        try:
+            for table in (
+                "semantix.evaluation_runs",
+                "semantix.evaluation_run_thresholds",
+            ):
+                for privilege in (
+                    "SELECT",
+                    "INSERT",
+                    "UPDATE",
+                    "DELETE",
+                ):
+                    assert (
+                        await runtime.fetchval(
+                            """
+                            SELECT has_table_privilege(
+                                current_user,
+                                $1,
+                                $2
+                            )
+                            """,
+                            table,
+                            privilege,
+                        )
+                        is True
+                    )
+
+            for table in (
+                "semantix.evaluation_datasets",
+                "semantix.evaluation_dataset_cases",
+            ):
+                for privilege in (
+                    "SELECT",
+                    "INSERT",
+                    "UPDATE",
+                    "DELETE",
+                ):
+                    assert (
+                        await runtime.fetchval(
+                            """
+                            SELECT has_table_privilege(
+                                current_user,
+                                $1,
+                                $2
+                            )
+                            """,
+                            table,
+                            privilege,
+                        )
+                        is False
+                    )
+        finally:
+            await runtime.close()
+
     finally:
         async with evaluation_pool.acquire() as connection:
             await connection.execute(f'DROP OWNED BY "{role_name}"')
@@ -337,16 +542,19 @@ async def test_repository_preserves_order_scope_duplicates_and_cascade(
     evaluation_pool: Pool,
 ) -> None:
     await apply_migrations(evaluation_pool)
+
     repository = PostgresEvaluationDatasetRepository(
         evaluation_pool,
         max_per_namespace=10,
         cleanup_batch_size=10,
     )
+
     first = await repository.create_dataset(
         namespace="tenant-a",
         validated=validated(),
         retention_days=30,
     )
+
     second = await repository.create_dataset(
         namespace="tenant-a",
         validated=validated(),
@@ -355,15 +563,18 @@ async def test_repository_preserves_order_scope_duplicates_and_cascade(
 
     assert first.metadata.dataset_id != second.metadata.dataset_id
     assert first.metadata.digest == second.metadata.digest
+
     page = await repository.list_datasets(
         namespace="tenant-a",
         offset=0,
         limit=10,
     )
+
     detail = await repository.get_dataset(
         first.metadata.dataset_id,
         authorized_namespaces=frozenset({"tenant-a"}),
     )
+
     foreign = await repository.get_dataset(
         first.metadata.dataset_id,
         authorized_namespaces=frozenset({"tenant-b"}),
@@ -371,8 +582,12 @@ async def test_repository_preserves_order_scope_duplicates_and_cascade(
 
     assert page.total == 2
     assert detail is not None
-    assert [item.case_id for item in detail.dataset.cases] == ["seed", "repeat"]
+    assert [item.case_id for item in detail.dataset.cases] == [
+        "seed",
+        "repeat",
+    ]
     assert foreign is None
+
     assert (
         await repository.delete_dataset(
             first.metadata.dataset_id,
@@ -380,6 +595,7 @@ async def test_repository_preserves_order_scope_duplicates_and_cascade(
         )
         is False
     )
+
     assert (
         await repository.delete_dataset(
             first.metadata.dataset_id,
@@ -397,6 +613,7 @@ async def test_repository_preserves_order_scope_duplicates_and_cascade(
             """,
             first.metadata.dataset_id,
         )
+
     assert remaining_cases == 0
 
 
@@ -405,16 +622,19 @@ async def test_repository_enforces_capacity_and_bounded_expiry_cleanup(
     evaluation_pool: Pool,
 ) -> None:
     await apply_migrations(evaluation_pool)
+
     repository = PostgresEvaluationDatasetRepository(
         evaluation_pool,
         max_per_namespace=1,
         cleanup_batch_size=1,
     )
+
     expired = await repository.create_dataset(
         namespace="tenant-a",
         validated=validated(),
         retention_days=1,
     )
+
     async with evaluation_pool.acquire() as connection:
         await connection.execute(
             """
@@ -433,6 +653,7 @@ async def test_repository_enforces_capacity_and_bounded_expiry_cleanup(
         validated=validated(),
         retention_days=30,
     )
+
     with pytest.raises(EvaluationDatasetCapacityError):
         await repository.create_dataset(
             namespace="tenant-a",
@@ -441,6 +662,7 @@ async def test_repository_enforces_capacity_and_bounded_expiry_cleanup(
         )
 
     assert replacement.metadata.dataset_id != expired.metadata.dataset_id
+
     assert (
         await repository.get_dataset(
             expired.metadata.dataset_id,
