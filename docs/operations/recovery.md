@@ -17,6 +17,12 @@ operator-supplied prompts and notes that may not exist elsewhere. When
 these records are recoverable or intentionally disposable and apply that policy
 to backups, access, retention, and deletion.
 
+Durable evaluation run history is also an explicit retention decision. It is
+aggregate-only, but can contain dataset identity, categories, timestamps,
+configuration fingerprints, terminal failure metadata, and measured
+aggregates. Include it in backup, retention, access, and deletion policy when
+`EVALUATION_RUN_HISTORY_STORAGE=postgres`.
+
 A cold cache has operational consequences:
 
 - the first eligible request for each semantic group calls the provider;
@@ -24,8 +30,8 @@ A cold cache has operational consequences:
 - cache entries, hit counters, and miss counters start from zero;
 - historical cache-inspector data is lost.
 
-Take a backup when preserving warm-cache state or persisted evaluation
-datasets is worth the security and recovery cost. A backup can retain dataset
+Take a backup when preserving warm-cache state, persisted evaluation datasets,
+or retained aggregate run history is worth the security and recovery cost. A backup can retain dataset
 content after application expiry or explicit deletion, so backup retention and
 secure erasure are separate operator responsibilities. The operator performing
 a deployment owns backup, rotation, rollback, and verification. Provider owners
@@ -169,8 +175,9 @@ backups` and use `"${PostgresContainer}:/tmp/semantix.dump"` as the `docker cp`
 source.
 
 Record the application commit, migration list, embedding provider/model,
-embedding dimensions, evaluation-dataset storage/retention settings, database
-name, and dump checksum beside the backup. Treat the dump as sensitive because
+embedding dimensions, evaluation-dataset storage/retention settings,
+run-history storage/retention/capacity settings, database name, and dump
+checksum beside the backup. Treat the dump as sensitive because
 it can contain cached provider responses plus persisted dataset prompts and
 notes. A backup made for one embedding space is not automatically useful after
 changing the embedding model or dimensions.
@@ -200,6 +207,8 @@ SELECT COUNT(*) FROM semantix.cache_entries;
 SELECT COUNT(*) FROM semantix.cache_namespace_counters;
 SELECT COUNT(*) FROM semantix.evaluation_datasets;
 SELECT COUNT(*) FROM semantix.evaluation_dataset_cases;
+SELECT COUNT(*) FROM semantix.evaluation_runs;
+SELECT COUNT(*) FROM semantix.evaluation_run_thresholds;
 ```
 
 Then start the backend and frontend, check `/ready`, execute a cache round trip,
@@ -211,7 +220,8 @@ verification completes.
 ## Discard and rebuild the cache
 
 This is the default recovery path only when cache preservation is unnecessary
-and persisted evaluation datasets are disabled, separately backed up, or
+and all PostgreSQL-backed evaluation data that matters, including persisted
+datasets and durable run history, is disabled, separately backed up, or
 intentionally disposable. Double-check the volume label before deletion:
 
 ```bash
@@ -224,7 +234,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up --build 
 Do not substitute a wildcard or delete every Docker volume. The next startup
 creates the roles, runs migrations, and starts with empty cache tables and
 counters. It also permanently removes the volume's persisted evaluation
-datasets. Plan for cold-cache latency and provider usage while entries warm.
+datasets and retained aggregate run history. Plan for cold-cache latency and provider usage while entries warm.
 
 ## Migration rollback
 
@@ -236,8 +246,8 @@ For an application regression without destructive schema changes, redeploy the
 previous application image and leave the database intact. For an incompatible
 schema regression:
 
-- discard and rebuild the volume only when cache and persisted dataset data are
-  disposable; or
+- discard and rebuild the volume only when cache, persisted dataset data, and
+  retained run history are disposable; or
 - restore the pre-deployment dump into a fresh volume when it must be retained.
 
 Never rewrite an applied migration, remove its checksum row, or improvise a

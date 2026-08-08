@@ -24,6 +24,10 @@ Application errors use a stable object containing `error` and `detail`.
 | `GET` | `/api/v1/evaluations/datasets/persisted/{dataset_id}` | Read persisted metadata and ordered cases |
 | `DELETE` | `/api/v1/evaluations/datasets/persisted/{dataset_id}` | Delete one persisted dataset and its cases |
 | `POST` | `/api/v1/evaluations/runs` | Run a built-in, inline, or persisted evaluation dataset |
+| `GET` | `/api/v1/evaluations/runs` | List authorized retained aggregate evaluation history |
+| `GET` | `/api/v1/evaluations/runs/{run_id}` | Read one authorized retained aggregate run |
+| `DELETE` | `/api/v1/evaluations/runs/{run_id}` | Delete one retained run from a concrete namespace |
+| `POST` | `/api/v1/evaluations/runs/compare` | Compare exactly two retained runs with server-backed compatibility checks |
 | `GET` | `/api/v1/metrics` | Read process-local aggregate metrics (global admin only) |
 | `GET` | `/health` | Read application and provider-type health |
 
@@ -237,6 +241,61 @@ A persisted run uses:
 The run still uses a fresh isolated in-memory evaluation cache. Persisting a
 dataset does not change threshold execution, cache decisions, provider calls,
 limits, response projections, or live-cache behavior.
+
+### Durable evaluation run history
+
+Run history is independently opt-in with
+`EVALUATION_RUN_HISTORY_STORAGE=postgres`. PostgreSQL mode requires
+`DATABASE_URL` plus explicit positive retention, per-namespace capacity, and
+cleanup batch settings.
+
+History is aggregate-only: it never retains `query_results`, prompts, generated
+responses, matched prompts, matched cache keys, embeddings, or the destroyed
+run-local cache. Accepted runs may retain terminal `completed`, `failed`, or
+`timed_out` records. Cancellation and pre-execution validation/authorization
+failures are not retained.
+
+Built-in history uses `history_namespace`; a sole concrete namespace may be
+inferred, while multi-namespace and wildcard/global principals must choose a
+concrete namespace. `*` is never retained ownership. Persisted runs inherit the
+source dataset namespace, and unsaved inline runs remain non-durable.
+
+`GET /api/v1/evaluations/runs` and detail require Viewer access. Scoped foreign
+and missing IDs share the same not-found behavior. Admin deletion is always
+concrete-namespace scoped. Deleting a persisted source dataset cascades to its
+retained runs.
+
+History retention is auxiliary: a successful evaluation remains successful if
+history persistence fails and reports `history_retention.state="retention_failed"`.
+
+### Retained run comparison
+
+`POST /api/v1/evaluations/runs/compare` requires Viewer access and accepts two
+distinct run IDs:
+
+```json
+{
+  "baseline_run_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "candidate_run_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}
+```
+
+The server resolves both runs through authorized namespace scope before
+compatibility checks. Hard blockers include namespace, terminal state, dataset
+schema/digest, embedding dimensions/space, normalization, repetitions, reset
+policy, comparison-contract version, and threshold-evaluation mode.
+
+Warnings keep comparison available for generation provider/configuration,
+application version, cost assumptions, timeout, projection-list differences,
+and comparable persisted content saved under different record identities. A
+measured-threshold change is not itself a warning.
+
+Deltas are candidate minus baseline. Threshold deltas cover only shared
+projection thresholds. The opaque overall configuration fingerprint is
+explanatory only, never a hard gate. `case_evidence` is `"not_retained"`.
+
+See [Durable evaluation run history and comparison](../guides/evaluation-history.md)
+for retention, exact compatibility codes, metric semantics, and recovery.
 
 ## Cache inspector query
 

@@ -12,6 +12,7 @@ root [README](../README.md) remains the short project overview and quick start.
 | [pgvector](guides/pgvector.md) | Persistent cache storage, ports, migrations, and database verification |
 | [Cache policies](guides/cache-policies.md) | Thresholds, TTL, LRU, namespaces, privacy, and request coalescing |
 | [Benchmarking](guides/benchmarking.md) | Datasets, metrics, safeguards, projections, and exports |
+| [Evaluation history](guides/evaluation-history.md) | Durable aggregate run history, retention, namespaces, comparison compatibility, and recovery |
 | [Prompt normalization](guides/prompt-typo-normalization.md) | Optional typo-correction behavior and limitations |
 | [Development](guides/development.md) | Supported toolchains, quality checks, architecture rules, and contributions |
 

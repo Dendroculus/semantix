@@ -133,7 +133,14 @@ capacity is 100 active records per namespace. Identical content may be saved
 again as a separate record with the same digest. Expired content disappears
 from catalog and run access and is purged opportunistically in bounded batches.
 No run summary, per-query result, generated response, embedding, or live-cache
-entry is persisted.
+entry is persisted by the **dataset catalog**. Durable aggregate run history is
+a separate opt-in feature controlled by `EVALUATION_RUN_HISTORY_STORAGE`; see
+[Durable evaluation run history and comparison](evaluation-history.md).
+
+When run history is enabled, built-in runs require a concrete history namespace
+unless the authenticated principal has exactly one concrete namespace that the
+server can infer. Persisted runs inherit the source dataset namespace. Unsaved
+inline datasets remain non-durable.
 
 The backend separately applies `EVALUATION_TIMEOUT_SECONDS` (300 seconds by
 default, validated from greater than zero through 3,600). A timeout returns the
@@ -216,8 +223,11 @@ workspace. Case details also distinguish the measured threshold from the
 frozen-candidate projection charts and never offer automatic threshold
 application.
 
-Results and filters are discarded on reload. Export remains the only durable
-action for run evidence; saving a dataset never saves a run.
+The complete per-query result and local filters are discarded on reload unless
+the user exports them. When PostgreSQL run history is enabled, Semantix may
+retain the terminal **aggregate** run record separately, but it never stores the
+per-query prompts, generated responses, matched prompts, matched cache keys, or
+run-local cache. Saving a dataset alone never saves a run.
 
 ## Export formats
 
@@ -268,3 +278,8 @@ Record at least:
 
 Do not compare runs as though only the threshold changed when another item in
 that list also changed.
+
+For retained runs, prefer the server-backed comparison endpoint and History UI.
+They enforce explicit compatibility blockers, surface configuration warnings,
+and calculate candidate-minus-baseline aggregate deltas. See
+[Durable evaluation run history and comparison](evaluation-history.md).

@@ -27,6 +27,11 @@ EVALUATION_DATASET_DEFAULT_RETENTION_DAYS=30
 EVALUATION_DATASET_MAX_RETENTION_DAYS=365
 EVALUATION_DATASET_MAX_PERSISTED_PER_NAMESPACE=100
 EVALUATION_DATASET_CLEANUP_BATCH_SIZE=100
+
+EVALUATION_RUN_HISTORY_STORAGE=disabled
+EVALUATION_RUN_HISTORY_RETENTION_DAYS=
+EVALUATION_RUN_HISTORY_MAX_PER_NAMESPACE=
+EVALUATION_RUN_HISTORY_CLEANUP_BATCH_SIZE=
 ```
 
 The value must be greater than zero and no more than 3,600 seconds. It bounds
@@ -39,9 +44,17 @@ count, canonical decoded UTF-8 content, and `cases × repetitions` query work.
 Accepted ranges are 1–500 cases, 1,024–1,048,576 decoded bytes, and 1–2,500
 query executions. Keep these limits within the capacity and data-handling
 policy of the deployment; threshold projections do not repeat provider work.
-The `session` storage default opens no database when the live cache also uses
-memory. Set storage to `postgres` only after configuring the database,
-retention, namespace capacity, backup, and recovery policy.
+The `session` dataset-storage default opens no database when the live cache
+uses memory and run history is disabled. Set dataset storage to `postgres` only
+after configuring the database, retention, namespace capacity, backup, and
+recovery policy.
+
+Durable run history is independently disabled by default. Setting
+`EVALUATION_RUN_HISTORY_STORAGE=postgres` requires `DATABASE_URL` plus explicit
+positive values for retention days, per-namespace capacity, and cleanup batch
+size. History retains terminal aggregate evidence only. Persisted-dataset run
+history cannot outlive its source dataset, and deleting that dataset cascades
+to retained history.
 
 Run a TLS reverse proxy on the host and forward to `127.0.0.1:8080`. Public plaintext HTTP is unsupported.
 
@@ -182,9 +195,9 @@ being treated as equivalent protection.
 
 | Role | Allowed operations |
 |---|---|
-| `viewer` | Read permitted cache metadata, threshold state, built-in datasets, and namespace-authorized persisted dataset metadata/cases |
+| `viewer` | Read permitted cache metadata, threshold state, built-in datasets, namespace-authorized persisted dataset metadata/cases, and authorized retained run history/comparisons |
 | `operator` | All viewer operations plus provider-backed queries, session-local validation, explicit dataset persistence, and evaluation runs |
-| `admin` | All operator operations plus cache deletion, namespace clear, and persisted dataset deletion |
+| `admin` | All operator operations plus cache deletion, namespace clear, persisted dataset deletion, and retained run-history deletion |
 
 Updating the global similarity threshold and reading process-wide runtime
 metrics require an `admin` principal with `namespaces:["*"]`. A namespace
@@ -197,9 +210,14 @@ Every principal receives one or more namespaces. A non-global principal cannot q
 
 When a principal has exactly one namespace, scoped operations without a
 namespace are automatically limited to it. Principals with multiple namespaces
-must select one for creation. Only `namespaces:["*"]` can list globally, and a
-wildcard administrator must provide an explicit namespace for persisted
-dataset create, delete, and run operations.
+must select one for creation. Only `namespaces:["*"]` can list globally. The
+`*` marker is authorization scope, never persisted ownership: wildcard
+administrators must provide a concrete namespace for persisted dataset create,
+delete, built-in history retention, and retained-history deletion. Persisted
+runs inherit their source dataset namespace.
+
+Scoped history access preserves non-disclosure: foreign and missing retained
+run IDs use the same not-found behavior.
 
 This is server-side authorization. Frontend controls are not treated as a security boundary.
 
@@ -249,9 +267,9 @@ responses.
 `GET /health` confirms the process can answer and reports only configured provider types. It is cheap and unrate-limited.
 
 `GET /ready` verifies the active cache dependency and, when enabled, the
-persistent evaluation dataset repository. It reports both configured modes and
-does not call hosted embedding or generation providers. A later PostgreSQL
-outage produces HTTP `503`.
+persistent evaluation dataset repository and durable run-history repository. It
+reports configured storage modes and does not call hosted embedding or
+generation providers. A later PostgreSQL outage produces HTTP `503`.
 
 ## Database roles and migrations
 
@@ -264,8 +282,9 @@ The initialization script creates the runtime login. The one-shot `migrate`
 service connects with `MIGRATION_DATABASE_URL`, applies migrations for the
 enabled cache and evaluation storage features, grants their runtime privileges,
 and exits. Cache migration `0001` installs pgvector and cache tables;
-evaluation migration `0002` adds dataset and case tables. The backend starts
-only after that job succeeds.
+evaluation migration `0002` adds dataset and case tables; migration `0003`
+adds exactly two aggregate history tables, `evaluation_runs` and
+`evaluation_run_thresholds`. The backend starts only after that job succeeds.
 
 Applied migrations record a SHA-256 checksum. Startup rejects a packaged
 migration whose contents no longer match its recorded checksum. A legacy
@@ -273,10 +292,11 @@ migration whose contents no longer match its recorded checksum. A legacy
 tables and required columns are verified; later checksum-less versions fail
 closed and require operator review.
 
-One PostgreSQL pool is shared when both pgvector cache and persistent
-evaluation storage are enabled. A memory live cache can use PostgreSQL
-evaluation storage independently; conversely, pgvector cache can keep
-evaluation imports session-only.
+One PostgreSQL pool is shared by whichever PostgreSQL-backed Semantix features
+are enabled: pgvector cache, persisted evaluation datasets, and durable run
+history. A memory live cache can use either evaluation persistence feature
+independently; pgvector cache can keep datasets session-only and history
+disabled.
 
 The backend receives only `DATABASE_URL` for the runtime role and sets:
 
